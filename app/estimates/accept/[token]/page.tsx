@@ -3,14 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 export default async function AcceptEstimatePage({
   params,
 }: {
-  params: { token: string };
+  params: Promise<{ token: string }>;
 }) {
+  const { token } = await params;
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
-
-  const { token } = params;
 
   // Find quote by accept token
   const { data: quote } = await supabase

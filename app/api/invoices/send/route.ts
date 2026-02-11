@@ -80,11 +80,11 @@ return NextResponse.json({ ok: false, error: "Provide text or html" }, { status:
 const resend = new Resend(apiKey);
 
 const result = await resend.emails.send({
-from,
-to,
-subject,
-text: text || undefined,
-html,
+  from,
+  to,
+  subject,
+  text: text || "",
+  html: html || "",
 });
 
 // Resend returns { data, error }

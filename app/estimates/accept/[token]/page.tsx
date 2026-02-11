@@ -1,10 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
-type Props = {
+export default async function AcceptEstimatePage({
+  params,
+}: {
   params: { token: string };
-};
-
-export default async function AcceptEstimatePage({ params }: Props) {
+}) {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!

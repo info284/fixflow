@@ -13,13 +13,13 @@ export default async function AcceptEstimatePage({
   );
 
   // Find quote by accept token
-  const { data: quote } = await supabase
+  const { data: quote, error } = await supabase
     .from("quotes")
     .select("id, status, customer_name")
     .eq("accept_token", token)
     .maybeSingle();
 
-  if (!quote) {
+  if (error || !quote) {
     return (
       <div style={{ padding: 40 }}>
         <h1>Estimate not found</h1>
@@ -32,15 +32,35 @@ export default async function AcceptEstimatePage({
   if (quote.status !== "accepted") {
     await supabase
       .from("quotes")
-      .update({ status: "accepted", accepted_at: new Date().toISOString() })
+      .update({
+        status: "accepted",
+        accepted_at: new Date().toISOString(),
+      })
       .eq("id", quote.id);
   }
 
   return (
-    <div style={{ maxWidth: 600, margin: "60px auto", fontFamily: "system-ui" }}>
-      <h1>Estimate accepted ✅</h1>
-      <p>Thank you{quote.customer_name ? `, ${quote.customer_name}` : ""}.</p>
-      <p>Your trader has been notified and will be in touch.</p>
+    <div
+      style={{
+        maxWidth: 600,
+        margin: "60px auto",
+        fontFamily: "system-ui",
+        padding: 20,
+        textAlign: "center",
+      }}
+    >
+      <h1 style={{ fontSize: 28, marginBottom: 20 }}>
+        Estimate accepted ✅
+      </h1>
+
+      <p style={{ fontSize: 16, marginBottom: 10 }}>
+        Thank you
+        {quote.customer_name ? `, ${quote.customer_name}` : ""}.
+      </p>
+
+      <p style={{ fontSize: 14, color: "#555" }}>
+        Your trader has been notified and will be in touch shortly.
+      </p>
     </div>
   );
 }

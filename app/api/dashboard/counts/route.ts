@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
 async function supabaseServer() {
-  const cookieStore = await cookies(); // ✅ Next 15: cookies() is async
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,19 +15,15 @@ async function supabaseServer() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: "", ...options });
-        },
       },
     }
   );
 }
 
+const getCount = (r: any) => (r?.error ? 0 : r?.count ?? 0);
+
 export async function GET() {
-  const supabase = await supabaseServer(); // ✅ await
+  const supabase = await supabaseServer();
 
   const {
     data: { user },
@@ -40,51 +36,72 @@ export async function GET() {
     );
   }
 
-  const [messages, requests, quotes, bookings, invoices] = await Promise.all([
+  const traderId = user.id;
+
+  const [
+    enquiriesAll,
+    enquiriesUnread,
+    enquiriesNotReplied,
+    estimates,
+    bookings,
+    invoices,
+  ] = await Promise.all([
+    // ALL enquiries
     supabase
       .from("quote_requests")
       .select("id", { head: true, count: "exact" })
-      .eq("status", "requested")
-      .is("plumber_id", null),
+      .eq("plumber_id", traderId),
 
+    // UNREAD enquiries
     supabase
-      .from("requests")
+      .from("quote_requests")
       .select("id", { head: true, count: "exact" })
-      .eq("user_id", user.id),
+      .eq("plumber_id", traderId)
+      .is("read_at", null),
 
+    // NOT REPLIED enquiries  ✅ THIS = NEW ENQUIRIES
+    supabase
+      .from("quote_requests")
+      .select("id", { head: true, count: "exact" })
+      .eq("plumber_id", traderId)
+      .not("status", "ilike", "%replied%"),
+
+    // ESTIMATES
     supabase
       .from("quotes")
       .select("id", { head: true, count: "exact" })
-      .eq("user_id", user.id),
+      .eq("plumber_id", traderId),
 
+    // BOOKINGS
     supabase
-      .from("bookings")
+      .from("requests")
       .select("id", { head: true, count: "exact" })
-      .eq("user_id", user.id),
+      .eq("user_id", traderId)
+      .or("status.eq.booked,calendar_event_id.not.is.null,calendar_html_link.not.is.null"),
 
+    // INVOICES
     supabase
       .from("invoices")
       .select("id", { head: true, count: "exact" })
-      .eq("user_id", user.id),
+      .eq("user_id", traderId),
   ]);
-
-  const getCount = (r: any) => (r?.error ? 0 : r?.count ?? 0);
 
   return NextResponse.json({
     ok: true,
     counts: {
-      messages: getCount(messages),
-      requests: getCount(requests),
-      quotes: getCount(quotes),
+      // 👇 used by inbox page tabs
+      enquiries_all: getCount(enquiriesAll),
+      enquiries_unread: getCount(enquiriesUnread),
+      enquiries_notReplied: getCount(enquiriesNotReplied),
+
+      // 👇 sidebar badge
+      enquiries: getCount(enquiriesNotReplied),
+
+      // 👇 dashboard cards
+      messages: getCount(enquiriesNotReplied), // New enquiries card
+      quotes: getCount(estimates),
       bookings: getCount(bookings),
       invoices: getCount(invoices),
-    },
-    errors: {
-      messages: messages.error?.message ?? null,
-      requests: requests.error?.message ?? null,
-      quotes: quotes.error?.message ?? null,
-      bookings: bookings.error?.message ?? null,
-      invoices: invoices.error?.message ?? null,
     },
   });
 }

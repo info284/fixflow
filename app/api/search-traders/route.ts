@@ -4,8 +4,9 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-function getSupabase() {
-  const cookieStore = cookies();
+async function getSupabase() {
+  const cookieStore = await cookies();
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -14,20 +15,14 @@ function getSupabase() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          cookieStore.set({ name, value: "", ...options });
-        },
+        // In route handlers cookies can be read-only; keep these safe:
+        set() {},
+        remove() {},
       },
     }
   );
 }
 
-// Extract UK postcode prefix like:
-// "RH15 1AA" -> "RH15"
-// "BN1" -> "BN1"
 function postcodePrefix(input: string) {
   const clean = (input || "").trim().toUpperCase();
   if (!clean) return "";
@@ -36,7 +31,7 @@ function postcodePrefix(input: string) {
 }
 
 export async function POST(req: Request) {
-  const supabase = getSupabase();
+  const supabase = await getSupabase(); // ✅ MUST await
 
   const body = await req.json().catch(() => null);
   const postcode = (body?.postcode as string | undefined) || "";
@@ -51,8 +46,6 @@ export async function POST(req: Request) {
     );
   }
 
-  // 1) Find all user_ids who cover that prefix
-  // NOTE: your schema stores prefix inside locations.area
   const { data: locs, error: locErr } = await supabase
     .from("locations")
     .select("user_id, area")
@@ -65,15 +58,12 @@ export async function POST(req: Request) {
     );
   }
 
-  const userIds = Array.from(new Set((locs || []).map((x) => x.user_id))).filter(
-    Boolean
-  );
+  const userIds = Array.from(new Set((locs || []).map((x) => x.user_id))).filter(Boolean);
 
   if (userIds.length === 0) {
     return NextResponse.json({ ok: true, traders: [] });
   }
 
-  // 2) Only keep traders who have at least one service in this trade
   const { data: svcRows, error: svcErr } = await supabase
     .from("services")
     .select("user_id")
@@ -93,7 +83,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, traders: [] });
   }
 
-  // 3) Load trader public profile info
   const { data: profs, error: profErr } = await supabase
     .from("profiles")
     .select("id, display_name, slug, headline, logo_url")
@@ -106,14 +95,13 @@ export async function POST(req: Request) {
     );
   }
 
-  const traders =
-    (profs || []).map((p) => ({
-      user_id: p.id,
-      display_name: p.display_name,
-      slug: p.slug,
-      headline: p.headline,
-      logo_url: p.logo_url,
-    })) || [];
+  const traders = (profs || []).map((p) => ({
+    user_id: p.id,
+    display_name: p.display_name,
+    slug: p.slug,
+    headline: p.headline,
+    logo_url: p.logo_url,
+  }));
 
   return NextResponse.json({ ok: true, traders });
 }

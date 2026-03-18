@@ -12,22 +12,19 @@ type Trader = {
 
 async function getTrader(slug: string): Promise<Trader | null> {
   const res = await fetch(
-    `http://localhost:3001/api/trades/by-slug?slug=${slug}`,
+    `${process.env.NEXT_PUBLIC_SITE_URL || ""}/api/trades/by-slug?slug=${slug}`,
     { cache: "no-store" }
   );
 
   if (!res.ok) return null;
 
   const json = await res.json();
-
   return json.trader ?? null;
 }
 
 export default async function Page({
   params,
-}: {
-  params: { slug: string };
-}) {
+}: any) {
   const trader = await getTrader(params.slug);
 
   return <QuoteClient slug={params.slug} initialTrader={trader} />;

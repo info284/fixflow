@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 type Mode = "password" | "magic";
 
@@ -66,22 +67,31 @@ export default function LoginClient() {
     }
   }
 
-  // ------------------------------------------------------------
-  // 🔁 Replace these with YOUR existing auth calls
-  async function signInWithPassword(email: string, password: string) {
-    // const { error } = await supabase.auth.signInWithPassword({ email, password });
-    // if (error) throw error;
-    await new Promise((r) => setTimeout(r, 400));
-  }
 
-  async function sendMagicLink(email: string) {
-    // const { error } = await supabase.auth.signInWithOtp({
-    //   email,
-    //   options: { emailRedirectTo: `${location.origin}/app` },
-    // });
-    // if (error) throw error;
-    await new Promise((r) => setTimeout(r, 400));
-  }
+
+async function signInWithPassword(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) throw error;
+
+  await new Promise((r) => setTimeout(r, 800));
+  window.location.href = "/dashboard";
+}
+
+async function sendMagicLink(email: string) {
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo:
+        "https://fixflow-896m-ka2kl7gvc-anna-dowlings-projects.vercel.app/dashboard",
+    },
+  });
+
+  if (error) throw error;
+}
   // ------------------------------------------------------------
 
   const Stroke = ({ intensity = 1 }: { intensity?: number }) => {

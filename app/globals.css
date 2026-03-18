@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@import "tailwindcss";
+
+/* app/globals.css */
+:root {
+  --bg: #f4f7fb;
+
+  /* Text system */
+  --text-strong: #0f172a;   /* slate-900 */
+  --text: #334155;          /* slate-700 */
+  --text-muted: #475569;    /* slate-600 */
+  --text-subtle: #64748b;   /* slate-500 */
+}
+.ff-muted {
+  color: var(--text-muted);
+}
+
+.ff-mutedSmall {
+  color: var(--text-subtle);
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+
+  /* ✅ This controls the font everywhere */
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+
+  /* ✅ This controls the overall text size everywhere */
+  font-size: 15px;           /* try 15px or 16px */
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* -----------------------
+   Utility Styles (Cleaned Up)
+------------------------ */
+
+.container {
+  max-width: 1100px; /* slightly wider = more SaaS feel */
+  margin: 0 auto;
+  padding: 28px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  padding: 20px;
+}
+
+.btn {
+  display: inline-block;
+  background: #111;
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.btn:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  font-size: 15px; /* ✅ upgraded from default */
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #1f6fff;
+  box-shadow: 0 0 0 3px rgba(31, 111, 255, 0.12);
+}
+
+.label {
+  font-size: 14px; /* ✅ upgraded from 13px */
+  color: #444;
+  margin-bottom: 6px;
+  display: block;
+  font-weight: 500;
+}
+/* FixFlow Dashboard Typography Lock */
+.ff-dashboardText {
+  font-size: 15px;
+  line-height: 1.4;
+}
+.ff-quoteText {
+  font-size: 15px;       /* base */
+  line-height: 1.5;
+}
+
+@media (min-width: 768px) {
+  .ff-quoteText { font-size: 16px; }
+}

@@ -27,10 +27,11 @@ function supabaseAdmin() {
 
 export async function GET(
   _req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const requestId = String(params?.id || "").trim();
+    const { id } = await params;
+    const requestId = String(id || "").trim();
 
     if (!requestId) {
       return json(400, { error: "Missing request id" });
@@ -38,12 +39,9 @@ export async function GET(
 
     const supabase = supabaseAdmin();
 
-    // ✅ Get enquiry
     const { data: enquiry, error: enquiryErr } = await supabase
       .from("quote_requests")
-      .select(
-        "id, customer_name, customer_email, job_type, plumber_id"
-      )
+      .select("id, customer_name, customer_email, job_type, plumber_id")
       .eq("id", requestId)
       .maybeSingle();
 
@@ -55,7 +53,6 @@ export async function GET(
       return json(404, { error: "Enquiry not found" });
     }
 
-    // ✅ Get trader profile
     const { data: trader } = await supabase
       .from("profiles")
       .select("display_name, business_name")
@@ -67,12 +64,9 @@ export async function GET(
       trader?.display_name ||
       "Your trader";
 
-    // ✅ Get messages
     const { data: messages, error: msgErr } = await supabase
       .from("enquiry_messages")
-      .select(
-        "id, direction, body_text, subject, created_at"
-      )
+      .select("id, direction, body_text, subject, created_at")
       .eq("request_id", requestId)
       .order("created_at", { ascending: true });
 

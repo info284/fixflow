@@ -1,82 +1,200 @@
 import { NextResponse } from "next/server";
-import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
+import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+/* =========================
+   TYPES
+========================= */
 
-type QuoteRequestRow = {
-  id: string;
-  customer_name: string | null;
-  customer_email: string | null;
-  customer_phone: string | null;
-  postcode: string | null;
-  address: string | null;
-  job_type: string | null;
-  urgency: string | null;
-  details: string | null;
-  budget: string | null;
-  property_type: string | null;
-  problem_location: string | null;
-  has_happened_before: string | null;
-  is_still_working: string | null;
+type AiRecommendedAction =
+  | "reply_now"
+  | "book_visit"
+  | "send_estimate"
+  | "ask_for_photos"
+  | "low_priority"
+  | "follow_up";
+
+type AiResult = {
+  urgency_score: number;
+  job_value_band: "low" | "medium" | "high";
+  conversion_score: number;
+  recommended_action: AiRecommendedAction;
+  summary: string;
+  suggested_reply: string;
 };
 
-type AIAnalysis = {
-  urgency_score?: number;
-  conversion_score?: number;
-  job_value_band?: "low" | "medium" | "high";
-  recommended_action?:
-    | "reply_now"
-    | "book_visit"
-    | "send_estimate"
-    | "ask_for_photos"
-    | "low_priority";
-  summary?: string;
-  suggested_reply?: string;
-};
+/* =========================
+   HELPERS
+========================= */
+
+function createSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !serviceKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  return createClient(url, serviceKey, {
+    auth: { persistSession: false },
+  });
+}
+
+function createSupabaseAnon() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anonKey) {
+    throw new Error("Missing Supabase anon environment variables");
+  }
+
+  return createClient(url, anonKey, {
+    auth: { persistSession: false },
+  });
+}
+
+async function getAuthedUserId(req: Request) {
+  const authHeader = req.headers.get("authorization") || "";
+  const token = authHeader.toLowerCase().startsWith("bearer ")
+    ? authHeader.slice(7).trim()
+    : "";
+
+  if (!token) return null;
+
+  const supabaseAnon = createSupabaseAnon();
+  const { data, error } = await supabaseAnon.auth.getUser(token);
+
+  if (error || !data?.user?.id) return null;
+  return data.user.id;
+}
+
+function safeJsonParse(content: string): AiResult | null {
+  try {
+    const parsed = JSON.parse(content);
+
+    return {
+      urgency_score: clampNumber(parsed?.urgency_score, 0, 100, 50),
+      job_value_band: normaliseBand(parsed?.job_value_band),
+      conversion_score: clampNumber(parsed?.conversion_score, 0, 100, 50),
+      recommended_action: normaliseAction(parsed?.recommended_action),
+      summary: String(parsed?.summary || "").trim(),
+      suggested_reply: String(parsed?.suggested_reply || "").trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function clampNumber(
+  value: unknown,
+  min: number,
+  max: number,
+  fallback: number
+) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+function normaliseBand(value: unknown): "low" | "medium" | "high" {
+  const v = String(value || "").trim().toLowerCase();
+  if (v === "low" || v === "medium" || v === "high") return v;
+  return "medium";
+}
+
+function normaliseAction(value: unknown): AiRecommendedAction {
+  const v = String(value || "").trim().toLowerCase();
+
+  if (
+    v === "reply_now" ||
+    v === "book_visit" ||
+    v === "send_estimate" ||
+    v === "ask_for_photos" ||
+    v === "low_priority" ||
+    v === "follow_up"
+  ) {
+    return v;
+  }
+
+  return "reply_now";
+}
+
+function buildFallbackReply(input: {
+  customerName?: string | null;
+  recommendedAction: AiRecommendedAction;
+  jobType?: string | null;
+}) {
+  const customerName = String(input.customerName || "there").trim();
+  const jobType = String(input.jobType || "the job").trim();
+
+  if (input.recommendedAction === "ask_for_photos") {
+    return `Hi ${customerName}, thanks for your message. Please could you send over a few photos of ${jobType} so I can advise properly and work out the next step?`;
+  }
+
+  if (input.recommendedAction === "book_visit") {
+    return `Hi ${customerName}, thanks for your message. This looks like something I’d need to see in person before confirming the price. Let me know a couple of times that suit you and I can get a visit booked in.`;
+  }
+
+  if (input.recommendedAction === "send_estimate") {
+    return `Hi ${customerName}, thanks for your message. I’ve had a look and I should be able to put an estimate together for you shortly. I’ll send that over as soon as I can.`;
+  }
+
+  if (input.recommendedAction === "follow_up") {
+    return `Hi ${customerName}, just checking in on this one in case you still need help. Let me know if you’d like to go ahead or if you have any questions.`;
+  }
+
+  if (input.recommendedAction === "low_priority") {
+    return `Hi ${customerName}, thanks for your message. I’ve got this and I’ll come back to you as soon as I can.`;
+  }
+
+  return `Hi ${customerName}, thanks for your message. I’ve had a look and I’ll get back to you shortly.`;
+}
+
+/* =========================
+   ROUTE
+========================= */
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
+    const userId = await getAuthedUserId(req);
+
+    if (!userId) {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    const openaiKey = process.env.OPENAI_API_KEY;
+
+    if (!openaiKey) {
       return NextResponse.json(
-        { error: "OPENAI_API_KEY is missing" },
-        { status: 500 },
+        { error: "Missing OPENAI_API_KEY" },
+        { status: 500 }
       );
     }
 
-    if (
-      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
-      !process.env.SUPABASE_SERVICE_ROLE_KEY
-    ) {
-      return NextResponse.json(
-        { error: "Supabase server env vars are missing" },
-        { status: 500 },
-      );
-    }
+    const openai = new OpenAI({
+      apiKey: openaiKey,
+    });
 
     const body = await req.json();
-    const enquiryId =
-      typeof body?.enquiryId === "string" ? body.enquiryId : undefined;
+    const enquiryId = String(body?.enquiryId || "").trim();
 
     if (!enquiryId) {
       return NextResponse.json(
         { error: "Missing enquiryId" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const { data: enquiry, error: enquiryError } = await supabaseAdmin
+    const supabase = createSupabaseAdmin();
+
+    const { data: enquiry, error: enquiryError } = await supabase
       .from("quote_requests")
-      .select(
-        `
+      .select(`
         id,
+        plumber_id,
         customer_name,
         customer_email,
         customer_phone,
@@ -85,214 +203,212 @@ export async function POST(req: Request) {
         job_type,
         urgency,
         details,
+        status,
+        stage,
+        created_at,
+        trader_notes,
         budget,
         property_type,
-        problem_location,
-        has_happened_before,
-        is_still_working
-      `,
-      )
+        ai_urgency_score,
+        ai_job_value_band,
+        ai_conversion_score,
+        ai_recommended_action,
+        ai_summary,
+        ai_suggested_reply
+      `)
       .eq("id", enquiryId)
-      .single<QuoteRequestRow>();
+      .eq("plumber_id", userId)
+      .maybeSingle();
 
-    if (enquiryError || !enquiry) {
+    if (enquiryError) {
       return NextResponse.json(
-        { error: enquiryError?.message || "Enquiry not found" },
-        { status: 404 },
+        { error: enquiryError.message },
+        { status: 500 }
       );
     }
 
-    const prompt = buildPrompt(enquiry);
+    if (!enquiry) {
+      return NextResponse.json(
+        { error: "Enquiry not found" },
+        { status: 404 }
+      );
+    }
 
-    let raw = "";
+    const { data: messages, error: messagesError } = await supabase
+      .from("enquiry_messages")
+      .select(`
+        id,
+        direction,
+        channel,
+        subject,
+        body_text,
+        from_email,
+        to_email,
+        created_at
+      `)
+      .eq("request_id", enquiryId)
+      .order("created_at", { ascending: true });
 
-    try {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
-        temperature: 0.3,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You analyse trade enquiries and return valid JSON only. No markdown. No extra text.",
-          },
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
+    if (messagesError) {
+      return NextResponse.json(
+        { error: messagesError.message },
+        { status: 500 }
+      );
+    }
+
+    const { data: estimates, error: estimatesError } = await supabase
+      .from("estimates")
+      .select(`
+        id,
+        status,
+        subtotal,
+        vat,
+        total,
+        created_at,
+        accepted_at,
+        first_viewed_at,
+        last_viewed_at,
+        view_count
+      `)
+      .eq("request_id", enquiryId)
+      .eq("plumber_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (estimatesError) {
+      return NextResponse.json(
+        { error: estimatesError.message },
+        { status: 500 }
+      );
+    }
+
+    const { data: visits, error: visitsError } = await supabase
+      .from("site_visits")
+      .select(`
+        id,
+        starts_at,
+        duration_mins,
+        created_at
+      `)
+      .eq("request_id", enquiryId)
+      .eq("plumber_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (visitsError) {
+      return NextResponse.json(
+        { error: visitsError.message },
+        { status: 500 }
+      );
+    }
+
+    const enquiryPayload = {
+      enquiry,
+      messages: messages || [],
+      estimates: estimates || [],
+      visits: visits || [],
+    };
+
+    const systemPrompt = `
+You are an AI assistant for FixFlow, a trades enquiry app for plumbers and similar trades.
+
+Your job is to analyse one enquiry and return JSON only.
+
+Rules:
+- Be practical, concise, and commercially useful.
+- urgency_score must be a number from 0 to 100.
+- conversion_score must be a number from 0 to 100.
+- job_value_band must be one of: low, medium, high.
+- recommended_action must be one of:
+  reply_now, book_visit, send_estimate, ask_for_photos, low_priority, follow_up
+- summary must be 1 to 3 short sentences.
+- suggested_reply must sound natural, human, and helpful. No markdown. No emojis.
+- If enough detail exists and it sounds quotable remotely, prefer send_estimate.
+- If more visual/detail info is needed, prefer ask_for_photos.
+- If it clearly needs seeing in person, prefer book_visit.
+- If the customer is waiting on a response, prefer reply_now.
+- If the trader already sent something and it is time to chase, prefer follow_up.
+
+Return strictly valid JSON with this shape:
+{
+  "urgency_score": 72,
+  "job_value_band": "medium",
+  "conversion_score": 68,
+  "recommended_action": "reply_now",
+  "summary": "Customer has given decent detail and looks genuine. They are waiting for a reply and this could likely move forward quickly.",
+  "suggested_reply": "Hi Sarah, thanks for your message..."
+}
+`.trim();
+
+    const userPrompt = `
+Analyse this enquiry data and return JSON only.
+
+${JSON.stringify(enquiryPayload, null, 2)}
+`.trim();
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.3,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+
+    const content =
+      completion.choices?.[0]?.message?.content?.trim() || "";
+
+    const parsed = safeJsonParse(content);
+
+    if (!parsed) {
+      return NextResponse.json(
+        { error: "AI returned invalid JSON", raw: content },
+        { status: 500 }
+      );
+    }
+
+    const summary =
+      parsed.summary || "This enquiry has been analysed by AI.";
+    const suggestedReply =
+      parsed.suggested_reply ||
+      buildFallbackReply({
+        customerName: enquiry.customer_name,
+        recommendedAction: parsed.recommended_action,
+        jobType: enquiry.job_type,
       });
 
-      raw = completion.choices[0]?.message?.content?.trim() || "";
-    } catch (error: any) {
-      console.error("OpenAI analyse error:", {
-        message: error?.message,
-        status: error?.status,
-        code: error?.code,
-        type: error?.type,
-      });
+    const updatePayload = {
+      ai_urgency_score: parsed.urgency_score,
+      ai_job_value_band: parsed.job_value_band,
+      ai_conversion_score: parsed.conversion_score,
+      ai_recommended_action: parsed.recommended_action,
+      ai_summary: summary,
+      ai_suggested_reply: suggestedReply,
+      ai_last_processed_at: new Date().toISOString(),
+    };
 
-      return NextResponse.json(
-        {
-          error:
-            error?.message || "OpenAI request failed while analysing enquiry",
-        },
-        { status: error?.status || 500 },
-      );
-    }
-
-    if (!raw) {
-      return NextResponse.json(
-        { error: "AI returned no content" },
-        { status: 500 },
-      );
-    }
-
-    let parsed: AIAnalysis;
-
-    try {
-      parsed = JSON.parse(raw) as AIAnalysis;
-    } catch {
-      console.error("AI returned invalid JSON:", raw);
-
-      return NextResponse.json(
-        { error: "AI response was not valid JSON", raw },
-        { status: 500 },
-      );
-    }
-
-    const urgencyScore = clampScore(parsed.urgency_score);
-    const conversionScore = clampScore(parsed.conversion_score);
-    const jobValueBand = normaliseValueBand(parsed.job_value_band);
-    const recommendedAction = normaliseAction(parsed.recommended_action);
-    const summary = safeText(parsed.summary, 500);
-    const suggestedReply = safeText(parsed.suggested_reply, 2000);
-
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await supabase
       .from("quote_requests")
-      .update({
-        ai_urgency_score: urgencyScore,
-        ai_job_value_band: jobValueBand,
-        ai_conversion_score: conversionScore,
-        ai_recommended_action: recommendedAction,
-        ai_summary: summary,
-        ai_suggested_reply: suggestedReply,
-        ai_last_processed_at: new Date().toISOString(),
-      })
-      .eq("id", enquiryId);
+      .update(updatePayload)
+      .eq("id", enquiryId)
+      .eq("plumber_id", userId);
 
     if (updateError) {
       return NextResponse.json(
-        {
-          error: "Failed to save AI analysis",
-          details: updateError.message,
-        },
-        { status: 500 },
+        { error: updateError.message },
+        { status: 500 }
       );
     }
 
     return NextResponse.json({
-      success: true,
+      ok: true,
       enquiryId,
-      ai: {
-        urgencyScore,
-        conversionScore,
-        jobValueBand,
-        recommendedAction,
-        summary,
-        suggestedReply,
-      },
+      ...updatePayload,
     });
   } catch (error: any) {
-    console.error("AI analyse enquiry route error:", {
-      message: error?.message,
-      stack: error?.stack,
-    });
+    console.error("AI analyse enquiry error:", error);
 
     return NextResponse.json(
-      {
-        error: error?.message || "Something went wrong while analysing enquiry",
-      },
-      { status: 500 },
+      { error: error?.message || "Failed to analyse enquiry" },
+      { status: 500 }
     );
   }
-}
-
-function buildPrompt(enquiry: QuoteRequestRow) {
-  return `
-You are an expert plumbing office manager helping a UK trades business decide what to do with a new customer enquiry.
-
-Analyse this enquiry and return JSON only using this exact shape:
-
-{
-  "urgency_score": 1,
-  "conversion_score": 1,
-  "job_value_band": "low",
-  "recommended_action": "reply_now",
-  "summary": "short useful summary",
-  "suggested_reply": "short human first reply"
-}
-
-Rules:
-- urgency_score: integer 1 to 5
-- conversion_score: integer 1 to 5
-- job_value_band: "low" | "medium" | "high"
-- recommended_action: one of:
-  "reply_now", "book_visit", "send_estimate", "ask_for_photos", "low_priority"
-- summary should be short, practical, and commercially useful
-- suggested_reply should sound human, warm, professional, and UK-based
-- do not mention AI
-- do not include markdown
-- do not include any keys outside the schema above
-
-Enquiry:
-${JSON.stringify(enquiry, null, 2)}
-`.trim();
-}
-
-function clampScore(value: unknown): number | null {
-  const num = Number(value);
-  if (!Number.isFinite(num)) return null;
-  return Math.max(1, Math.min(5, Math.round(num)));
-}
-
-function normaliseValueBand(value: unknown): "low" | "medium" | "high" | null {
-  return value === "low" || value === "medium" || value === "high"
-    ? value
-    : null;
-}
-
-function normaliseAction(
-  value: unknown,
-):
-  | "reply_now"
-  | "book_visit"
-  | "send_estimate"
-  | "ask_for_photos"
-  | "low_priority"
-  | null {
-  const allowed = new Set([
-    "reply_now",
-    "book_visit",
-    "send_estimate",
-    "ask_for_photos",
-    "low_priority",
-  ]);
-
-  return typeof value === "string" && allowed.has(value as any)
-    ? (value as
-        | "reply_now"
-        | "book_visit"
-        | "send_estimate"
-        | "ask_for_photos"
-        | "low_priority")
-    : null;
-}
-
-function safeText(value: unknown, maxLength: number): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  return trimmed.slice(0, maxLength);
 }

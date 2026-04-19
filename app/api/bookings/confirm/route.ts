@@ -3,8 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { buildFixFlowEmail } from "@/lib/emails/fixflowEmail";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 /* =========================
    SUPABASE
 ========================= */
@@ -179,6 +177,17 @@ export async function POST(req: Request) {
     const customerEmail = String(requestRow.customer_email || "").trim();
 
     if (customerEmail) {
+      const resendKey = process.env.RESEND_API_KEY;
+
+      if (!resendKey) {
+        return NextResponse.json(
+          { error: "Missing RESEND_API_KEY" },
+          { status: 500 }
+        );
+      }
+
+      const resend = new Resend(resendKey);
+
       const customerName = String(requestRow.customer_name || "there").trim();
       const jobType = String(requestRow.job_type || "job").trim();
       const location = String(
@@ -232,8 +241,6 @@ export async function POST(req: Request) {
           <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
             We’ve attached a calendar invite so you can save this booking easily.
           </div>
-
-         
         `,
       });
 

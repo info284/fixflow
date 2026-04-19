@@ -1,4 +1,3 @@
-// app/api/enquiries/send-email/route.ts
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -21,12 +20,16 @@ function json(status: number, data: any) {
 }
 
 function supabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE!;
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE;
+
+  if (!url) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
+  }
 
   if (!key) {
-    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_ROLE)");
+    throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY");
   }
 
   return createClient(url, key, {
@@ -41,25 +44,33 @@ function isEmail(value: string) {
 export async function POST(req: Request) {
   try {
     const RESEND_API_KEY = process.env.RESEND_API_KEY;
-    const RESEND_FROM = process.env.RESEND_FROM;
-    const RESEND_REPLY_TO = process.env.RESEND_REPLY_TO;
+    const RESEND_FROM =
+      process.env.RESEND_FROM ||
+      process.env.EMAIL_FROM ||
+      "FixFlow <hello@send.thefixflowapp.com>";
+    const RESEND_REPLY_TO =
+      process.env.RESEND_REPLY_TO ||
+      "replies@send.thefixflowapp.com";
 
     if (!RESEND_API_KEY) {
       return json(500, { ok: false, error: "Missing RESEND_API_KEY" });
     }
 
-    if (!RESEND_FROM) {
-      return json(500, { ok: false, error: "Missing RESEND_FROM" });
+    const APP_URL =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      process.env.APP_URL ||
+      "https://thefixflowapp.com";
+
+    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      return json(500, {
+        ok: false,
+        error: "Missing Supabase environment variables",
+      });
     }
-
-    if (!RESEND_REPLY_TO) {
-      return json(500, { ok: false, error: "Missing RESEND_REPLY_TO" });
-    }
-
-    const APP_URL = "https://thefixflowapp.com";
-
-    const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
     const cookieStore = await cookies();
 
@@ -90,7 +101,9 @@ export async function POST(req: Request) {
 
     const requestId = String(body.requestId || "").trim();
     const to = String(body.to || body.email || "").trim();
-    const subjectRaw = String(body.subject || "New message from your trader").trim();
+    const subjectRaw = String(
+      body.subject || "New message from your trader"
+    ).trim();
     const text = String(body.text || body.message || body.body || "").trim();
 
     if (!requestId) {
@@ -138,15 +151,19 @@ export async function POST(req: Request) {
     const traderName =
       profile?.business_name || profile?.display_name || "Your trader";
 
-    const messageUrl = `${APP_URL}/message/${requestId}`;
+    const messageUrl = `${APP_URL.replace(/\/$/, "")}/message/${requestId}`;
 
     const preview = text.length > 220 ? `${text.slice(0, 220)}…` : text;
     const safeTraderName = escapeEmailHtml(traderName);
     const safePreview = escapeEmailHtml(preview);
-    const safeJobType = escapeEmailHtml(String(reqRow.job_type || "your enquiry"));
-    const safeCustomerName = escapeEmailHtml(String(reqRow.customer_name || "there"));
+    const safeJobType = escapeEmailHtml(
+      String(reqRow.job_type || "your enquiry")
+    );
+    const safeCustomerName = escapeEmailHtml(
+      String(reqRow.customer_name || "there")
+    );
 
-    const subject = `New message from ${traderName}`;
+    const subject = subjectRaw || `New message from ${traderName}`;
 
     const replyTo = RESEND_REPLY_TO.includes("{requestId}")
       ? RESEND_REPLY_TO.replace("{requestId}", requestId)
@@ -165,23 +182,22 @@ export async function POST(req: Request) {
           ${safeTraderName} sent you a message about <strong style="color:#0B1320;">${safeJobType}</strong>.
         </div>
       `,
-      
       bodyHtml: `
-  ${buildFixFlowInfoCard(`
-    <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
-      ${buildFixFlowSectionLabel("Message preview")}
-      <div style="
-  font-size:15px;
-  line-height:1.7;
-  color:#0B1320;
-  white-space:pre-wrap;
-  text-align:center;
-  max-width:420px;
-  margin:0 auto;
-">
-  ${safePreview}
-</div>
-    </div>
+        ${buildFixFlowInfoCard(`
+          <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
+            ${buildFixFlowSectionLabel("Message preview")}
+            <div style="
+              font-size:15px;
+              line-height:1.7;
+              color:#0B1320;
+              white-space:pre-wrap;
+              text-align:center;
+              max-width:420px;
+              margin:0 auto;
+            ">
+              ${safePreview}
+            </div>
+          </div>
 
           <div style="padding:16px 18px;">
             ${buildFixFlowSectionLabel("Reply link")}
@@ -191,9 +207,9 @@ export async function POST(req: Request) {
           </div>
         `)}
 
-<div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
-  Open the message below to view and reply.
-</div>
+        <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+          Open the message below to view and reply.
+        </div>
       `,
       ctaHtml: buildFixFlowButton("View and reply", messageUrl),
     });
@@ -216,23 +232,23 @@ ${messageUrl}`,
       },
     } as any);
 
-    // @ts-ignore
-    if (sent?.error) {
-      // @ts-ignore
-      return json(500, { ok: false, error: sent.error.message || "Resend error" });
+    if ((sent as any)?.error) {
+      return json(500, {
+        ok: false,
+        error: (sent as any).error.message || "Resend error",
+      });
     }
 
     const ins = await admin.from("enquiry_messages").insert({
       request_id: requestId,
       plumber_id: user.id,
       direction: "out",
-      channel: "portal",
-      subject: subjectRaw || null,
-      body_text: text || null,
+      channel: "email",
+      subject: subject,
+      body_text: text,
       from_email: RESEND_FROM,
       to_email: to,
-      // @ts-ignore
-      resend_id: sent?.data?.id || null,
+      resend_id: (sent as any)?.data?.id || null,
     });
 
     if (ins.error) {
@@ -253,7 +269,6 @@ ${messageUrl}`,
 
     return json(200, {
       ok: true,
-      // @ts-ignore
       id: (sent as any)?.data?.id || null,
       replyTo,
       requestId,
@@ -262,6 +277,7 @@ ${messageUrl}`,
       statusUpdated: !upd.error,
     });
   } catch (e: any) {
+    console.error("send enquiry email crashed:", e);
     return json(500, { ok: false, error: e?.message || "Server error" });
   }
 }

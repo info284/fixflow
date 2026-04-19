@@ -59,7 +59,8 @@ export default function AcceptEstimatePage() {
         throw new Error(json?.error || "Failed to load estimate");
       }
 
-      const loadedEstimate = json?.estimate as Estimate;
+      const loadedEstimate = (json?.estimate || json) as Estimate;
+
       setEstimate(loadedEstimate);
       setAccepted(
         String(loadedEstimate?.status || "").toLowerCase() === "accepted"
@@ -122,8 +123,12 @@ export default function AcceptEstimatePage() {
       setBusy(true);
       setError(null);
 
-      const res = await fetch(`/api/estimates/${id}/accept`, {
+      const res = await fetch("/api/estimates/accept", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ estimateId: id }),
       });
 
       const json = await res.json();
@@ -207,7 +212,9 @@ export default function AcceptEstimatePage() {
                 </p>
               </div>
 
-              <div className="ff-acceptStateIcon ff-acceptStateIconMuted">?</div>
+              <div className="ff-acceptStateIcon ff-acceptStateIconMuted">
+                ?
+              </div>
             </div>
 
             {error ? <div className="ff-acceptError">{error}</div> : null}
@@ -339,7 +346,9 @@ export default function AcceptEstimatePage() {
 
                   <div className="ff-acceptNextStepItem">
                     <span className="ff-acceptStepDot" />
-                    <span>The trader will contact you shortly to arrange the job.</span>
+                    <span>
+                      The trader will contact you shortly to arrange the job.
+                    </span>
                   </div>
 
                   <div className="ff-acceptNextStepItem">

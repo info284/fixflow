@@ -12,10 +12,17 @@ export async function GET(_req: Request, { params }: RouteProps) {
     return NextResponse.json({ error: "Missing estimate id" }, { status: 400 });
   }
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceKey) {
+    return NextResponse.json(
+      { error: "Missing Supabase environment variables" },
+      { status: 500 }
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, serviceKey);
 
   const { data: estimate, error } = await supabase
     .from("estimates")
@@ -47,6 +54,7 @@ export async function GET(_req: Request, { params }: RouteProps) {
       id: estimate.id,
       total: estimate.total,
       status: estimate.status,
+      request_id: estimate.request_id,
       customer_name: enquiry?.customer_name || null,
       job_type: enquiry?.job_type || null,
       view_count: estimate.view_count || 0,

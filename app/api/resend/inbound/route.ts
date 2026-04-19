@@ -3,65 +3,105 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!, // server-only
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 function extractRequestIdFromTo(toEmail: string) {
-  // expects: enquiries+<requestId>@send.thefixflowapp.com
-  const m = toEmail.match(/\+([0-9a-fA-F-]{36})@/);
-  return m?.[1] || null;
+  const match = toEmail.match(/\+([0-9a-fA-F-]{36})@/);
+  return match?.[1] || null;
+}
+
+function getEmailText(payload: any) {
+  return (
+    String(payload?.text || "") ||
+    String(payload?.body_text || "") ||
+    String(payload?.plain || "") ||
+    String(payload?.body?.text || "") ||
+    ""
+  ).trim();
 }
 
 export async function POST(req: Request) {
   try {
     const payload = await req.json();
 
-    // Resend inbound payloads vary depending on setup; these are common fields:
-    const from = (payload?.from || payload?.sender || "").toString();
-    const to = (payload?.to || payload?.recipient || "").toString();
-    const subject = (payload?.subject || "").toString();
-    const text =
-      (payload?.text || payload?.body_text || payload?.plain || "").toString() ||
-      (payload?.body?.text || "").toString();
+    const from = String(payload?.from || payload?.sender || "").trim();
+    const to = String(payload?.to || payload?.recipient || "").trim();
+    const subject = String(payload?.subject || "").trim();
+    const text = getEmailText(payload);
+    const resendId = String(payload?.id || payload?.email_id || "").trim() || null;
 
-    if (!to) return NextResponse.json({ ok: true });
-
-    const requestId = extractRequestIdFromTo(to);
-    if (!requestId) {
-      return NextResponse.json({ ok: true, note: "No requestId in to address" });
+    if (!to) {
+      return NextResponse.json({ ok: true, note: "Missing recipient" });
     }
 
-    // Find plumber_id for this request
-    const { data: qr, error: qrErr } = await supabaseAdmin
+    const requestId = extractRequestIdFromTo(to);
+
+    if (!requestId) {
+      return NextResponse.json({
+        ok: true,
+        note: "No request id found in recipient address",
+      });
+    }
+
+    const { data: enquiry, error: enquiryError } = await supabaseAdmin
       .from("quote_requests")
-      .select("id, plumber_id")
+      .select("id, plumber_id, stage")
       .eq("id", requestId)
       .maybeSingle();
 
-    if (qrErr) throw qrErr;
-    if (!qr?.plumber_id) {
-      return NextResponse.json({ ok: true, note: "No matching quote_request" });
+    if (enquiryError) throw enquiryError;
+
+    if (!enquiry?.plumber_id) {
+      return NextResponse.json({
+        ok: true,
+        note: "No matching enquiry found",
+      });
     }
 
-    // Insert inbound message
-    const { error: insErr } = await supabaseAdmin.from("enquiry_messages").insert({
-      request_id: requestId,
-      plumber_id: qr.plumber_id,
-      direction: "in",        // ✅ inbound
-      channel: "email",
-      subject: subject || null,
-      body_text: text || null,
-      from_email: from || null,
-      to_email: to || null,
-      resend_id: payload?.id || payload?.email_id || null,
+    const { error: insertError } = await supabaseAdmin
+      .from("enquiry_messages")
+      .insert({
+        request_id: requestId,
+        plumber_id: enquiry.plumber_id,
+        direction: "in",
+        channel: "email",
+        subject: subject || null,
+        body_text: text || null,
+        from_email: from || null,
+        to_email: to || null,
+        resend_id: resendId,
+      });
+
+    if (insertError) throw insertError;
+
+    const currentStage = String(enquiry.stage || "").toLowerCase();
+
+    const updatePayload: Record<string, any> = {
+      read_at: null,
+    };
+
+    if (currentStage === "lost") {
+      updatePayload.stage = "contacted";
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from("quote_requests")
+      .update(updatePayload)
+      .eq("id", requestId);
+
+    if (updateError) throw updateError;
+
+    return NextResponse.json({
+      ok: true,
+      requestId,
     });
-
-    if (insErr) throw insErr;
-
-    return NextResponse.json({ ok: true });
   } catch (e: any) {
     return NextResponse.json(
-      { ok: false, error: e?.message || "Inbound webhook failed" },
+      {
+        ok: false,
+        error: e?.message || "Inbound webhook failed",
+      },
       { status: 500 }
     );
   }

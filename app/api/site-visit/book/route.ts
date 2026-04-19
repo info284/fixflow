@@ -2,261 +2,687 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { google } from "googleapis";
+
+/* ---------------- types ---------------- */
+
+type EnquiryRow = {
+  id: string;
+  plumber_id: string | null;
+  customer_name: string | null;
+  customer_email: string | null;
+  job_type: string | null;
+  address: string | null;
+  postcode: string | null;
+};
+
+type SiteVisitRow = {
+  id: string;
+  request_id: string;
+  plumber_id: string;
+  starts_at: string;
+  duration_mins: number;
+  created_at: string;
+  google_event_id?: string | null;
+};
+
+type CalendarTokenRow = {
+  access_token: string | null;
+  refresh_token: string | null;
+};
 
 /* ---------------- helpers ---------------- */
+
 function pad(n: number) {
- return String(n).padStart(2, "0");
+  return String(n).padStart(2, "0");
+}
+
+function isValidDateInput(value: string) {
+  const d = new Date(value);
+  return !Number.isNaN(d.getTime());
+}
+
+function formatPostcode(postcode?: string | null) {
+  const raw = String(postcode || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+
+  if (!raw) return "";
+  if (raw.length <= 3) return raw;
+
+  return `${raw.slice(0, -3)} ${raw.slice(-3)}`;
+}
+
+function buildCleanAddress(address?: string | null, postcode?: string | null) {
+  const a = String(address || "").trim();
+  const pc = formatPostcode(postcode);
+
+  if (!a && !pc) return "—";
+  if (!a) return pc;
+
+  const normalizedAddress = a.replace(/\s+/g, " ").trim();
+  const compactAddress = normalizedAddress.toUpperCase().replace(/\s+/g, "");
+
+  if (pc && compactAddress.includes(pc.replace(/\s+/g, ""))) {
+    return normalizedAddress;
+  }
+
+  return [normalizedAddress, pc].filter(Boolean).join(", ");
 }
 
 function toUtcIcs(dtLocal: string) {
- // NOTE: dtLocal is "YYYY-MM-DDTHH:mm" from <input type="datetime-local">
- // new Date(dtLocal) is treated as LOCAL time by Node and then we convert to UTC for ICS.
- const d = new Date(dtLocal);
- const yyyy = d.getUTCFullYear();
- const mm = pad(d.getUTCMonth() + 1);
- const dd = pad(d.getUTCDate());
- const hh = pad(d.getUTCHours());
- const mi = pad(d.getUTCMinutes());
- const ss = pad(d.getUTCSeconds());
- return `${yyyy}${mm}${dd}T${hh}${mi}${ss}Z`;
+  const d = new Date(dtLocal);
+  const yyyy = d.getUTCFullYear();
+  const mm = pad(d.getUTCMonth() + 1);
+  const dd = pad(d.getUTCDate());
+  const hh = pad(d.getUTCHours());
+  const mi = pad(d.getUTCMinutes());
+  const ss = pad(d.getUTCSeconds());
+  return `${yyyy}${mm}${dd}T${hh}${mi}${ss}Z`;
 }
 
 function addMinutes(dtLocal: string, mins: number) {
- const d = new Date(dtLocal);
- d.setMinutes(d.getMinutes() + mins);
- return d;
+  const d = new Date(dtLocal);
+  d.setMinutes(d.getMinutes() + mins);
+  return d;
 }
 
 function buildIcs(opts: {
- uid: string;
- title: string;
- description: string;
- location?: string;
- startLocal: string;
- durationMins: number;
+  uid: string;
+  title: string;
+  description: string;
+  location?: string;
+  startLocal: string;
+  durationMins: number;
 }) {
- const dtStart = toUtcIcs(opts.startLocal);
+  const dtStart = toUtcIcs(opts.startLocal);
 
- const end = addMinutes(opts.startLocal, opts.durationMins);
- const dtEnd = `${end.getUTCFullYear()}${pad(end.getUTCMonth() + 1)}${pad(end.getUTCDate())}T${pad(
- end.getUTCHours()
- )}${pad(end.getUTCMinutes())}${pad(end.getUTCSeconds())}Z`;
+  const end = addMinutes(opts.startLocal, opts.durationMins);
+  const dtEnd = `${end.getUTCFullYear()}${pad(end.getUTCMonth() + 1)}${pad(
+    end.getUTCDate()
+  )}T${pad(end.getUTCHours())}${pad(end.getUTCMinutes())}${pad(
+    end.getUTCSeconds()
+  )}Z`;
 
- // dtstamp should be "now" in UTC, not derived from ISO string using toUtcIcs
- const now = new Date();
- const dtStamp = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}T${pad(
- now.getUTCHours()
- )}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
+  const now = new Date();
+  const dtStamp = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(
+    now.getUTCDate()
+  )}T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(
+    now.getUTCSeconds()
+  )}Z`;
 
- const lines = [
- "BEGIN:VCALENDAR",
- "VERSION:2.0",
- "PRODID:-//FixFlow//Site Visit//EN",
- "CALSCALE:GREGORIAN",
- "METHOD:REQUEST",
- "BEGIN:VEVENT",
- `UID:${opts.uid}`,
- `DTSTAMP:${dtStamp}`,
- `DTSTART:${dtStart}`,
- `DTEND:${dtEnd}`,
- `SUMMARY:${opts.title}`,
- opts.location ? `LOCATION:${opts.location.replace(/\n/g, " ")}` : "",
- `DESCRIPTION:${opts.description.replace(/\n/g, "\\n")}`,
- "END:VEVENT",
- "END:VCALENDAR",
- ].filter(Boolean);
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//FixFlow//Site Visit//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:REQUEST",
+    "BEGIN:VEVENT",
+    `UID:${opts.uid}`,
+    `DTSTAMP:${dtStamp}`,
+    `DTSTART:${dtStart}`,
+    `DTEND:${dtEnd}`,
+    `SUMMARY:${opts.title}`,
+    opts.location ? `LOCATION:${opts.location.replace(/\n/g, " ")}` : "",
+    `DESCRIPTION:${opts.description.replace(/\n/g, "\\n")}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].filter(Boolean);
 
- return lines.join("\r\n");
+  return lines.join("\r\n");
 }
 
-function jsonError(status: number, error: string, detail?: string, extra?: any) {
- return NextResponse.json({ ok: false, error, detail: detail || "", ...extra }, { status });
+function jsonError(
+  status: number,
+  error: string,
+  detail?: string,
+  extra?: Record<string, unknown>
+) {
+  return NextResponse.json(
+    { ok: false, error, detail: detail || "", ...(extra || {}) },
+    { status }
+  );
+}
+
+function formatHumanDate(dtLocal: string) {
+  return new Date(dtLocal).toLocaleString([], {
+    weekday: "short",
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function buildCalendarText(enquiry: EnquiryRow, mins: number, when: string) {
+  const location = buildCleanAddress(enquiry.address, enquiry.postcode);
+
+  const jobLabel = enquiry.job_type
+    ? enquiry.job_type.charAt(0).toUpperCase() + enquiry.job_type.slice(1)
+    : "Job";
+
+  const title = `Site visit booked – ${jobLabel}`;
+
+  const description =
+    `A site visit has been booked via FixFlow.\n\n` +
+    `Job: ${jobLabel}\n` +
+    `When: ${when}\n` +
+    `Duration: ${mins} minutes\n` +
+    `Address: ${location}\n\n` +
+    `If you need to make any changes, please reply to the email from your trader.`;
+
+  return {
+    title,
+    location,
+    description,
+    whenText: when,
+    durationText: `${mins} minutes`,
+    jobLabel,
+  };
+}
+
+function hasColumnMissingError(error: unknown, columnName: string) {
+  const msg =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: string }).message || "")
+      : "";
+
+  return msg.includes(`'${columnName}'`) || msg.includes(columnName);
+}
+
+/* ---------------- google calendar ---------------- */
+
+async function createOrUpdateGoogleCalendarEvent(opts: {
+  supabase: SupabaseClient;
+  plumberId: string;
+  enquiry: EnquiryRow;
+  startsAtLocal: string;
+  mins: number;
+  existingGoogleEventId?: string | null;
+}) {
+  const { data: tokenRow, error: tokenErr } = await opts.supabase
+    .from("google_calendar_tokens")
+    .select("access_token, refresh_token")
+    .eq("user_id", opts.plumberId)
+    .maybeSingle();
+
+  if (tokenErr) {
+    console.error("calendar token fetch error:", tokenErr);
+    return { ok: false as const, eventId: null };
+  }
+
+  const tokens = (tokenRow || null) as CalendarTokenRow | null;
+
+  if (!tokens?.refresh_token) {
+    return { ok: false as const, eventId: null };
+  }
+
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+
+  if (!clientId || !clientSecret || !redirectUri) {
+    console.error("missing google calendar env vars");
+    return { ok: false as const, eventId: null };
+  }
+
+  const oauth2 = new google.auth.OAuth2(clientId, clientSecret, redirectUri);
+
+  oauth2.setCredentials({
+    access_token: tokens.access_token || undefined,
+    refresh_token: tokens.refresh_token,
+  });
+
+  const calendar = google.calendar({ version: "v3", auth: oauth2 });
+
+  const start = new Date(opts.startsAtLocal);
+  const end = new Date(start);
+  end.setMinutes(end.getMinutes() + opts.mins);
+
+  const summary = `Site visit – ${opts.enquiry.job_type || "Enquiry"}`;
+  const location = buildCleanAddress(
+    opts.enquiry.address,
+    opts.enquiry.postcode
+  );
+
+  const description =
+    `Customer: ${opts.enquiry.customer_name || "Customer"}\n` +
+    `Email: ${opts.enquiry.customer_email || "—"}\n` +
+    `Job: ${opts.enquiry.job_type || "Enquiry"}\n` +
+    `Address: ${location}`;
+
+  const calendarId = "primary";
+
+  try {
+    if (opts.existingGoogleEventId) {
+      const updated = await calendar.events.update({
+        calendarId,
+        eventId: opts.existingGoogleEventId,
+        requestBody: {
+          summary,
+          location: location || undefined,
+          description,
+          start: { dateTime: start.toISOString() },
+          end: { dateTime: end.toISOString() },
+        },
+      });
+
+      return {
+        ok: true as const,
+        eventId: updated.data.id || opts.existingGoogleEventId,
+      };
+    }
+
+    const created = await calendar.events.insert({
+      calendarId,
+      requestBody: {
+        summary,
+        location: location || undefined,
+        description,
+        start: { dateTime: start.toISOString() },
+        end: { dateTime: end.toISOString() },
+      },
+    });
+
+    return {
+      ok: true as const,
+      eventId: created.data.id || null,
+    };
+  } catch (err) {
+    console.error("google calendar insert/update error:", err);
+    return { ok: false as const, eventId: null };
+  }
+}
+
+/* ---------------- customer email ---------------- */
+
+async function sendBookingEmail(opts: {
+  enquiry: EnquiryRow;
+  from: string;
+  resendApiKey: string;
+  startsAtLocal: string;
+  mins: number;
+}) {
+  const resend = new Resend(opts.resendApiKey);
+
+  const humanWhen = formatHumanDate(opts.startsAtLocal);
+  const textParts = buildCalendarText(opts.enquiry, opts.mins, humanWhen);
+  const cleanAddress = buildCleanAddress(
+    opts.enquiry.address,
+    opts.enquiry.postcode
+  );
+
+  const uid = `fixflow-sitevisit-${opts.enquiry.id}-${Date.now()}`;
+  const ics = buildIcs({
+    uid,
+    title: textParts.title,
+    description: textParts.description,
+    location: cleanAddress === "—" ? undefined : cleanAddress,
+    startLocal: opts.startsAtLocal,
+    durationMins: opts.mins,
+  });
+
+  const to = String(opts.enquiry.customer_email || "").trim();
+
+  const { error } = await resend.emails.send({
+    from: opts.from,
+    to,
+    subject: textParts.title,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0b1320;">
+        <p style="margin: 0 0 16px;">Hi ${opts.enquiry.customer_name || "there"},</p>
+
+        <p style="margin: 0 0 16px;">Your site visit has been booked.</p>
+
+        <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 18px; width: 100%; max-width: 520px;">
+          <tr>
+            <td style="padding: 0 0 8px; font-weight: 700; width: 110px; vertical-align: top;">Date/time:</td>
+            <td style="padding: 0 0 8px; vertical-align: top;">${textParts.whenText}</td>
+          </tr>
+          <tr>
+            <td style="padding: 0 0 8px; font-weight: 700; vertical-align: top;">Duration:</td>
+            <td style="padding: 0 0 8px; vertical-align: top;">${textParts.durationText}</td>
+          </tr>
+          <tr>
+            <td style="padding: 0; font-weight: 700; vertical-align: top;">Address:</td>
+            <td style="padding: 0; vertical-align: top;">${cleanAddress}</td>
+          </tr>
+        </table>
+
+        <p style="margin: 0 0 16px;">Calendar invite attached (.ics).</p>
+
+        <p style="margin: 0;">Thanks,<br/>FixFlow</p>
+      </div>
+    `,
+    text:
+      `Hi ${opts.enquiry.customer_name || "there"},\n\n` +
+      `Your site visit has been booked.\n\n` +
+      `Date/time: ${textParts.whenText}\n` +
+      `Duration: ${textParts.durationText}\n` +
+      `Address: ${cleanAddress}\n\n` +
+      `Calendar invite attached (.ics).\n\n` +
+      `Thanks,\nFixFlow`,
+    attachments: [
+      {
+        filename: "site-visit.ics",
+        content: Buffer.from(ics).toString("base64"),
+      },
+    ],
+  });
+
+  return { ok: !error, error };
 }
 
 /* ---------------- route ---------------- */
+
 export async function POST(req: Request) {
- try {
- const body = await req.json().catch(() => ({}));
- const requestId = String(body?.requestId || "").trim();
- const startsAtLocal = String(body?.startsAtLocal || "").trim(); // "YYYY-MM-DDTHH:mm"
- const plumberId = String(body?.plumberId || "").trim();
- const mins = Number(body?.durationMins || 60);
+  try {
+    const body = await req.json().catch(() => ({}));
 
- if (!requestId || !startsAtLocal || !plumberId) {
- return jsonError(400, "Missing fields", "requestId, startsAtLocal, plumberId are required");
- }
- if (!Number.isFinite(mins) || mins <= 0 || mins > 8 * 60) {
- return jsonError(400, "Invalid durationMins", "Must be a number between 1 and 480");
- }
+    const requestId = String(body?.requestId || "").trim();
+    const startsAtLocal = String(body?.startsAtLocal || "").trim();
+    const plumberId = String(body?.plumberId || "").trim();
+    const mins = Number(body?.durationMins || 60);
 
- const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
- const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!requestId || !startsAtLocal) {
+      return jsonError(
+        400,
+        "Missing fields",
+        "requestId and startsAtLocal are required"
+      );
+    }
 
- if (!url) return jsonError(500, "Server misconfigured", "Missing NEXT_PUBLIC_SUPABASE_URL");
- if (!serviceKey) return jsonError(500, "Server misconfigured", "Missing SUPABASE_SERVICE_ROLE_KEY");
+    if (!isValidDateInput(startsAtLocal)) {
+      return jsonError(
+        400,
+        "Invalid startsAtLocal",
+        "Must be a valid datetime-local value"
+      );
+    }
 
- const supabase = createClient(url, serviceKey, { auth: { persistSession: false } });
+    if (!Number.isFinite(mins) || mins <= 0 || mins > 8 * 60) {
+      return jsonError(
+        400,
+        "Invalid durationMins",
+        "Must be a number between 1 and 480"
+      );
+    }
 
- // Load enquiry
- const { data: enquiry, error: enquiryErr } = await supabase
- .from("quote_requests")
- .select("id, plumber_id, customer_name, customer_email, job_type, address, postcode")
- .eq("id", requestId)
- .maybeSingle();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const resendFrom = process.env.RESEND_FROM || process.env.EMAIL_FROM || "";
+    const resendApiKey = process.env.RESEND_API_KEY || "";
 
- if (enquiryErr) return jsonError(500, "Database error", enquiryErr.message);
- if (!enquiry) return jsonError(404, "Enquiry not found");
+    if (!supabaseUrl) {
+      return jsonError(
+        500,
+        "Server misconfigured",
+        "Missing NEXT_PUBLIC_SUPABASE_URL"
+      );
+    }
 
- // Safety: ensure request belongs to this trader
- if (String(enquiry.plumber_id) !== plumberId) {
- return jsonError(403, "Not allowed");
- }
+    if (!serviceKey) {
+      return jsonError(
+        500,
+        "Server misconfigured",
+        "Missing SUPABASE_SERVICE_ROLE_KEY"
+      );
+    }
 
- const to = String(enquiry.customer_email || "").trim();
- if (!to) return jsonError(400, "Customer email missing");
+    if (!resendFrom) {
+      return jsonError(500, "Missing RESEND_FROM");
+    }
 
- const from = process.env.RESEND_FROM || process.env.EMAIL_FROM || "";
- const key = process.env.RESEND_API_KEY || "";
+    if (!resendApiKey) {
+      return jsonError(500, "Missing RESEND_API_KEY");
+    }
 
- if (!from) return jsonError(500, "Missing RESEND_FROM");
- if (!key) return jsonError(500, "Missing RESEND_API_KEY");
+    const supabase = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false },
+    });
 
- // Save booking (and prevent duplicates)
- // If you want "one booking per request", either:
- // - add a UNIQUE constraint on site_visits.request_id
- // - or do this pre-check:
- const { data: existing } = await supabase
- .from("site_visits")
- .select("id, request_id, starts_at, duration_mins, created_at")
- .eq("request_id", requestId)
- .eq("plumber_id", plumberId)
- .order("created_at", { ascending: false })
- .limit(1)
- .maybeSingle();
+    const { data: enquiryData, error: enquiryErr } = await supabase
+      .from("quote_requests")
+      .select(
+        "id, plumber_id, customer_name, customer_email, job_type, address, postcode"
+      )
+      .eq("id", requestId)
+      .maybeSingle();
 
- // If you want to allow multiple bookings, delete this block.
- if (existing?.id) {
- // If you prefer overwrite instead of block, change to update.
- // For now: update the latest booking to the new time.
- const startsAtIso = new Date(startsAtLocal).toISOString();
- const { data: updated, error: updErr } = await supabase
- .from("site_visits")
- .update({ starts_at: startsAtIso, duration_mins: mins })
- .eq("id", existing.id)
- .select("id, request_id, plumber_id, starts_at, duration_mins, created_at")
- .single();
+    if (enquiryErr) {
+      return jsonError(500, "Database error", enquiryErr.message);
+    }
 
- if (updErr) return jsonError(500, "Booking save failed", updErr.message);
+    if (!enquiryData) {
+      return jsonError(404, "Enquiry not found");
+    }
 
- // Continue sending email + return updated booking at end
- return await sendAndReturn({
- enquiry,
- from,
- key,
- startsAtLocal,
- mins,
- booking: updated,
- });
- }
+    const enquiry = enquiryData as EnquiryRow;
+    const ownerPlumberId = String(enquiry.plumber_id || "").trim();
 
- // Insert new booking
- const startsAtIso = new Date(startsAtLocal).toISOString();
- const { data: saved, error: saveErr } = await supabase
- .from("site_visits")
- .insert({
- request_id: requestId,
- plumber_id: plumberId,
- starts_at: startsAtIso,
- duration_mins: mins,
- })
- .select("id, request_id, plumber_id, starts_at, duration_mins, created_at")
- .single();
+    if (!ownerPlumberId) {
+      return jsonError(500, "Enquiry missing plumber_id");
+    }
 
- if (saveErr) return jsonError(500, "Booking save failed", saveErr.message);
+    if (plumberId && ownerPlumberId !== plumberId) {
+      return jsonError(403, "Not allowed");
+    }
 
- return await sendAndReturn({
- enquiry,
- from,
- key,
- startsAtLocal,
- mins,
- booking: saved,
- });
- } catch (e: any) {
- return jsonError(500, "Unexpected error", e?.message || "Unknown error");
- }
-}
+    const customerEmail = String(enquiry.customer_email || "").trim();
+    if (!customerEmail) {
+      return jsonError(400, "Customer email missing");
+    }
 
-/* ---------------- send email + return ---------------- */
-async function sendAndReturn(opts: {
- enquiry: any;
- from: string;
- key: string;
- startsAtLocal: string;
- mins: number;
- booking: any;
-}) {
- const resend = new Resend(opts.key);
+    const { data: existingData, error: existingErr } = await supabase
+      .from("site_visits")
+      .select("id, request_id, plumber_id, starts_at, duration_mins, created_at")
+      .eq("request_id", requestId)
+      .eq("plumber_id", ownerPlumberId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
- const title = `FixFlow site visit: ${opts.enquiry.job_type || "Enquiry"}`;
- const location = [opts.enquiry.address, opts.enquiry.postcode].filter(Boolean).join(", ");
- const description =
- `Site visit booked via FixFlow.\n\n` +
- `Enquiry: ${opts.enquiry.job_type || "Enquiry"}\n` +
- `Address: ${opts.enquiry.address || ""}\n` +
- `Postcode: ${opts.enquiry.postcode || ""}\n\n` +
- `If you need to change this booking, reply to this email.`;
+    if (existingErr) {
+      return jsonError(500, "Database error", existingErr.message);
+    }
 
- const uid = `fixflow-sitevisit-${opts.enquiry.id}-${Date.now()}`;
- const ics = buildIcs({
- uid,
- title,
- description,
- location,
- startLocal: opts.startsAtLocal,
- durationMins: opts.mins,
- });
+    const startsAtIso = new Date(startsAtLocal).toISOString();
+    let booking: SiteVisitRow | null = null;
 
- const humanWhen = new Date(opts.startsAtLocal).toLocaleString([], {
- weekday: "short",
- year: "numeric",
- month: "short",
- day: "2-digit",
- hour: "2-digit",
- minute: "2-digit",
- });
+    if (existingData?.id) {
+      const existing = existingData as SiteVisitRow;
+      existing.google_event_id = null;
 
- const to = String(opts.enquiry.customer_email || "").trim();
+      let updatedRow: SiteVisitRow | null = null;
 
- const { error: mailErr } = await resend.emails.send({
- from: opts.from,
- to,
- subject: title,
- html: `
- <div style="font-family: Arial, sans-serif; line-height: 1.5">
- <p>Hi ${opts.enquiry.customer_name || "there"},</p>
- <p>Your site visit has been booked.</p>
- <p><b>Date/time:</b> ${humanWhen}<br/>
- <b>Duration:</b> ${opts.mins} minutes</p>
- <p><b>Address:</b> ${location || "—"}</p>
- <p>Calendar invite attached (.ics).</p>
- <p>Thanks,<br/>FixFlow</p>
- </div>
- `,
- text: `Hi ${opts.enquiry.customer_name || "there"},\n\nYour site visit has been booked.\n\nDate/time: ${humanWhen}\nDuration: ${
- opts.mins
- } minutes\nAddress: ${location || "—"}\n\nCalendar invite attached.\n\nThanks,\nFixFlow`,
- attachments: [{ filename: "site-visit.ics", content: Buffer.from(ics).toString("base64") }],
- });
+      const updateWithGoogleEventId = await supabase
+        .from("site_visits")
+        .update({
+          starts_at: startsAtIso,
+          duration_mins: mins,
+        })
+        .eq("id", existing.id)
+        .select(
+          "id, request_id, plumber_id, starts_at, duration_mins, created_at, google_event_id"
+        )
+        .single();
 
- if (mailErr) {
- // Booking saved but email failed → still return booking so UI can update
- return NextResponse.json(
- { ok: false, error: mailErr.message || "Email failed", booking: opts.booking },
- { status: 500 }
- );
- }
+      if (updateWithGoogleEventId.error) {
+        if (
+          hasColumnMissingError(updateWithGoogleEventId.error, "google_event_id")
+        ) {
+          const fallbackUpdate = await supabase
+            .from("site_visits")
+            .update({
+              starts_at: startsAtIso,
+              duration_mins: mins,
+            })
+            .eq("id", existing.id)
+            .select(
+              "id, request_id, plumber_id, starts_at, duration_mins, created_at"
+            )
+            .single();
 
- return NextResponse.json({ ok: true, booking: opts.booking }, { status: 200 });
+          if (fallbackUpdate.error) {
+            return jsonError(
+              500,
+              "Booking save failed",
+              fallbackUpdate.error.message
+            );
+          }
+
+          updatedRow = fallbackUpdate.data as SiteVisitRow;
+          updatedRow.google_event_id = existing.google_event_id || null;
+        } else {
+          return jsonError(
+            500,
+            "Booking save failed",
+            updateWithGoogleEventId.error.message
+          );
+        }
+      } else {
+        updatedRow = updateWithGoogleEventId.data as SiteVisitRow;
+      }
+
+      booking = updatedRow;
+
+      const calendarResult = await createOrUpdateGoogleCalendarEvent({
+        supabase,
+        plumberId: ownerPlumberId,
+        enquiry,
+        startsAtLocal,
+        mins,
+        existingGoogleEventId: existing.google_event_id || null,
+      });
+
+      if (calendarResult.ok && calendarResult.eventId) {
+        const saveEventId = await supabase
+          .from("site_visits")
+          .update({ google_event_id: calendarResult.eventId })
+          .eq("id", existing.id);
+
+        if (
+          saveEventId.error &&
+          !hasColumnMissingError(saveEventId.error, "google_event_id")
+        ) {
+          console.error("site visit google_event_id save error:", saveEventId.error);
+        }
+
+        booking.google_event_id = calendarResult.eventId;
+      }
+    } else {
+      let insertedRow: SiteVisitRow | null = null;
+
+      const insertWithGoogleEventId = await supabase
+        .from("site_visits")
+        .insert({
+          request_id: requestId,
+          plumber_id: ownerPlumberId,
+          starts_at: startsAtIso,
+          duration_mins: mins,
+        })
+        .select(
+          "id, request_id, plumber_id, starts_at, duration_mins, created_at, google_event_id"
+        )
+        .single();
+
+      if (insertWithGoogleEventId.error) {
+        if (
+          hasColumnMissingError(insertWithGoogleEventId.error, "google_event_id")
+        ) {
+          const fallbackInsert = await supabase
+            .from("site_visits")
+            .insert({
+              request_id: requestId,
+              plumber_id: ownerPlumberId,
+              starts_at: startsAtIso,
+              duration_mins: mins,
+            })
+            .select(
+              "id, request_id, plumber_id, starts_at, duration_mins, created_at"
+            )
+            .single();
+
+          if (fallbackInsert.error) {
+            return jsonError(
+              500,
+              "Booking save failed",
+              fallbackInsert.error.message
+            );
+          }
+
+          insertedRow = fallbackInsert.data as SiteVisitRow;
+          insertedRow.google_event_id = null;
+        } else {
+          return jsonError(
+            500,
+            "Booking save failed",
+            insertWithGoogleEventId.error.message
+          );
+        }
+      } else {
+        insertedRow = insertWithGoogleEventId.data as SiteVisitRow;
+      }
+
+      booking = insertedRow;
+
+      const calendarResult = await createOrUpdateGoogleCalendarEvent({
+        supabase,
+        plumberId: ownerPlumberId,
+        enquiry,
+        startsAtLocal,
+        mins,
+      });
+
+      if (calendarResult.ok && calendarResult.eventId) {
+        const saveEventId = await supabase
+          .from("site_visits")
+          .update({ google_event_id: calendarResult.eventId })
+          .eq("id", insertedRow.id);
+
+        if (
+          saveEventId.error &&
+          !hasColumnMissingError(saveEventId.error, "google_event_id")
+        ) {
+          console.error("site visit google_event_id save error:", saveEventId.error);
+        }
+
+        booking.google_event_id = calendarResult.eventId;
+      }
+    }
+
+    if (!booking) {
+      return jsonError(
+        500,
+        "Booking save failed",
+        "Booking could not be created"
+      );
+    }
+
+    const mailResult = await sendBookingEmail({
+      enquiry,
+      from: resendFrom,
+      resendApiKey,
+      startsAtLocal,
+      mins,
+    });
+
+    if (!mailResult.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: mailResult.error?.message || "Email failed",
+          booking,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ ok: true, booking }, { status: 200 });
+  } catch (e: any) {
+    return jsonError(500, "Unexpected error", e?.message || "Unknown error");
+  }
 }

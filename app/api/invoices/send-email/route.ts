@@ -6,6 +6,13 @@ import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { cookies } from "next/headers";
 import { renderInvoicePdfBuffer } from "@/lib/invoices/renderInvoicePdf";
+import {
+  buildFixFlowEmail,
+  buildFixFlowButton,
+  buildFixFlowInfoCard,
+  buildFixFlowSectionLabel,
+  escapeEmailHtml,
+} from "@/lib/emails/fixflowEmail";
 
 /* ---------------- helpers ---------------- */
 
@@ -21,26 +28,23 @@ function cleanId(v?: string | null) {
   return s;
 }
 
-function escapeHtml(s: string) {
-  return (s || "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 function supabaseAdmin() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const serviceKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE!;
-  return createClient(url, serviceKey, { auth: { persistSession: false } });
+
+  return createClient(url, serviceKey, {
+    auth: { persistSession: false },
+  });
 }
 
 function supabaseAnonForAuth() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  return createClient(url, anon, { auth: { persistSession: false } });
+
+  return createClient(url, anon, {
+    auth: { persistSession: false },
+  });
 }
 
 async function getAuthedUserId(req: Request) {
@@ -63,9 +67,32 @@ async function getAuthedUserId(req: Request) {
   return data.user.id;
 }
 
+function formatMoney(amount: number, currency = "GBP") {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency,
+  }).format(amount || 0);
+}
+
+function formatDate(iso?: string | null) {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return String(iso);
+  }
+}
+
+/* ---------------- route ---------------- */
+
 export async function POST(req: Request) {
   try {
     const uid = await getAuthedUserId(req);
+
     if (!uid) {
       return NextResponse.json(
         { ok: false, error: "Not authenticated" },
@@ -110,6 +137,7 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     if (invErr) throw new Error(`Invoice load failed: ${invErr.message}`);
+
     if (!inv) {
       return NextResponse.json(
         { ok: false, error: "Invoice not found" },
@@ -118,6 +146,7 @@ export async function POST(req: Request) {
     }
 
     const to = String(inv.to_email || "").trim();
+
     if (!to) {
       return NextResponse.json(
         { ok: false, error: "Customer email missing on invoice" },
@@ -169,8 +198,17 @@ export async function POST(req: Request) {
       );
     }
 
+    const currency = String(inv.currency || "GBP");
     const sentAtISO = new Date().toISOString();
     const refDefault = String(inv.id).slice(0, 8);
+
+    const subtotalAmount =
+      inv.subtotal != null ? Number(inv.subtotal) : Number(inv.amount ?? 0);
+
+    const vatRate = inv.vat_rate != null ? Number(inv.vat_rate) : 0;
+    const vatAmount =
+      vatRate > 0 ? Number((subtotalAmount * (vatRate / 100)).toFixed(2)) : 0;
+    const totalAmount = Number(inv.amount ?? 0);
 
     const invoiceForPdf = {
       id: inv.id,
@@ -181,22 +219,13 @@ export async function POST(req: Request) {
       to_email: inv.to_email,
       notes: inv.notes,
       status: inv.status,
-      currency: inv.currency || "GBP",
+      currency,
 
-      subtotal:
-        inv.subtotal != null
-          ? Number(inv.subtotal)
-          : Number(inv.amount ?? 0),
-
-      vat_rate:
-        inv.vat_rate != null
-          ? Number(inv.vat_rate)
-          : 0,
-
-      amount: Number(inv.amount ?? 0),
+      subtotal: subtotalAmount,
+      vat_rate: vatRate,
+      amount: totalAmount,
 
       trader_ref: inv.invoice_number || refDefault,
-
       job_number: linkedRequest?.job_number || "",
 
       customer_name: linkedRequest?.customer_name || "Customer",
@@ -242,30 +271,100 @@ export async function POST(req: Request) {
 
     const pdfDownloadUrl = signedPdf.signedUrl;
 
-    const html = `
-<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;line-height:1.6;color:#111;background:#fff;max-width:680px;margin:0 auto;padding:18px;">
-  <div style="font-size:18px;font-weight:700;margin-bottom:6px;">${escapeHtml(
-    traderName
-  )}</div>
-  <div style="font-size:13px;color:#666;margin-bottom:16px;">Invoice</div>
+    const customerName = String(linkedRequest?.customer_name || "there").trim();
+    const invoiceNumber = String(inv.invoice_number || refDefault).trim();
+    const dueDateText = formatDate(inv.due_at);
+    const notesText =
+      typeof inv.notes === "string" && inv.notes.trim()
+        ? inv.notes.trim()
+        : "Please use the invoice reference when making payment.";
 
-  <div style="margin-bottom:16px;">
-    <a href="${pdfDownloadUrl}" style="display:inline-block;background:#1f355c;color:#fff;text-decoration:none;padding:12px 16px;border-radius:12px;font-weight:700;">
-      Download invoice (PDF)
-    </a>
-  </div>
+    const safeCustomerName = escapeEmailHtml(customerName);
+    const safeTraderName = escapeEmailHtml(traderName);
+    const safeInvoiceNumber = escapeEmailHtml(invoiceNumber);
+    const safeDueDate = escapeEmailHtml(dueDateText);
+    const safeNotes = escapeEmailHtml(notesText);
 
-  <div style="margin:18px 0 10px;padding:14px;border:1px solid #eee;border-radius:12px;background:#fafafa;">
-    <div style="font-weight:700;margin-bottom:8px;">Bank details</div>
-    <div>Account name: YOUR BUSINESS NAME</div>
-    <div>Sort code: XX-XX-XX</div>
-    <div>Account number: XXXXXXXX</div>
-    <div>Reference: ${escapeHtml(String(inv.invoice_number || refDefault))}</div>
-  </div>
+    const html = buildFixFlowEmail({
+      title: "Invoice ready",
+      introHtml: `
+        <div style="font-size:16px; font-weight:700; margin-bottom:10px;">
+          Hi ${safeCustomerName},
+        </div>
 
-  <div style="margin-top:26px;font-size:12px;color:#999;">Powered by FixFlow</div>
-</div>
-`;
+        <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+          Your invoice from <strong style="color:#0B1320;">${safeTraderName}</strong> is ready.
+        </div>
+      `,
+      bodyHtml: `
+        ${buildFixFlowInfoCard(`
+          <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
+            ${buildFixFlowSectionLabel("Invoice number")}
+            <div style="font-size:18px; font-weight:800; color:#1F355C;">
+              ${safeInvoiceNumber}
+            </div>
+          </div>
+
+          <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
+            <div style="display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #E6ECF5;">
+              <span style="color:#5C6B84; font-size:14px;">Subtotal</span>
+              <span style="font-weight:700; font-size:14px; color:#0B1320;">${escapeEmailHtml(
+                formatMoney(subtotalAmount, currency)
+              )}</span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #E6ECF5;">
+              <span style="color:#5C6B84; font-size:14px;">VAT${
+                vatRate > 0 ? ` (${vatRate}%)` : ""
+              }</span>
+              <span style="font-weight:700; font-size:14px; color:#0B1320;">${escapeEmailHtml(
+                formatMoney(vatAmount, currency)
+              )}</span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; gap:12px; padding:14px 0 4px;">
+              <span style="color:#0B1320; font-size:18px; font-weight:800;">Total due</span>
+              <span style="color:#0B1320; font-size:22px; font-weight:900;">${escapeEmailHtml(
+                formatMoney(totalAmount, currency)
+              )}</span>
+            </div>
+          </div>
+
+          <div style="padding:18px;">
+            ${buildFixFlowSectionLabel("Due date")}
+            <div style="font-size:18px; font-weight:800; color:#0B1320;">
+              ${safeDueDate}
+            </div>
+          </div>
+        `)}
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px; border-collapse:collapse;">
+          <tr>
+            <td style="font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#5C6B84; padding:0 0 10px 0;">
+              Notes
+            </td>
+          </tr>
+          <tr>
+            <td style="border:1px solid #E6ECF5; border-radius:16px; background:#F4F7FF; padding:22px 24px; text-align:center;">
+              <div style="max-width:340px; margin:0 auto; font-size:15px; line-height:1.7; color:#0B1320;">
+                ${safeNotes}
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+          A PDF copy of your invoice is attached and also available using the button below.
+        </div>
+      `,
+      ctaHtml: buildFixFlowButton("Download invoice", pdfDownloadUrl),
+      closingHtml: `
+        <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
+          Thanks,<br />
+          <span style="font-weight:800; color:#1F355C;">${safeTraderName}</span>
+        </div>
+      `,
+    });
 
     const resendKey = process.env.RESEND_API_KEY;
     if (!resendKey) throw new Error("Missing RESEND_API_KEY");
@@ -275,8 +374,7 @@ export async function POST(req: Request) {
       process.env.EMAIL_FROM ||
       "FixFlow <onboarding@resend.dev>";
 
-    const subject =
-      subjectIn || `Invoice ${String(inv.invoice_number || refDefault)} from ${traderName}`;
+    const subject = subjectIn || `Invoice ${invoiceNumber} from ${traderName}`;
 
     const resend = new Resend(resendKey);
 
@@ -285,7 +383,24 @@ export async function POST(req: Request) {
       to,
       subject,
       html,
-      text: `Download your invoice (PDF): ${pdfDownloadUrl}`,
+      text: `Hi ${customerName},
+
+Your invoice from ${traderName} is ready.
+
+Invoice number: ${invoiceNumber}
+Subtotal: ${formatMoney(subtotalAmount, currency)}
+VAT${vatRate > 0 ? ` (${vatRate}%)` : ""}: ${formatMoney(vatAmount, currency)}
+Total due: ${formatMoney(totalAmount, currency)}
+Due date: ${dueDateText}
+
+Download invoice:
+${pdfDownloadUrl}
+
+Notes:
+${notesText}
+
+Thanks,
+${traderName}`,
       attachments: [
         {
           filename: `invoice-${String(inv.id).slice(0, 8)}.pdf`,

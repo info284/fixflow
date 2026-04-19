@@ -100,6 +100,23 @@ slug,
 
 if (profileError) throw profileError;
 
+const publicUrl = `https://thefixflowapp.com/${slug}`;
+
+try {
+  await fetch("/api/onboarding/send-welcome", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email,
+      publicUrl,
+    }),
+  });
+} catch (emailErr) {
+  console.warn("Welcome email failed:", emailErr);
+}
+
 // 4) Go to dashboard
 router.push("/dashboard");
 } catch (err: any) {

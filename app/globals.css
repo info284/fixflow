@@ -1,17 +1,33 @@
 @import "tailwindcss";
 
-@import "tailwindcss";
 
 /* app/globals.css */
 :root {
-  --bg: #f4f7fb;
+  /* App background */
+  --bg: #eef4f8;
+
+  /* Brand blues */
+  --ff-navy: #1F355C;
+  --ff-blue-soft: #DCE8FA;
+  --ff-blue-line: #8FA9D6;
+  --ff-blue-hover: #6F8FC4;
+  --ff-blue-bg: #F4F8FE;
+
+  /* Alert */
+  --ff-alert: #C97B7B;
 
   /* Text system */
-  --text-strong: #0f172a;   /* slate-900 */
-  --text: #334155;          /* slate-700 */
-  --text-muted: #475569;    /* slate-600 */
-  --text-subtle: #64748b;   /* slate-500 */
+  --text-strong: #0F172A;
+  --text: #334155;
+  --text-muted: #5F708A;
+  --text-subtle: #94A3B8;
+
+  /* Borders / surfaces */
+  --border: #E6ECF5;
+  --surface: #FFFFFF;
+  --surface-soft: #F8FBFF;
 }
+
 .ff-muted {
   color: var(--text-muted);
 }
@@ -27,17 +43,12 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-
-  /* ✅ This controls the font everywhere */
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-
-  /* ✅ This controls the overall text size everywhere */
-  font-size: 15px;           /* try 15px or 16px */
+  font-size: 15px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
 /* -----------------------
    Utility Styles (Cleaned Up)
 ------------------------ */
@@ -83,8 +94,8 @@ body {
 
 .input:focus {
   outline: none;
-  border-color: #1f6fff;
-  box-shadow: 0 0 0 3px rgba(31, 111, 255, 0.12);
+  border-color: #1F355C;
+  box-shadow: 0 0 0 3px rgba(143, 169, 214, 0.16);
 }
 
 .label {
@@ -106,4 +117,474 @@ body {
 
 @media (min-width: 768px) {
   .ff-quoteText { font-size: 16px; }
+}
+@keyframes ff-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.ff-unreadDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #245BFF;
+  display: inline-block;
+  margin-right: 6px;
+  box-shadow: 0 0 0 2px #ffffff;
+  animation: ff-pulse 1.6s infinite;
+}
+
+.ff-acceptPage {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  padding: 28px 16px;
+  background:
+    radial-gradient(circle at top left, rgba(11, 42, 85, 0.14), transparent 38%),
+    radial-gradient(circle at bottom right, rgba(36, 91, 255, 0.08), transparent 34%),
+    linear-gradient(180deg, #eef3f9 0%, #e6edf6 100%);
+}
+
+.ff-acceptBgGlow {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(40px);
+  pointer-events: none;
+}
+
+.ff-acceptBgGlowOne {
+  top: -80px;
+  right: -40px;
+  width: 240px;
+  height: 240px;
+  background: rgba(36, 91, 255, 0.08);
+}
+
+.ff-acceptBgGlowTwo {
+  bottom: -80px;
+  left: -50px;
+  width: 260px;
+  height: 260px;
+  background: rgba(11, 42, 85, 0.08);
+}
+
+.ff-acceptShell {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.ff-acceptTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+
+.ff-acceptBrandWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ff-acceptLogo {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #245bff 0%, #0b2a55 100%);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.2) inset,
+    0 10px 24px rgba(11, 42, 85, 0.25);
+}
+
+.ff-acceptBrandText {
+  display: grid;
+  gap: 2px;
+}
+
+.ff-acceptBrand {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0b2a55;
+  letter-spacing: -0.02em;
+}
+
+.ff-acceptBrandSub {
+  font-size: 12px;
+  color: #5c6b84;
+  font-weight: 600;
+}
+
+.ff-acceptBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(11, 42, 85, 0.12);
+  background: rgba(255, 255, 255, 0.9);
+  color: #1f355c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ff-acceptCard {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #e6ecf5;
+  border-radius: 28px;
+  padding: 28px;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 24px 70px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.ff-acceptHero {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 18px;
+  align-items: stretch;
+  margin-bottom: 22px;
+}
+
+.ff-acceptHeroText {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.ff-acceptEyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5c6b84;
+  margin-bottom: 10px;
+}
+
+.ff-acceptTitle {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  color: #0b1320;
+  font-weight: 900;
+}
+
+.ff-acceptSub {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #5c6b84;
+}
+
+.ff-acceptPriceCard {
+  border-radius: 22px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, #0b2a55 0%, #0f2f63 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.08) inset,
+    0 18px 36px rgba(11, 42, 85, 0.16);
+}
+
+.ff-acceptPriceLabel {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.82;
+}
+
+.ff-acceptPriceValue {
+  margin-top: 10px;
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.ff-acceptPriceSub {
+  margin-top: 10px;
+  font-size: 12px;
+  opacity: 0.8;
+  font-weight: 600;
+}
+
+.ff-acceptSummary {
+  display: grid;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.ff-acceptRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #e6ecf5;
+  background: #f9fbff;
+}
+
+.ff-acceptRow span {
+  font-size: 13px;
+  color: #5c6b84;
+  font-weight: 700;
+}
+
+.ff-acceptRow strong {
+  font-size: 14px;
+  color: #0b1320;
+  font-weight: 800;
+  text-align: right;
+}
+
+.ff-acceptActionWrap {
+  margin-top: 22px;
+}
+
+.ff-acceptButton {
+  width: 100%;
+  min-height: 54px;
+  border: 0;
+  border-radius: 16px;
+  background: #0b2a55;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.2) inset,
+    0 10px 24px rgba(11, 42, 85, 0.25);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.ff-acceptButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.2) inset,
+    0 14px 28px rgba(11, 42, 85, 0.3);
+}
+
+.ff-acceptButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
+}
+
+.ff-acceptHint {
+  margin-top: 10px;
+  text-align: center;
+  font-size: 12px;
+  color: #7a879c;
+  line-height: 1.5;
+}
+
+.ff-acceptSuccess {
+  margin-top: 22px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid #bde7cc;
+  background: #ecfdf3;
+}
+
+.ff-acceptSuccessIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #16a34a;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 900;
+  flex-shrink: 0;
+}
+
+.ff-acceptSuccessTitle {
+  font-size: 15px;
+  font-weight: 800;
+  color: #166534;
+}
+
+.ff-acceptSuccessText {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #3f5f49;
+}
+
+.ff-acceptSuccessWrap {
+  margin-top: 22px;
+  padding: 22px;
+  border-radius: 18px;
+  background: #ecfdf3;
+  border: 1px solid #bbf7d0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: ff-successFade 0.4s ease;
+}
+
+.ff-acceptTick {
+  width: 48px;
+  height: 48px;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+  font-weight: 900;
+  animation: ff-pop 0.25s ease;
+}
+
+.ff-acceptSuccessSub {
+  font-size: 13px;
+  color: #3f5f49;
+  text-align: center;
+}
+
+.ff-acceptNextSteps {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid #e6ecf5;
+  background: #f8fbff;
+}
+
+.ff-acceptNextStepsTitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: #1f355c;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.ff-acceptNextStepList {
+  display: grid;
+  gap: 10px;
+}
+
+.ff-acceptNextStepItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #4f5f78;
+}
+
+.ff-acceptStepDot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: #245bff;
+  flex-shrink: 0;
+}
+
+.ff-acceptLoadingWrap {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 12px;
+  padding: 10px 0;
+}
+
+.ff-acceptLoadingDot {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #245bff;
+  box-shadow: 0 0 0 8px rgba(36, 91, 255, 0.08);
+}
+
+.ff-acceptError {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #fecaca;
+  background: #fff1f1;
+  color: #9f1d1d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+@keyframes ff-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes ff-successFade {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 720px) {
+  .ff-acceptPage {
+    padding: 20px 14px;
+  }
+
+  .ff-acceptCard {
+    padding: 20px;
+    border-radius: 22px;
+  }
+
+  .ff-acceptHero {
+    grid-template-columns: 1fr;
+  }
+
+  .ff-acceptTitle {
+    font-size: 26px;
+  }
+
+  .ff-acceptPriceValue {
+    font-size: 28px;
+  }
+
+  .ff-acceptRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ff-acceptRow strong {
+    text-align: left;
+  }
+
+  .ff-acceptTop {
+    align-items: flex-start;
+  }
 }

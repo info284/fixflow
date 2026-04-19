@@ -1,9 +1,29 @@
-// lib/estimates/renderEstimatePdf.ts
 import PDFDocument from "pdfkit";
 
-function money(n: number) {
-  const x = Number.isFinite(n) ? n : 0;
+type PdfLineItem = {
+  title?: string | null;
+  quantity?: number | null;
+  line_total?: number | null;
+};
+
+type RenderEstimatePdfOpts = {
+  estimate?: any;
+  items?: PdfLineItem[];
+  profile?: {
+    business_name?: string | null;
+    display_name?: string | null;
+    logo_url?: string | null;
+    logo_buffer?: Buffer | null;
+  } | null;
+};
+
+function money(n?: number | null) {
+  const x = Number(n || 0);
   return `£${x.toFixed(2)}`;
+}
+
+function safeText(v?: string | null) {
+  return String(v || "").trim();
 }
 
 function formatPostcode(pc?: string | null) {
@@ -13,7 +33,13 @@ function formatPostcode(pc?: string | null) {
   return clean.slice(0, -3) + " " + clean.slice(-3);
 }
 
-// More tolerant: don’t require content-type to say “image”
+function shortDate(v?: string | null) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-GB");
+}
+
 async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   const u = String(url || "").trim();
   if (!u) return null;
@@ -21,7 +47,6 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   try {
     const res = await fetch(u, { cache: "no-store" });
     if (!res.ok) return null;
-
     const arr = await res.arrayBuffer();
     const buf = Buffer.from(arr);
     if (!buf || buf.length < 200) return null;
@@ -31,46 +56,169 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   }
 }
 
-export async function renderEstimatePdfBuffer(opts: {
-  quote: any;
-  profile: any;
-  fallbackEnquiryDetails?: string;
-}) {
-  const q = opts.quote || {};
-  const prof = opts.profile || {};
+function splitParagraphs(text: string) {
+  return String(text || "")
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+function splitWords(text: string) {
+  return String(text || "").trim().split(/\s+/).filter(Boolean);
+}
+
+function fitWordsToLine(
+  doc: PDFKit.PDFDocument,
+  words: string[],
+  maxWidth: number
+) {
+  let line = "";
+  let used = 0;
+
+  while (used < words.length) {
+    const test = line ? `${line} ${words[used]}` : words[used];
+    if (doc.widthOfString(test) <= maxWidth) {
+      line = test;
+      used += 1;
+    } else {
+      break;
+    }
+  }
+
+  if (!line && words[0]) {
+    let raw = words[0];
+    while (raw.length > 1 && doc.widthOfString(`${raw}…`) > maxWidth) {
+      raw = raw.slice(0, -1);
+    }
+    return { line: `${raw}…`, used: 1 };
+  }
+
+  return { line, used };
+}
+
+function truncateLines(
+  doc: PDFKit.PDFDocument,
+  text: string,
+  maxWidth: number,
+  maxLines: number
+) {
+  const paragraphs = splitParagraphs(text);
+  if (!paragraphs.length) return [];
+
+  const lines: string[] = [];
+
+  for (const paragraph of paragraphs) {
+    const words = splitWords(paragraph);
+    let index = 0;
+
+    while (index < words.length && lines.length < maxLines) {
+      const fitted = fitWordsToLine(doc, words.slice(index), maxWidth);
+      lines.push(fitted.line);
+      index += fitted.used;
+    }
+
+    if (lines.length >= maxLines) break;
+  }
+
+  if (paragraphs.length && lines.length > maxLines) {
+    lines.length = maxLines;
+  }
+
+  return lines.slice(0, maxLines);
+}
+
+function drawLines(
+  doc: PDFKit.PDFDocument,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  maxLines: number,
+  lineHeight: number,
+  align: "left" | "center" | "right" = "left"
+) {
+  const lines = truncateLines(doc, text, width, maxLines);
+  lines.forEach((line, i) => {
+    doc.text(line, x, y + i * lineHeight, {
+      width,
+      align,
+      lineBreak: false,
+    });
+  });
+}
+
+export async function renderEstimatePdfBuffer(opts: RenderEstimatePdfOpts) {
+  const estimate = opts.estimate || {};
+  const items = Array.isArray(opts.items) ? opts.items : [];
+  const profile = opts.profile || {};
 
   const traderName =
-    String(prof?.business_name || "").trim() ||
-    String(prof?.display_name || "").trim() ||
+    safeText(profile.business_name) ||
+    safeText(profile.display_name) ||
     "Your trader";
 
-  const vatNumber = String(prof?.vat_number || "").trim();
-  const logoUrl = String(prof?.logo_url || "").trim();
-  const logoBuf = logoUrl ? await fetchImageBuffer(logoUrl) : null;
+  const logoBuf =
+    profile.logo_buffer ||
+    (safeText(profile.logo_url)
+      ? await fetchImageBuffer(safeText(profile.logo_url))
+      : null);
 
-  const subtotal = Number(q.subtotal ?? 0) || 0;
-  const vatRate = Number(q.vat_rate ?? 0) || 0;
-  const vat = subtotal * (vatRate / 100);
-  const total = subtotal + vat;
+ const estimateNumber =
+  safeText(estimate.job_number) ||
+  safeText(estimate.trader_ref) ||
+  safeText(estimate.id).slice(0, 8) ||
+  "Estimate";
 
-  const created = q.created_at ? new Date(q.created_at) : new Date();
-  const refDefault = String(q.id || "").slice(0, 8) || "estimate";
-  const displayRef = String(q.trader_ref || refDefault).trim();
+  const createdAt = shortDate(estimate.created_at);
+  const validUntil = shortDate(estimate.valid_until);
 
-  const jobNumber = String(q.job_number || "").trim();
-  const jobType = String(q.job_type || "—").trim();
-  const postcode = formatPostcode(q.postcode);
-  const custName = String(q.customer_name || "Customer").trim();
-  const custEmail = String(q.customer_email || "").trim();
-  const custPhone = String(q.customer_phone || "").trim();
-  const custAddr = String(q.address || q.postcode || "").trim();
+  const customerName = safeText(estimate.customer_name) || "Customer";
+  const customerEmail = safeText(estimate.customer_email);
+  const customerPhone = safeText(estimate.customer_phone);
+  const address = safeText(estimate.address);
+  const postcode = formatPostcode(estimate.postcode);
 
-  const details =
-    String(q.job_details || "").trim() ||
-    String(opts.fallbackEnquiryDetails || "").trim() ||
-    "—";
+  const jobNumber =
+  safeText(estimate.job_number) ||
+  safeText(estimate.trader_ref) ||
+  "—";
+  const jobType = safeText(estimate.job_type) || "Estimate";
 
-  const doc = new PDFDocument({ size: "A4", margin: 48 });
+  const customerMessage = safeText(estimate.customer_message);
+  const includedNotes = safeText(estimate.included_notes);
+  const excludedNotes = safeText(estimate.excluded_notes);
+  const description = safeText(estimate.enquiry_details);
+
+  const subtotal = Number(estimate.subtotal || 0);
+  const vat = Number(estimate.vat || 0);
+  const total = Number(estimate.total || subtotal + vat);
+
+  const fallbackBreakdown = [
+    { label: "Labour", qty: 1, value: Number(estimate.labour || 0) },
+    { label: "Materials", qty: 1, value: Number(estimate.materials || 0) },
+    { label: "Callout fee", qty: 1, value: Number(estimate.callout || 0) },
+    { label: "Parts", qty: 1, value: Number(estimate.parts || 0) },
+    { label: "Other", qty: 1, value: Number(estimate.other || 0) },
+  ].filter((x) => x.value > 0);
+
+  const itemBreakdown = items
+    .map((item) => ({
+      label: safeText(item.title) || "Item",
+      qty: Number(item.quantity || 1),
+      value: Number(item.line_total || 0),
+    }))
+    .filter((x) => x.value > 0);
+
+  const breakdown = (itemBreakdown.length ? itemBreakdown : fallbackBreakdown).slice(0, 5);
+
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: 0,
+    autoFirstPage: true,
+    bufferPages: false,
+  });
+
   const chunks: Buffer[] = [];
   doc.on("data", (c: Buffer) => chunks.push(c));
 
@@ -79,328 +227,297 @@ export async function renderEstimatePdfBuffer(opts: {
     doc.on("error", reject);
   });
 
+  const PAGE_W = doc.page.width;
+  const PAGE_H = doc.page.height;
+
   const INK = "#0B1320";
-  const MUTED = "#5C6B84";
-  const BORDER = "#E6ECF5";
-  const SOFT = "#F6F8FC";
-  const HEADER = "#EEF2F7";
+  const NAVY = "#243B6B";
+  const MUTED = "#67748E";
+  const BORDER = "#D9E0EC";
+  const SOFT_BORDER = "#E6EBF3";
+  const PAGE_BG = "#F5F7FB";
+  const PANEL_BG = "#EEF3FB";
+  const CARD_BG = "#FFFFFF";
+  const SOFT_BOX = "#F7F9FC";
+  const SOFT_BLUE = "#F3F6FB";
 
-  const left = 48;
-  const pageW = doc.page.width;
-  const contentW = pageW - left * 2;
+  const OUTER = 34;
+  const CARD_X = 54;
+  const CARD_Y = 44;
+  const CARD_W = PAGE_W - CARD_X * 2;
+  const INNER = 18;
 
-  // Header band
-  doc.save();
-  doc.rect(0, 0, pageW, 130).fill(HEADER);
-  doc.restore();
+  function roundedBox(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    radius = 18,
+    fill = CARD_BG,
+    stroke = SOFT_BORDER
+  ) {
+    doc.save();
+    doc.roundedRect(x, y, w, h, radius).fill(fill);
+    doc.roundedRect(x, y, w, h, radius).lineWidth(1).strokeColor(stroke).stroke();
+    doc.restore();
+  }
+
+  function label(text: string, x: number, y: number) {
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text(text.toUpperCase(), x, y, { lineBreak: false });
+  }
+
+  function drawLogoBox(x: number, y: number, size = 56) {
+    if (logoBuf) {
+      try {
+        roundedBox(x, y, size, size, 14, "#FFFFFF", "#DCE3EF");
+        doc.image(logoBuf, x + 8, y + 8, {
+          fit: [size - 16, size - 16],
+          align: "center",
+          valign: "center",
+        });
+        return;
+      } catch {
+        // fallback below
+      }
+    }
+
+    roundedBox(x, y, size, size, 14, SOFT_BLUE, BORDER);
+    doc
+      .fillColor(NAVY)
+      .font("Helvetica-Bold")
+      .fontSize(22)
+      .text(traderName.charAt(0).toUpperCase(), x, y + 16, {
+        width: size,
+        align: "center",
+        lineBreak: false,
+      });
+  }
+
+  // Backgrounds
+  doc.rect(0, 0, PAGE_W, PAGE_H).fill(PAGE_BG);
+  roundedBox(
+    OUTER,
+    OUTER,
+    PAGE_W - OUTER * 2,
+    PAGE_H - OUTER * 2,
+    26,
+    PANEL_BG,
+    PANEL_BG
+  );
+ 
+const CARD_BOTTOM_PADDING = 14;
+
+roundedBox(
+  CARD_X,
+  CARD_Y,
+  CARD_W,
+  PAGE_H - CARD_Y - CARD_BOTTOM_PADDING,
+  22,
+  CARD_BG,
+ "#DCE3EF"
+);
+  const x = CARD_X + INNER;
+  const w = CARD_W - INNER * 2;
+  let y = CARD_Y + 14;
 
   // Title
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(26)
-    .text("Estimate", left, 42);
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(24).text("Estimate", x, y, {
+    lineBreak: false,
+  });
+  y += 44;
 
-  // Ref/date pill
-  const pillW = 200;
-  const pillH = 52;
-  const pillX = left + contentW - pillW;
-  const pillY = 40;
+  // Header
+const headerH = 88;
 
-  doc
-    .roundedRect(pillX, pillY, pillW, pillH, 12)
-    .fill("#FFFFFF")
-    .strokeColor(BORDER)
-    .stroke();
+roundedBox(x, y, w, headerH, 18, "#FFFFFF", "#DCE3EF");
 
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(8)
-    .text("REF", pillX + 14, pillY + 14);
+drawLogoBox(x + 14, y + 16, 56);
 
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(12)
-    .text(displayRef, pillX + 60, pillY + 12);
+doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(18);
+drawLines(doc, traderName, x + 84, y + 18, w - 240, 1, 20);
 
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(8)
-    .text("DATE", pillX + 14, pillY + 32);
+doc.fillColor(MUTED).font("Helvetica").fontSize(11);
+drawLines(doc, `Estimate no. ${estimateNumber}`, x + 84, y + 46, w - 240, 1, 14);
 
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text(created.toLocaleDateString("en-GB"), pillX + 60, pillY + 30);
+doc.fillColor(MUTED).font("Helvetica").fontSize(10);
+if (createdAt) {
+  drawLines(doc, `Created ${createdAt}`, x + w - 140, y + 18, 120, 1, 12, "right");
+}
+if (validUntil) {
+  drawLines(doc, `Valid until ${validUntil}`, x + w - 140, y + 42, 120, 1, 12, "right");
+}
 
-  // Trader row
-  const traderTop = 100;
-  const logoBox = 74;
+  y += headerH + 16;
 
-  doc
-    .roundedRect(left, traderTop, logoBox, logoBox, 16)
-    .fill("#FFFFFF")
-    .strokeColor(BORDER)
-    .stroke();
+  // Customer + Job
+  const gap = 14;
+  const colW = (w - gap) / 2;
+  const infoH = 112;
 
-  if (logoBuf) {
-    try {
-      doc.image(logoBuf, left + 10, traderTop + 10, {
-        fit: [logoBox - 20, logoBox - 20],
-        align: "center",
-        valign: "center",
-      });
-    } catch {}
+  roundedBox(x, y, colW, infoH, 18, SOFT_BOX, SOFT_BORDER);
+  roundedBox(x + colW + gap, y, colW, infoH, 18, SOFT_BOX, SOFT_BORDER);
+
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(12);
+  drawLines(doc, customerName, x + 16, y + 26, colW - 32, 1, 16, "center");
+
+  doc.fillColor(INK).font("Helvetica").fontSize(10);
+ const customerBlock = [address, postcode, customerEmail, customerPhone]
+  .filter(Boolean)
+  .join(" • ");
+  drawLines(doc, customerBlock || "—", x + 16, y + 50, colW - 32, 4, 12, "center");
+
+  const jobX = x + colW + gap;
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(12);
+  drawLines(doc, jobNumber, jobX + 16, y + 36, colW - 32, 1, 16, "center");
+
+  doc.fillColor(INK).font("Helvetica").fontSize(10);
+  drawLines(doc, jobType, jobX + 16, y + 62, colW - 32, 2, 12, "center");
+
+  y += infoH + 16;
+
+  // Summary
+ const summaryH = customerMessage ? 92 : 76;
+  roundedBox(x, y, w, summaryH, 18, CARD_BG, SOFT_BORDER);
+
+  label("Estimate summary", x + 16, y + 16);
+
+  doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(24);
+  drawLines(doc, money(total), x + 16, y + 42, w - 32, 1, 26);
+
+
+
+  if (customerMessage) {
+    doc.fillColor(MUTED).font("Helvetica").fontSize(10);
+    drawLines(
+      doc,
+      customerMessage,
+      validUntil ? x + 150 : x + 16,
+      validUntil ? y + 76 : y + 72,
+      validUntil ? w - 166 : w - 32,
+      1,
+      12
+    );
   }
 
-  const traderTextX = left + logoBox + 16;
+  y += summaryH + 14;
 
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(20)
-    .text(traderName, traderTextX, traderTop + 10);
+  // Job details
+  if (description) {
+    const detailsH = 96;
+    roundedBox(x, y, w, detailsH, 18, CARD_BG, SOFT_BORDER);
 
-  const traderLines = [vatNumber ? `VAT: ${vatNumber}` : ""].filter(Boolean);
+    label("Job details", x + 16, y + 16);
 
-  if (traderLines.length) {
-    doc
-      .fillColor(MUTED)
-      .font("Helvetica")
-      .fontSize(10)
-      .text(traderLines.join("\n"), traderTextX, traderTop + 34, {
-        width: contentW - (logoBox + 16),
-      });
+    doc.fillColor(INK).font("Helvetica").fontSize(10);
+    drawLines(doc, description, x + 16, y + 38, w - 32, 4, 12);
+
+    y += detailsH + 14;
   }
 
-  const dividerY = traderTop + logoBox + 18;
-  doc
-    .moveTo(left, dividerY)
-    .lineTo(left + contentW, dividerY)
-    .strokeColor(BORDER)
-    .lineWidth(1)
-    .stroke();
+  // Price breakdown
+  const rowH = 24;
+  const breakdownH = 48 + breakdown.length * rowH;
+  roundedBox(x, y, w, breakdownH, 18, CARD_BG, SOFT_BORDER);
 
-  // Cards
-  const cardY = dividerY + 18;
-  const cardH = 112;
-  const gap = 16;
-  const cardW = (contentW - gap) / 2;
-  const customerX = left;
-  const jobX = left + cardW + gap;
+  label("Price breakdown", x + 16, y + 16);
 
-  doc
-    .roundedRect(customerX, cardY, cardW, cardH, 14)
-    .fill(SOFT)
-    .strokeColor(BORDER)
-    .stroke();
+  let rowY = y + 40;
+  breakdown.forEach((line) => {
+    const qty = Number((line as any).qty || 0);
+    const name = qty > 1 ? `${line.label} × ${qty}` : line.label;
 
-  doc
-    .roundedRect(jobX, cardY, cardW, cardH, 14)
-    .fill(SOFT)
-    .strokeColor(BORDER)
-    .stroke();
+    doc.fillColor(MUTED).font("Helvetica").fontSize(11);
+    drawLines(doc, name, x + 16, rowY, w - 160, 1, 12);
 
-  // Customer card
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("CUSTOMER", customerX + 14, cardY + 12);
+    doc.fillColor(INK).font("Helvetica-Bold").fontSize(11);
+    drawLines(doc, money(line.value), x + 16, rowY, w - 32, 1, 12, "right");
 
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(12)
-    .text(custName, customerX + 14, cardY + 30, {
-      width: cardW - 28,
-    });
+    rowY += rowH;
+  });
 
-  doc
-    .fillColor(INK)
-    .font("Helvetica")
-    .fontSize(9)
-    .text([custAddr, custEmail, custPhone].filter(Boolean).join("\n"), customerX + 14, cardY + 50, {
-      width: cardW - 28,
-    });
-
-  // Job card
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("JOB", jobX + 14, cardY + 12);
-
-  if (jobNumber) {
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text(jobNumber, jobX + 14, cardY + 30, {
-        width: cardW - 28,
-      });
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica")
-      .fontSize(10)
-      .text(jobType, jobX + 14, cardY + 48, {
-        width: cardW - 28,
-      });
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica")
-      .fontSize(9)
-      .text(postcode ? `Postcode: ${postcode}` : "—", jobX + 14, cardY + 68, {
-        width: cardW - 28,
-      });
-  } else {
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text(jobType, jobX + 14, cardY + 30, {
-        width: cardW - 28,
-      });
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica")
-      .fontSize(9)
-      .text(postcode ? `Postcode: ${postcode}` : "—", jobX + 14, cardY + 52, {
-        width: cardW - 28,
-      });
-  }
-
-  // Work description
-  const descY = cardY + cardH + 20;
-
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("WORK DESCRIPTION", left, descY);
-
-  const descBoxY = descY + 14;
-  const descBoxH = 170;
-
-  doc
-    .roundedRect(left, descBoxY, contentW, descBoxH, 16)
-    .fill("#FFFFFF")
-    .strokeColor(BORDER)
-    .stroke();
-
-  doc
-    .fillColor(INK)
-    .font("Helvetica")
-    .fontSize(11)
-    .text(details, left + 14, descBoxY + 14, {
-      width: contentW - 28,
-      height: descBoxH - 28,
-    });
+  y += breakdownH + 14;
 
   // Totals
-  const sumY = descBoxY + descBoxH + 40;
+const totalsH = vat > 0 ? 120 : 92;
+roundedBox(x, y, w, totalsH, 18, SOFT_BOX, SOFT_BORDER);
 
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("SUMMARY", left, sumY);
+label("Totals", x + 16, y + 16);
 
-  const totalsX = left + contentW - 240;
-  const totalsY = sumY - 8;
+doc.fillColor(MUTED).font("Helvetica").fontSize(11);
+drawLines(doc, "Subtotal", x + 16, y + 40, w - 160, 1, 12);
 
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica")
-    .fontSize(10)
-    .text("Subtotal", totalsX, totalsY + 20);
+doc.fillColor(INK).font("Helvetica-Bold").fontSize(11);
+drawLines(doc, money(subtotal), x + 16, y + 40, w - 32, 1, 12, "right");
 
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text(money(subtotal), totalsX, totalsY + 20, {
-      width: 240,
-      align: "right",
-    });
+if (vat > 0) {
+  doc.fillColor(MUTED).font("Helvetica").fontSize(11);
+  drawLines(doc, "VAT", x + 16, y + 60, w - 160, 1, 12);
 
-  if (vatRate > 0) {
-    doc
-      .fillColor(MUTED)
-      .font("Helvetica")
-      .fontSize(10)
-      .text(`VAT (${vatRate}%)`, totalsX, totalsY + 44);
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(11);
+  drawLines(doc, money(vat), x + 16, y + 60, w - 32, 1, 12, "right");
 
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(10)
-      .text(money(vat), totalsX, totalsY + 44, {
-        width: 240,
-        align: "right",
-      });
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(14);
+  drawLines(doc, "Total", x + 16, y + 82, w - 160, 1, 16);
 
-    doc
-      .moveTo(totalsX, totalsY + 68)
-      .lineTo(totalsX + 240, totalsY + 68)
-      .strokeColor(BORDER)
-      .stroke();
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(18);
+  drawLines(doc, money(total), x + 16, y + 78, w - 32, 1, 20, "right");
+} else {
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(14);
+  drawLines(doc, "Total", x + 16, y + 62, w - 160, 1, 16);
 
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text("Total", totalsX, totalsY + 82);
+  doc.fillColor(INK).font("Helvetica-Bold").fontSize(18);
+  drawLines(doc, money(total), x + 16, y + 58, w - 32, 1, 20, "right");
+}
 
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(16)
-      .text(money(total), totalsX, totalsY + 78, {
-        width: 240,
-        align: "right",
-      });
-  } else {
-    doc
-      .moveTo(totalsX, totalsY + 46)
-      .lineTo(totalsX + 240, totalsY + 46)
-      .strokeColor(BORDER)
-      .stroke();
+y += totalsH + 2;
 
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text("Total", totalsX, totalsY + 60);
+  // Optional notes — only include if there is room
+  const footerTop = PAGE_H - 62;
+  const remaining = footerTop - y;
 
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(16)
-      .text(money(total), totalsX, totalsY + 56, {
-        width: 240,
-        align: "right",
-      });
+  if (includedNotes && remaining >= 74) {
+    const incH = 62;
+    roundedBox(x, y, w, incH, 18, SOFT_BOX, SOFT_BORDER);
+
+    label("What's included", x + 16, y + 16);
+
+    doc.fillColor(INK).font("Helvetica").fontSize(10);
+    drawLines(doc, includedNotes, x + 16, y + 36, w - 32, 1, 12);
+
+    y += incH + 12;
   }
 
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica")
-    .fontSize(9)
-    .text(
-      "This estimate is based on the details provided and may change if the scope changes after inspection.",
-      left,
-      770,
-      { width: contentW }
-    );
+  if (excludedNotes && footerTop - y >= 74) {
+    const excH = 62;
+    roundedBox(x, y, w, excH, 18, SOFT_BOX, SOFT_BORDER);
 
-  doc.end();
-  return await done;
+    label("What's excluded", x + 16, y + 16);
+
+    doc.fillColor(INK).font("Helvetica").fontSize(10);
+    drawLines(doc, excludedNotes, x + 16, y + 36, w - 32, 1, 12);
+  }
+
+
+doc
+  .fillColor(MUTED)
+  .font("Helvetica")
+  .fontSize(8);
+
+drawLines(
+  doc,
+  "This estimate is based on the details provided and may change if the scope changes after inspection.",
+  x,
+  PAGE_H - 28,
+  w,
+  1,
+  10,
+  "center"
+);
+
+doc.end();
+return await done;
 }

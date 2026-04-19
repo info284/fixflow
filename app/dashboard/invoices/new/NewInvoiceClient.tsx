@@ -162,7 +162,10 @@ export default function InvoicesPage() {
 
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+const [toast, setToast] = useState<{
+  text: string;
+  type?: "success" | "error";
+} | null>(null);
 
 const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [tab, setTab] = useState<RightTab>("details");
@@ -247,6 +250,12 @@ useEffect(() => {
   setTab("details");
 }, [selectedInvoice?.id]);
 
+function pushToast(text: string, type: "success" | "error" = "success") {
+  setToast({ text, type });
+  window.clearTimeout((pushToast as any)._t);
+  (pushToast as any)._t = window.setTimeout(() => setToast(null), 2400);
+}
+
   async function loadAll() {
     setLoading(true);
     setToast(null);
@@ -257,10 +266,10 @@ useEffect(() => {
     } = await supabase.auth.getUser();
 
     if (userErr || !user) {
-      setToast("You must be logged in to view invoices.");
-      setLoading(false);
-      return;
-    }
+  pushToast("You must be logged in to view invoices.", "error");
+  setLoading(false);
+  return;
+}
 
     setUserId(user.id);
 
@@ -275,7 +284,7 @@ useEffect(() => {
 
     if (reqErr) {
       setRequests([]);
-      setToast(`Requests load error: ${reqErr.message}`);
+      pushToast(`Requests load error: ${reqErr.message}`, "error");
     } else {
       setRequests((reqs || []) as RequestRow[]);
     }
@@ -291,7 +300,7 @@ useEffect(() => {
 
     if (invErr) {
       setInvoices([]);
-      setToast(`Invoices load error: ${invErr.message}`);
+      pushToast(`Invoices load error: ${invErr.message}`, "error");
     } else {
       const list = (invs || []) as InvoiceRow[];
       setInvoices(list);
@@ -308,8 +317,8 @@ useEffect(() => {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-    const visibleInvoices = useMemo(() => {
-    let list = [...invoices];
+   const visibleInvoices = useMemo(() => {
+  let list = [...invoices];
 
     if (statusFilter) {
       list = list.filter(
@@ -351,14 +360,14 @@ useEffect(() => {
     e.preventDefault();
     setToast(null);
 
-    if (!userId) return setToast("Not logged in.");
-    if (!requestId) return setToast("Pick a request first.");
-    if (!toEmail.trim()) return setToast("Customer email is required.");
-    if (!isValidEmail(toEmail)) return setToast("Customer email looks invalid.");
+    if (!userId) return pushToast("Not logged in.", "error");
+if (!requestId) return pushToast("Pick a request first.", "error");
+if (!toEmail.trim()) return pushToast("Customer email is required.", "error");
+if (!isValidEmail(toEmail)) return pushToast("Customer email looks invalid.", "error");
 
 const subtotalNum = Number(String(amount).replace(/,/g, "").trim());
 if (!Number.isFinite(subtotalNum) || subtotalNum < 0) {
-  return setToast("Amount must be a number.");
+  return pushToast("Amount must be a number.", "error");
 }
 
 setBusy(true);
@@ -388,7 +397,7 @@ const { data, error } = await supabase
   )
   .single();
     if (error) {
-      setToast(`Create invoice error: ${error.message}`);
+      pushToast(`Create invoice error: ${error.message}`, "error");
       setBusy(false);
       return;
     }
@@ -410,21 +419,21 @@ setNotes("");
 setVatRegistered(true);
 setVatRate("20");
 
-setToast("Invoice created ✓");
+pushToast("Invoice created ✓", "success");
 setBusy(false);
   }
 
 async function saveInvoice() {
   if (!userId || !selectedInvoice) return;
 
-  if (!detailToEmail.trim()) return setToast("Customer email is required.");
+  if (!detailToEmail.trim()) return pushToast("Customer email is required.", "error");
   if (!isValidEmail(detailToEmail)) {
-    return setToast("Customer email looks invalid.");
+    return pushToast("Customer email looks invalid.", "error");
   }
 
   const subtotalNum = Number(detailSubtotal || 0) || 0;
   if (!Number.isFinite(subtotalNum) || subtotalNum < 0) {
-    return setToast("Subtotal must be a number.");
+    return pushToast("Subtotal must be a number.", "error");
   }
 
   const vatRateNum = detailVatRegistered ? Number(detailVatRate) : 0;
@@ -454,7 +463,7 @@ async function saveInvoice() {
     .maybeSingle();
 
   if (error) {
-    setToast(`Save failed: ${error.message}`);
+    pushToast(`Save failed: ${error.message}`, "error");
     setBusy(false);
     return;
   }
@@ -465,7 +474,7 @@ async function saveInvoice() {
     );
   }
 
-  setToast("Saved ✓");
+  pushToast("Saved ✓", "success");
   setBusy(false);
 }
 
@@ -485,7 +494,7 @@ async function saveInvoice() {
       .maybeSingle();
 
     if (error) {
-      setToast(`Update error: ${error.message}`);
+      pushToast(`Update error: ${error.message}`, "error");
       setBusy(false);
       return;
     }
@@ -498,7 +507,7 @@ async function saveInvoice() {
       }
     }
 
-    setToast("Updated ✓");
+    pushToast("Updated ✓", "success");
     setBusy(false);
   }
     async function deleteInvoice(id: string) {
@@ -517,7 +526,7 @@ async function saveInvoice() {
       .eq("user_id", userId);
 
     if (error) {
-      setToast(`Delete error: ${error.message}`);
+      pushToast(`Delete error: ${error.message}`, "error");
       setBusy(false);
       return;
     }
@@ -537,7 +546,7 @@ async function saveInvoice() {
       }
     }
 
-    setToast("Deleted ✓");
+   pushToast("Deleted ✓", "success");
     setBusy(false);
   }
 
@@ -584,7 +593,7 @@ async function saveInvoice() {
 
     window.URL.revokeObjectURL(url);
   } catch (e: any) {
-    setToast(e?.message || "PDF download failed");
+   pushToast(e?.message || "PDF download failed", "error");
   } finally {
     setBusy(false);
   }
@@ -594,8 +603,8 @@ async function saveInvoice() {
     setToast(null);
 
     const to = (inv.to_email || "").trim();
-    if (!to) return setToast("This invoice has no customer email.");
-    if (!isValidEmail(to)) return setToast("This invoice email looks invalid.");
+    if (!to) return pushToast("This invoice has no customer email.", "error");
+if (!isValidEmail(to)) return pushToast("This invoice email looks invalid.", "error");
 
     setBusy(true);
 
@@ -625,9 +634,9 @@ async function saveInvoice() {
       }
 
       await markStatus(inv.id, "sent");
-      setToast("Invoice sent ✓");
+     pushToast("Invoice sent ✓", "success");
     } catch (e: any) {
-      setToast(e?.message || "Send failed");
+     pushToast(e?.message || "Send failed", "error"); 
     } finally {
       setBusy(false);
     }
@@ -655,9 +664,10 @@ async function saveInvoice() {
 
   const mobileDetail = selectedInvoice ? "1" : "0";
 
-  return (
-  <div className="ff-page" data-mobile-detail={mobileDetail}>
-    <div className="ff-wrap">
+return (
+  <React.Fragment>
+    <div className="ff-page" data-mobile-detail={mobileDetail}>
+      <div className="ff-wrap">
       <div className="ff-top">
         <div className="ff-hero">
           <div className="ff-heroGlow" />
@@ -675,6 +685,7 @@ async function saveInvoice() {
               </button>
             </div>
           </div>
+        </div>
         </div>
 
         <div className="ff-controls">
@@ -730,8 +741,11 @@ async function saveInvoice() {
           </div>
         </div>
 
-        {toast ? <div className="ff-toast">{toast}</div> : null}
-      </div>
+     {toast ? (
+  <div className={`ff-toast ${toast.type === "error" ? "ff-toastError" : "ff-toastSuccess"}`}>
+    {toast.text}
+  </div>
+) : null}
 
       <div className="ff-grid">
         <div className="ff-card ff-leftPane">
@@ -1385,14 +1399,12 @@ async function saveInvoice() {
                 </div>
               </>
             )}
-          </div>
         </div>
       </div>
     </div>
+  </div>
+</div>
 
-);
-
-  
 <style jsx>{`
 
   .ff-page {
@@ -1596,6 +1608,18 @@ async function saveInvoice() {
   .ff-leftPane {
     min-height: 0;
   }
+
+.ff-toastSuccess{
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.ff-toastError{
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
 
   .ff-leftHeadRow {
     flex: 0 0 auto;
@@ -2365,7 +2389,7 @@ async function saveInvoice() {
       content: none;
     }
   }
-`}</style>
-</div>
+    `}</style>
+  </React.Fragment>
 );
 }

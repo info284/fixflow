@@ -3,85 +3,111 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const runtime = "nodejs";
 
+function asString(value: unknown) {
+  return String(value ?? "").trim();
+}
+
+function asNullableString(value: unknown) {
+  const s = String(value ?? "").trim();
+  return s || null;
+}
+
 export async function POST(req: Request) {
-try {
-const body = await req.json().catch(() => ({}));
+  try {
+    const body = await req.json().catch(() => ({}));
 
-// Accept either UI names OR DB-ish names (so it works either way)
-const slug = String(body.slug || body.traderSlug || "").trim();
+    const slug = asString(body.slug || body.traderSlug);
 
-const customer_name = String(body.customer_name || body.name || "").trim();
-const customer_email = String(body.customer_email || body.email || "").trim();
-const customer_phone = String(body.customer_phone || body.phone || "").trim() || null;
+    const customer_name = asString(body.customer_name || body.name);
+    const customer_email = asString(body.customer_email || body.email);
+    const customer_phone = asNullableString(body.customer_phone || body.phone);
 
-const postcode = String(body.postcode || "").trim();
-const address = String(body.address || "").trim();
+    const postcode = asString(body.postcode);
+    const address = asString(body.address);
 
-const job_type = String(body.job_type || body.jobType || "").trim();
-const urgency = String(body.urgency || "").trim();
-const details = String(body.details || "").trim();
+    const job_type = asString(body.job_type || body.jobType);
+    const urgency = asString(body.urgency);
+    const details = asString(body.details);
 
-// Basic validation (the “missing required fields” you’re seeing)
-const missing: string[] = [];
-if (!slug) missing.push("slug");
-if (!customer_name) missing.push("name");
-if (!customer_email) missing.push("email");
-if (!postcode) missing.push("postcode");
-if (!address) missing.push("address");
-if (!job_type) missing.push("job_type");
-if (!urgency) missing.push("urgency");
-if (!details) missing.push("details");
+    const budget = asNullableString(body.budget);
+    const parking = asNullableString(body.parking);
+    const property_type = asNullableString(body.property_type || body.propertyType);
+    const problem_location = asNullableString(body.problem_location || body.problemLocation);
+    const is_still_working = asNullableString(body.is_still_working || body.isStillWorking);
+    const has_happened_before = asNullableString(body.has_happened_before || body.hasHappenedBefore);
 
-if (missing.length) {
-return NextResponse.json(
-{ error: `Missing required fields: ${missing.join(", ")}` },
-{ status: 400 }
-);
-}
+    const missing: string[] = [];
+    if (!slug) missing.push("slug");
+    if (!customer_name) missing.push("name");
+    if (!customer_email) missing.push("email");
+    if (!postcode) missing.push("postcode");
+    if (!address) missing.push("address");
+    if (!job_type) missing.push("job_type");
+    if (!urgency) missing.push("urgency");
+    if (!details) missing.push("details");
 
-// 1) Look up trader by slug
-// ✅ Change "profiles" to whatever table actually stores your traders
-const { data: trader, error: tErr } = await supabaseAdmin
-.from("profiles")
-.select("id, slug")
-.eq("slug", slug)
-.maybeSingle();
+    if (missing.length) {
+      return NextResponse.json(
+        { error: `Missing required fields: ${missing.join(", ")}` },
+        { status: 400 }
+      );
+    }
 
-if (tErr) {
-return NextResponse.json({ error: tErr.message }, { status: 400 });
-}
+    const { data: trader, error: traderError } = await supabaseAdmin
+      .from("profiles")
+      .select("id, slug")
+      .eq("slug", slug)
+      .maybeSingle();
 
-if (!trader?.id) {
-return NextResponse.json({ error: "Trader not found" }, { status: 404 });
-}
+    if (traderError) {
+      return NextResponse.json(
+        { error: traderError.message },
+        { status: 400 }
+      );
+    }
 
-// 2) Insert into quote_requests
-const { data: inserted, error: iErr } = await supabaseAdmin
-.from("quote_requests")
-.insert({
-plumber_id: trader.id,
-customer_name,
-customer_email,
-customer_phone,
-postcode,
-address,
-job_type,
-urgency,
-details,
-status: "requested",
-})
-.select("id")
-.single();
+    if (!trader?.id) {
+      return NextResponse.json(
+        { error: "Trader not found" },
+        { status: 404 }
+      );
+    }
 
-if (iErr) {
-return NextResponse.json({ error: iErr.message }, { status: 400 });
-}
+    const { data: inserted, error: insertError } = await supabaseAdmin
+      .from("quote_requests")
+      .insert({
+        plumber_id: trader.id,
+        customer_name,
+        customer_email,
+        customer_phone,
+        postcode,
+        address,
+        job_type,
+        urgency,
+        details,
+        budget,
+        parking,
+        property_type,
+        problem_location,
+        is_still_working,
+        has_happened_before,
+        status: "requested",
+      })
+      .select("id")
+      .single();
 
-return NextResponse.json({ request: inserted }, { status: 200 });
-} catch (e: any) {
-return NextResponse.json(
-{ error: e?.message || "Create request failed" },
-{ status: 500 }
-);
-}
+    if (insertError) {
+      return NextResponse.json(
+        { error: insertError.message },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({ request: inserted }, { status: 200 });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: error?.message || "Create request failed" },
+      { status: 500 }
+    );
+  }
 }

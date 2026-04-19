@@ -6,14 +6,14 @@ import React, { useMemo, useRef, useState } from "react";
    Types
 ========================= */
 type Trader = {
-  id?: string;
-  slug?: string;
-  display_name?: string;
-  business_name?: string;
-  headline?: string;
-  logo_url?: string;
-  accent?: string;
-  notify_email?: string;
+  id: string;
+  slug: string | null;
+  display_name: string | null;
+  business_name?: string | null;
+  headline: string | null;
+  logo_url: string | null;
+  accent?: string | null;
+  notify_email?: string | null;
 };
 
 type AddressLookupResponse = {
@@ -43,10 +43,12 @@ function clamp01(n: number) {
 
 function Stroke({ strength = 0.2 }: { strength?: number }) {
   const s = clamp01(strength);
-  const height = 3 + Math.round(s * 2);
-  const opacityA = 0.35 + s * 0.55;
-  const opacityB = 0.1 + s * 0.4;
-  const glow = 10 + s * 18;
+  const eased = Math.pow(s, 0.85);
+
+  const opacityA = 0.34 + eased * 0.2;
+  const opacityB = 0.08 + eased * 0.12;
+  const glow = 0.025 + eased * 0.045;
+  const height = 2 + Math.round(eased * 1);
 
   return (
     <div
@@ -54,11 +56,13 @@ function Stroke({ strength = 0.2 }: { strength?: number }) {
       style={{
         height,
         background: `linear-gradient(90deg,
-          rgba(31,111,255,${opacityA}),
-          rgba(31,111,255,${opacityB}),
-          rgba(31,111,255,0)
+          rgba(36,91,255,${opacityA}) 0%,
+          rgba(70,130,255,${opacityB}) 45%,
+          rgba(11,42,85,0.03) 100%
         )`,
-        boxShadow: `0 0 ${glow}px rgba(31,111,255,${0.18 + s * 0.22})`,
+        boxShadow: `0 0 8px rgba(36,91,255,${glow})`,
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
       }}
     />
   );
@@ -78,11 +82,11 @@ function Card({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-6">
+    <section className="mt-5">
       <div
         className={[
-          "relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 backdrop-blur",
-          "shadow-[0_1px_0_rgba(15,23,42,0.03),0_14px_30px_rgba(15,23,42,0.08)]",
+          "relative overflow-hidden rounded-[24px] border border-[var(--border)] bg-[rgba(255,255,255,0.96)] backdrop-blur",
+          "shadow-[0_1px_0_rgba(255,255,255,0.88)_inset,0_12px_28px_rgba(15,23,42,0.05)]",
         ].join(" ")}
       >
         <Stroke strength={strength} />
@@ -90,17 +94,23 @@ function Card({
         <div
           className="pointer-events-none absolute -top-24 -right-24 h-64 w-64 rounded-full blur-3xl"
           style={{
-            background: `radial-gradient(circle, rgba(31,111,255,${0.06 + strength * 0.1}), transparent 60%)`,
+            background: `radial-gradient(circle, rgba(143,169,214,${
+              0.04 + strength * 0.05
+            }), transparent 60%)`,
           }}
         />
 
         <div className="relative p-5 sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <h2 className="text-[19px] sm:text-[20px] font-extrabold tracking-tight text-slate-900">
+              <h2 className="text-[19px] sm:text-[20px] font-extrabold tracking-tight text-[#1F355C]">
                 {title}
               </h2>
-              {sub ? <p className="mt-1 text-[14px] text-slate-600">{sub}</p> : null}
+              {sub ? (
+                <p className="mt-1 text-[14px] text-[rgba(31,53,92,0.68)]">
+                  {sub}
+                </p>
+              ) : null}
             </div>
 
             {rightTag ? <div className="shrink-0">{rightTag}</div> : null}
@@ -115,7 +125,7 @@ function Card({
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="mb-1 block text-[13.5px] font-semibold text-slate-700">
+    <label className="mb-1 block text-[13.5px] font-semibold text-[var(--text)]">
       {children}
     </label>
   );
@@ -144,11 +154,11 @@ function Input({
       placeholder={placeholder}
       autoComplete={autoComplete}
       className={[
-        "w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5",
-        "text-[15.5px] text-slate-900 placeholder:text-slate-400",
+        "w-full rounded-2xl border border-[var(--border)] bg-white px-4 py-3.5",
+        "text-[15.5px] text-[#1F355C] placeholder:text-[rgba(31,53,92,0.35)]",
         "outline-none transition",
-        "focus:ring-4 focus:ring-blue-100 focus:border-blue-300",
-        "shadow-[inset_0_1px_0_rgba(15,23,42,0.03)]",
+        "focus:ring-4 focus:ring-[rgba(220,232,250,0.9)] focus:border-[rgba(143,169,214,0.55)]",
+        "shadow-[inset_0_1px_0_rgba(255,255,255,0.82)]",
         uppercase ? "uppercase" : "",
       ].join(" ")}
     />
@@ -172,11 +182,11 @@ function Select({
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
       className={[
-        "w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5",
-        "text-[15.5px] text-slate-900",
+        "w-full rounded-2xl border border-[var(--border)] bg-white px-4 py-3.5",
+        "text-[15.5px] text-[#1F355C]",
         "outline-none transition",
-        "focus:ring-4 focus:ring-blue-100 focus:border-blue-300",
-        "disabled:bg-slate-50 disabled:text-slate-500 disabled:border-slate-200/70",
+        "focus:ring-4 focus:ring-[rgba(220,232,250,0.9)] focus:border-[rgba(143,169,214,0.55)]",
+        "disabled:bg-[var(--surface-soft)] disabled:text-[var(--text-muted)] disabled:border-[var(--border)]",
       ].join(" ")}
     >
       {children}
@@ -199,10 +209,10 @@ function Textarea({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className={[
-        "min-h-[160px] w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5",
-        "text-[15.5px] text-slate-900 placeholder:text-slate-400",
+        "min-h-[160px] w-full rounded-2xl border border-[var(--border)] bg-white px-4 py-3.5",
+        "text-[15.5px] text-[#1F355C] placeholder:text-[rgba(31,53,92,0.35)]",
         "outline-none transition",
-        "focus:ring-4 focus:ring-blue-100 focus:border-blue-300",
+        "focus:ring-4 focus:ring-[rgba(220,232,250,0.9)] focus:border-[rgba(143,169,214,0.55)]",
       ].join(" ")}
     />
   );
@@ -220,7 +230,6 @@ function StatusTag({ ok, label }: { ok: boolean; label: string }) {
     </span>
   );
 }
-
 /* =========================
    Main Component
 ========================= */
@@ -251,7 +260,9 @@ export default function QuoteClient({
   const [parking, setParking] = useState("");
   const [propertyType, setPropertyType] = useState("");
   const [problemLocation, setProblemLocation] = useState("");
-  const [lookupStatus, setLookupStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [lookupStatus, setLookupStatus] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [lookupMsg, setLookupMsg] = useState("");
   const [isStillWorking, setIsStillWorking] = useState("");
   const [hasHappenedBefore, setHasHappenedBefore] = useState("");
@@ -268,11 +279,19 @@ export default function QuoteClient({
     return v.length >= 6 && v.includes("@") && v.includes(".");
   }, [email]);
 
+  const isPhoneOk = useMemo(() => {
+    const digits = phone.replace(/\D/g, "");
+    return digits.length >= 10;
+  }, [phone]);
+
   const isDetailsOk = useMemo(() => details.trim().length >= 10, [details]);
   const canLookup = useMemo(() => postcode.trim().length >= 5, [postcode]);
   const photosOk = useMemo(() => Boolean(files && files.length > 0), [files]);
 
-  const detailsSectionOk = useMemo(() => isNameOk && isEmailOk, [isNameOk, isEmailOk]);
+  const detailsSectionOk = useMemo(
+    () => isNameOk && isEmailOk && isPhoneOk,
+    [isNameOk, isEmailOk, isPhoneOk]
+  );
 
   const locationSectionOk = useMemo(
     () => postcode.trim().length >= 5 && Boolean(selectedAddress.trim()),
@@ -315,16 +334,23 @@ export default function QuoteClient({
 
   const heroStrength = useMemo(() => clamp01(progress / 100), [progress]);
 
-  const detailsStrength = useMemo(
-    () => (detailsSectionOk ? 1 : clamp01((name.trim().length + email.trim().length) / 25)),
-    [detailsSectionOk, name, email]
-  );
+  const detailsStrength = useMemo(() => {
+    const digits = phone.replace(/\D/g, "").length;
+    return detailsSectionOk
+      ? 1
+      : clamp01(
+          (name.trim().length + email.trim().length + digits) / 35
+        );
+  }, [detailsSectionOk, name, email, phone]);
 
   const locationStrength = useMemo(
     () =>
       locationSectionOk
         ? 1
-        : clamp01((postcode.trim().length >= 5 ? 0.45 : 0.15) + (selectedAddress.trim() ? 0.4 : 0)),
+        : clamp01(
+            (postcode.trim().length >= 5 ? 0.45 : 0.15) +
+              (selectedAddress.trim() ? 0.4 : 0)
+          ),
     [locationSectionOk, postcode, selectedAddress]
   );
 
@@ -343,8 +369,7 @@ export default function QuoteClient({
   );
 
   const photosStrength = useMemo(() => (files?.length ? 0.75 : 0.2), [files]);
-
-  async function findAddresses() {
+    async function findAddresses() {
     setLookupStatus("loading");
     setLookupMsg("");
     setAddressList([]);
@@ -416,13 +441,19 @@ export default function QuoteClient({
     setSubmitted(false);
     setJobNumber("");
 
+    if (!isPhoneOk) {
+      setSubmitError("Please enter a valid phone number");
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const fd = new FormData();
 
       fd.append("slug", slug);
       fd.append("name", name.trim());
       fd.append("email", email.trim());
-      fd.append("phone", phone.trim() || "");
+      fd.append("phone", phone.trim());
       fd.append("postcode", postcode.trim());
       fd.append("address", selectedAddress.trim());
       fd.append("job_type", jobType);
@@ -441,21 +472,29 @@ export default function QuoteClient({
         });
       }
 
-     const res = await fetch("/api/enquiries/create", {
-  method: "POST",
-  body: fd,
-});
+      const res = await fetch("/api/enquiries/create", {
+        method: "POST",
+        body: fd,
+      });
 
       const json = await safeJson(res);
 
       if (!res.ok) {
-      throw new Error((json as any)?.debug || (json as any)?.error || "Insert failed");
+        throw new Error(
+          (json as any)?.debug || (json as any)?.error || "Insert failed"
+        );
       }
 
       setJobNumber((json as any)?.job_number || "");
       setSubmitted(true);
       resetForm();
       window.scrollTo({ top: 0, behavior: "smooth" });
+
+      setTimeout(() => {
+        window.location.href = `/p/${slug}/request-sent?job=${encodeURIComponent(
+          (json as any)?.job_number || ""
+        )}`;
+      }, 1400);
     } catch (e: any) {
       setSubmitError(e?.message || "Insert failed");
     } finally {
@@ -464,30 +503,30 @@ export default function QuoteClient({
   }
 
   const submitEnabled =
-    Boolean(detailsSectionOk && locationSectionOk && jobSectionOk && photosOk) && !submitting;
+    Boolean(detailsSectionOk && locationSectionOk && jobSectionOk && photosOk) &&
+    !submitting;
 
   const traderName = trader?.display_name || trader?.business_name || slug;
   const subtitle = trader?.headline || "Request an estimate";
 
   const bgStyle = useMemo(() => {
     if (!submitting && !submitted) {
-      return "bg-[radial-gradient(circle_at_20%_10%,rgba(31,111,255,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(31,111,255,0.06),transparent_40%),#f7f9fc]";
+      return "bg-[radial-gradient(circle_at_20%_10%,rgba(143,169,214,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(143,169,214,0.05),transparent_40%),#f4f7fb]";
     }
 
     if (submitting && !submitted) {
-      return "bg-[radial-gradient(circle_at_20%_10%,rgba(31,111,255,0.22),transparent_50%),radial-gradient(circle_at_80%_30%,rgba(31,111,255,0.14),transparent_45%),#f3f7ff]";
+      return "bg-[radial-gradient(circle_at_20%_10%,rgba(143,169,214,0.18),transparent_50%),radial-gradient(circle_at_80%_30%,rgba(143,169,214,0.10),transparent_45%),#f1f6fc]";
     }
 
-    return "bg-[radial-gradient(circle_at_20%_10%,rgba(16,185,129,0.14),transparent_55%),radial-gradient(circle_at_80%_30%,rgba(31,111,255,0.10),transparent_45%),#f6fbf9]";
+    return "bg-[radial-gradient(circle_at_20%_10%,rgba(16,185,129,0.12),transparent_55%),radial-gradient(circle_at_80%_30%,rgba(143,169,214,0.08),transparent_45%),#f5faf8]";
   }, [submitting, submitted]);
-
-  return (
+    return (
     <main className={`min-h-screen ${bgStyle} ff-dashboardText transition-colors duration-500`}>
       <div className="mx-auto max-w-3xl px-4 py-10">
         <header
           className={[
-            "relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 backdrop-blur",
-            "shadow-[0_1px_0_rgba(15,23,42,0.03),0_14px_30px_rgba(15,23,42,0.08)]",
+            "relative overflow-hidden rounded-[28px] border border-[var(--border)] bg-[rgba(255,255,255,0.96)] backdrop-blur",
+            "shadow-[0_1px_0_rgba(255,255,255,0.88)_inset,0_16px_36px_rgba(15,23,42,0.06)]",
           ].join(" ")}
         >
           <Stroke strength={heroStrength} />
@@ -495,21 +534,30 @@ export default function QuoteClient({
           <div className="pointer-events-none absolute inset-0">
             <div
               className="absolute -top-28 -left-28 h-80 w-80 rounded-full blur-3xl"
-              style={{ background: "radial-gradient(circle, rgba(31,111,255,0.16), transparent 60%)" }}
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(143,169,214,0.14), transparent 60%)",
+              }}
             />
             <div
               className="absolute -bottom-28 -right-28 h-80 w-80 rounded-full blur-3xl"
-              style={{ background: "radial-gradient(circle, rgba(31,111,255,0.10), transparent 60%)" }}
+              style={{
+                background:
+                  "radial-gradient(circle, rgba(143,169,214,0.08), transparent 60%)",
+              }}
             />
             <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-b from-white/70 to-transparent" />
           </div>
 
           <div className="relative p-6 sm:p-7">
             <div className="flex items-start gap-5">
-              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm sm:h-20 sm:w-20">
+              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-2xl border border-[rgba(143,169,214,0.22)] bg-white shadow-[0_1px_0_rgba(255,255,255,0.85)_inset,0_10px_24px_rgba(15,23,42,0.05)] sm:h-20 sm:w-20">
                 {trader?.logo_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={trader.logo_url} alt="Logo" className="h-full w-full object-contain" />
+                  <img
+                    src={trader.logo_url}
+                    alt="Logo"
+                    className="h-full w-full object-contain"
+                  />
                 ) : (
                   <span className="text-[18px] font-extrabold text-slate-700 sm:text-[20px]">
                     {(traderName?.[0] || "T").toUpperCase()}
@@ -521,11 +569,12 @@ export default function QuoteClient({
                 <div className="text-[12.5px] font-semibold text-slate-500">
                   FixFlow quote request
                 </div>
-                <h1 className="mt-1 truncate text-[22px] font-extrabold tracking-tight text-slate-900 sm:text-[28px]">
+                <h1 className="mt-1 truncate text-[22px] font-extrabold tracking-tight text-[#1F355C] sm:text-[28px]">
                   {traderName}
                 </h1>
                 <p className="mt-1 text-[14.5px] text-slate-600 sm:text-[15.5px]">
-                  {subtitle}. Fill in the form below — it goes straight to the trader.
+                  {subtitle}. Tell us what you need, add photos, and your request
+                  will go straight to the trader.
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-3 text-[13.5px] text-slate-600">
@@ -550,14 +599,16 @@ export default function QuoteClient({
                 <span>Progress</span>
                 <span>{progress}%</span>
               </div>
-              <div className="mt-2 h-2 w-full overflow-hidden rounded-full border border-slate-200/70 bg-slate-100">
+              <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full border border-[rgba(143,169,214,0.18)] bg-[rgba(143,169,214,0.10)]">
                 <div
                   className="h-full rounded-full transition-[width] duration-300"
                   style={{
                     width: `${progress}%`,
                     background:
-                      "linear-gradient(90deg, rgba(31,111,255,0.95), rgba(31,111,255,0.25))",
-                    boxShadow: `0 0 ${10 + heroStrength * 18}px rgba(31,111,255,${0.12 + heroStrength * 0.18})`,
+                      "linear-gradient(90deg, rgba(143,169,214,0.95), rgba(143,169,214,0.30))",
+                    boxShadow: `0 0 ${
+                      10 + heroStrength * 18
+                    }px rgba(143,169,214,${0.1 + heroStrength * 0.14})`,
                   }}
                 />
               </div>
@@ -572,23 +623,39 @@ export default function QuoteClient({
             </div>
           </div>
         </header>
-
-        {submitted ? (
-          <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-900 shadow-[0_1px_0_rgba(15,23,42,0.02),0_6px_14px_rgba(15,23,42,0.05)]">
-            <div className="text-[15px] font-extrabold">Request received.</div>
-            <div className="mt-1 text-[14.5px] text-emerald-800">
-              Your details have been sent to the trader. They’ll be in touch shortly.
-            </div>
-            {jobNumber ? (
-              <div className="mt-2 text-[14px] font-semibold text-emerald-900">
-                Job reference: {jobNumber}
+                {submitted ? (
+          <div className="mt-5 rounded-[24px] border border-emerald-200/80 bg-[linear-gradient(180deg,rgba(236,253,243,0.96),rgba(240,253,247,0.94))] px-5 py-5 text-emerald-900 shadow-[0_1px_0_rgba(255,255,255,0.7)_inset,0_10px_24px_rgba(15,23,42,0.04)]">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white shadow-[0_8px_18px_rgba(16,185,129,0.18)]">
+                ✓
               </div>
-            ) : null}
+
+              <div className="min-w-0">
+                <div className="text-[16px] font-extrabold tracking-tight text-emerald-950">
+                  Request sent successfully
+                </div>
+
+                <div className="mt-1 text-[14.5px] leading-6 text-emerald-900/90">
+                  Your request has been sent directly to the trader. They’ll review
+                  the details and contact you soon.
+                </div>
+
+                {jobNumber ? (
+                  <div className="mt-3 inline-flex rounded-full border border-emerald-200 bg-white/70 px-3 py-1.5 text-[13px] font-bold text-emerald-900">
+                    Job reference: {jobNumber}
+                  </div>
+                ) : null}
+
+                <div className="mt-4 text-[13.5px] font-medium text-emerald-900/75">
+                  You can now close this page.
+                </div>
+              </div>
+            </div>
           </div>
         ) : null}
 
         {submitError ? (
-          <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-900 shadow-[0_1px_0_rgba(15,23,42,0.02),0_6px_14px_rgba(15,23,42,0.05)]">
+          <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-900 shadow-[0_1px_0_rgba(15,23,42,0.02),0_6px_14px_rgba(15,23,42,0.05)]">
             <div className="text-[15px] font-extrabold">Something went wrong</div>
             <div className="mt-1 text-[14.5px] text-red-800">{submitError}</div>
           </div>
@@ -596,14 +663,19 @@ export default function QuoteClient({
 
         <Card
           title="Your details"
-          sub="So the trader can reply quickly."
+          sub="So the trader can call, text or email you quickly."
           strength={detailsStrength}
           rightTag={<StatusTag ok={detailsSectionOk} label="Complete" />}
         >
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label>Name</Label>
-              <Input value={name} onChange={setName} placeholder="Your name" autoComplete="name" />
+              <Input
+                value={name}
+                onChange={setName}
+                placeholder="Your name"
+                autoComplete="name"
+              />
               {!isNameOk && name.length > 0 ? (
                 <p className="mt-2 text-[13px] text-slate-500">
                   Add your full name (at least 2 characters).
@@ -628,14 +700,27 @@ export default function QuoteClient({
 
             <div className="sm:col-span-2">
               <Label>
-                Phone <span className="font-semibold text-slate-400">(optional)</span>
+                Phone number <span className="text-red-500">*</span>
               </Label>
-              <Input value={phone} onChange={setPhone} placeholder="07..." autoComplete="tel" />
+              <p className="mb-2 text-[13px] text-slate-500">
+                So the trader can call or message you about your job.
+              </p>
+              <Input
+                value={phone}
+                onChange={setPhone}
+                placeholder="07..."
+                autoComplete="tel"
+                type="tel"
+              />
+              {!isPhoneOk && phone.length > 0 ? (
+                <p className="mt-2 text-[13px] text-red-500">
+                  Enter a valid phone number
+                </p>
+              ) : null}
             </div>
           </div>
         </Card>
-
-        <Card
+                <Card
           title="Location"
           sub="Postcode + address helps confirm the area."
           strength={locationStrength}
@@ -644,14 +729,21 @@ export default function QuoteClient({
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_180px]">
             <div>
               <Label>Postcode</Label>
-              <Input value={postcode} onChange={setPostcode} placeholder="RH17 6TL" uppercase />
+              <Input
+                value={postcode}
+                onChange={setPostcode}
+                placeholder="RH17 6TL"
+                uppercase
+              />
 
               {lookupStatus === "error" ? (
                 <p className="mt-2 text-[13.5px] font-semibold text-red-700">
                   {lookupMsg || "Address lookup failed"}
                 </p>
               ) : lookupStatus === "success" ? (
-                <p className="mt-2 text-[13.5px] font-semibold text-emerald-700">{lookupMsg}</p>
+                <p className="mt-2 text-[13.5px] font-semibold text-emerald-700">
+                  {lookupMsg}
+                </p>
               ) : lookupStatus === "loading" ? (
                 <p className="mt-2 text-[13.5px] font-semibold text-slate-600">
                   Finding addresses…
@@ -669,11 +761,11 @@ export default function QuoteClient({
                 onClick={findAddresses}
                 disabled={!canLookup || lookupStatus === "loading"}
                 className={[
-                  "w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5",
-                  "text-[14.5px] font-semibold text-slate-900",
-                  "transition hover:bg-slate-50",
-                  "focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-300",
-                  "disabled:cursor-not-allowed disabled:opacity-50 disabled:border-slate-200/70",
+                  "w-full rounded-2xl border border-[var(--border)] bg-white px-4 py-3.5",
+                  "text-[14.5px] font-semibold text-[var(--text-strong)]",
+                  "transition hover:bg-[var(--surface-soft)]",
+                  "focus:outline-none focus:ring-4 focus:ring-[rgba(220,232,250,0.9)] focus:border-[rgba(143,169,214,0.55)]",
+                  "disabled:cursor-not-allowed disabled:opacity-50 disabled:border-[var(--border)]",
                 ].join(" ")}
               >
                 {lookupStatus === "loading" ? "Finding…" : "Find address"}
@@ -689,7 +781,9 @@ export default function QuoteClient({
               disabled={addressList.length === 0}
             >
               <option value="">
-                {addressList.length ? "Select your address…" : "Find addresses first…"}
+                {addressList.length
+                  ? "Select your address…"
+                  : "Find addresses first…"}
               </option>
               {addressList.map((a, i) => (
                 <option key={`${a}-${i}`} value={a}>
@@ -765,8 +859,7 @@ export default function QuoteClient({
                 <option value="not-sure">Not sure</option>
               </Select>
             </div>
-
-            <div>
+                        <div>
               <Label>
                 Budget range <span className="font-semibold text-slate-400">(optional)</span>
               </Label>
@@ -849,19 +942,21 @@ export default function QuoteClient({
           )}
         </Card>
 
-        <div className="mt-8 pb-10">
+        <div className="mt-8 pb-16">
           <button
             type="button"
             onClick={submitRequest}
             disabled={!submitEnabled}
             className={[
-              "w-full rounded-2xl px-6 py-4 text-[15.5px] font-extrabold text-white",
-              "bg-blue-600 shadow-[0_12px_24px_rgba(31,111,255,0.18)]",
-              "transition hover:bg-blue-700",
-              "disabled:cursor-not-allowed disabled:opacity-50",
+              "w-full rounded-[22px] px-6 py-4 text-[15.5px] font-extrabold text-white",
+              "bg-[linear-gradient(180deg,#223B67_0%,#1A2F52_100%)]",
+              "shadow-[0_16px_32px_rgba(31,53,92,0.20),inset_0_1px_0_rgba(255,255,255,0.16)]",
+              "transition-all duration-200 hover:-translate-y-[1px] hover:brightness-[1.02]",
+              "active:translate-y-0 active:brightness-[0.98]",
+              "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0",
             ].join(" ")}
           >
-            {submitting ? "Sending…" : "Send request"}
+            {submitting ? "Sending…" : "Send request to trader"}
           </button>
 
           <div className="mt-3 text-center text-[13.5px] text-slate-500">

@@ -3,44 +3,37 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
+import {
+  buildFixFlowEmail,
+  buildFixFlowButton,
+  buildFixFlowInfoCard,
+  buildFixFlowSectionLabel,
+  escapeEmailHtml,
+} from "@/lib/emails/fixflowEmail";
 
 type NewQuoteBody = {
-  // Where the *business owner* should receive the alert
-  to?: string; // preferred
-  notifyEmail?: string; // fallback (same meaning)
-
+  to?: string;
+  notifyEmail?: string;
   businessName?: string;
-
-  // Quote/request details
   requestId?: string;
-  createdAt?: string; // ISO optional
+  createdAt?: string;
   serviceName?: string;
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
   postcode?: string;
   details?: string;
-
-  // Optional links
-  dashboardUrl?: string; // e.g. `${origin}/dashboard/quotes/${requestId}`
+  dashboardUrl?: string;
 };
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function esc(s: string) {
-  return (s || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.RESEND_API_KEY;
+
     if (!apiKey) {
       return NextResponse.json(
         { ok: false, error: "Missing RESEND_API_KEY" },
@@ -49,11 +42,16 @@ export async function POST(req: Request) {
     }
 
     const body = (await req.json().catch(() => null)) as NewQuoteBody | null;
+
     if (!body) {
-      return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "Invalid JSON body" },
+        { status: 400 }
+      );
     }
 
-    const to = (body.to || body.notifyEmail || "").trim();
+    const to = String(body.to || body.notifyEmail || "").trim();
+
     if (!to || !isValidEmail(to)) {
       return NextResponse.json(
         { ok: false, error: "Missing/invalid `to` (business notification email)" },
@@ -61,85 +59,157 @@ export async function POST(req: Request) {
       );
     }
 
-    // ✅ Use subdomain sender to avoid Resend root-domain verification issues
-    // You can override in .env.local: RESEND_FROM="FixFlow <invoices@send.thefixflowapp.com>"
     const from =
       process.env.RESEND_FROM || "FixFlow <invoices@send.thefixflowapp.com>";
 
-    const businessName = (body.businessName || "FixFlow").trim();
-    const requestId = (body.requestId || "").trim();
-    const createdAt = (body.createdAt || "").trim();
-    const serviceName = (body.serviceName || "").trim();
+    const businessName = String(body.businessName || "FixFlow").trim();
+    const requestId = String(body.requestId || "").trim();
+    const createdAt = String(body.createdAt || "").trim();
+    const serviceName = String(body.serviceName || "").trim();
 
-    const customerName = (body.customerName || "").trim();
-    const customerEmail = (body.customerEmail || "").trim();
-    const customerPhone = (body.customerPhone || "").trim();
-    const postcode = (body.postcode || "").trim();
-    const details = (body.details || "").trim();
-    const dashboardUrl = (body.dashboardUrl || "").trim();
+    const customerName = String(body.customerName || "").trim();
+    const customerEmail = String(body.customerEmail || "").trim();
+    const customerPhone = String(body.customerPhone || "").trim();
+    const postcode = String(body.postcode || "").trim();
+    const details = String(body.details || "").trim();
+    const dashboardUrl = String(body.dashboardUrl || "").trim();
+
+    const safeBusinessName = escapeEmailHtml(businessName);
+    const safeRequestId = escapeEmailHtml(requestId);
+    const safeCreatedAt = escapeEmailHtml(createdAt);
+    const safeServiceName = escapeEmailHtml(serviceName || "New enquiry");
+    const safeCustomerName = escapeEmailHtml(customerName || "—");
+    const safeCustomerEmail = escapeEmailHtml(customerEmail || "—");
+    const safeCustomerPhone = escapeEmailHtml(customerPhone || "—");
+    const safePostcode = escapeEmailHtml(postcode || "—");
+    const safeDetails = escapeEmailHtml(details || "—");
 
     const subject = `New quote request${serviceName ? ` • ${serviceName}` : ""}`;
 
+    const html = buildFixFlowEmail({
+      title: "New enquiry received",
+      introHtml: `
+        <div style="font-size:16px; font-weight:700; margin-bottom:10px;">
+          New enquiry for ${safeBusinessName}
+        </div>
+
+        <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+          You’ve received a new quote request for <strong style="color:#0B1320;">${safeServiceName}</strong>.
+        </div>
+      `,
+      bodyHtml: `
+        ${buildFixFlowInfoCard(`
+          ${
+            requestId || createdAt || serviceName
+              ? `
+                <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
+                  ${buildFixFlowSectionLabel("Request")}
+                  ${
+                    requestId
+                      ? `<div style="font-size:16px; font-weight:800; color:#1F355C; margin-bottom:6px;">
+                           ${safeRequestId}
+                         </div>`
+                      : ""
+                  }
+                  ${
+                    createdAt
+                      ? `<div style="font-size:13px; color:#5C6B84; margin-bottom:4px;">
+                           Created: ${safeCreatedAt}
+                         </div>`
+                      : ""
+                  }
+                  ${
+                    serviceName
+                      ? `<div style="font-size:13px; color:#5C6B84;">
+                           Service: ${safeServiceName}
+                         </div>`
+                      : ""
+                  }
+                </div>
+              `
+              : ""
+          }
+
+         <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5; text-align:center;">
+  ${buildFixFlowSectionLabel("Customer")}
+  <div style="font-size:16px; font-weight:800; color:#0B1320; margin-bottom:6px;">
+    ${safeCustomerName}
+  </div>
+  <div style="font-size:14px; line-height:1.7; color:#5C6B84;">
+    ${safeCustomerEmail}
+  </div>
+  <div style="font-size:14px; line-height:1.7; color:#5C6B84;">
+    ${safeCustomerPhone}
+  </div>
+</div>
+
+          <div style="padding:16px 18px;">
+            ${buildFixFlowSectionLabel("Location")}
+            <div style="font-size:16px; font-weight:800; color:#0B1320;">
+              ${safePostcode}
+            </div>
+          </div>
+        `)}
+
+        ${
+          details
+            ? `
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px; border-collapse:collapse;">
+                <tr>
+                  <td style="font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#5C6B84; padding:0 0 10px 0;">
+                    Job details
+                  </td>
+                </tr>
+                <tr>
+                  <td style="border:1px solid #E6ECF5; border-radius:16px; background:#F4F7FF; padding:22px 24px; text-align:center;">
+                    <div style="max-width:340px; margin:0 auto; font-size:15px; line-height:1.7; color:#0B1320; white-space:pre-wrap;">
+                      ${safeDetails}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            `
+            : ""
+        }
+
+        <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+          Open this enquiry in FixFlow to reply and send a quote.
+        </div>
+      `,
+      ctaHtml: dashboardUrl
+        ? buildFixFlowButton("View enquiry", dashboardUrl)
+        : "",
+      closingHtml: `
+        <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
+          <span style="font-weight:800; color:#1F355C;">FixFlow</span>
+        </div>
+      `,
+    });
+
     const textLines: string[] = [];
-    textLines.push(`New quote received for ${businessName}`);
+    textLines.push(`New enquiry received for ${businessName}`);
     if (requestId) textLines.push(`Request ID: ${requestId}`);
     if (createdAt) textLines.push(`Created: ${createdAt}`);
     if (serviceName) textLines.push(`Service: ${serviceName}`);
     textLines.push("");
     textLines.push("Customer:");
-    if (customerName) textLines.push(`- Name: ${customerName}`);
-    if (customerEmail) textLines.push(`- Email: ${customerEmail}`);
-    if (customerPhone) textLines.push(`- Phone: ${customerPhone}`);
-    if (postcode) textLines.push(`- Postcode: ${postcode}`);
+    textLines.push(`- Name: ${customerName || "—"}`);
+    textLines.push(`- Email: ${customerEmail || "—"}`);
+    textLines.push(`- Phone: ${customerPhone || "—"}`);
+    textLines.push(`- Postcode: ${postcode || "—"}`);
+
     if (details) {
       textLines.push("");
-      textLines.push("Details:");
+      textLines.push("Job details:");
       textLines.push(details);
     }
+
     if (dashboardUrl) {
       textLines.push("");
-      textLines.push(`Open in FixFlow: ${dashboardUrl}`);
+      textLines.push(`View enquiry: ${dashboardUrl}`);
     }
 
     const text = textLines.join("\n");
-
-    const html = `
-      <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; line-height: 1.5; color:#111;">
-        <h2 style="margin:0 0 10px;">New quote received</h2>
-        <p style="margin:0 0 12px;">A new quote request was submitted for <strong>${esc(businessName)}</strong>.</p>
-
-        <div style="border:1px solid #e5e7eb; border-radius:12px; padding:12px; background:#f9fafb; margin:0 0 12px;">
-          ${requestId ? `<div><span style="color:#6b7280;">Request ID:</span> <strong>${esc(requestId)}</strong></div>` : ""}
-          ${createdAt ? `<div><span style="color:#6b7280;">Created:</span> <strong>${esc(createdAt)}</strong></div>` : ""}
-          ${serviceName ? `<div><span style="color:#6b7280;">Service:</span> <strong>${esc(serviceName)}</strong></div>` : ""}
-        </div>
-
-        <h3 style="margin:16px 0 6px; font-size:14px;">Customer</h3>
-        <div style="border:1px solid #e5e7eb; border-radius:12px; padding:12px; background:#fff; margin:0 0 12px;">
-          ${customerName ? `<div><span style="color:#6b7280;">Name:</span> <strong>${esc(customerName)}</strong></div>` : ""}
-          ${customerEmail ? `<div><span style="color:#6b7280;">Email:</span> <strong>${esc(customerEmail)}</strong></div>` : ""}
-          ${customerPhone ? `<div><span style="color:#6b7280;">Phone:</span> <strong>${esc(customerPhone)}</strong></div>` : ""}
-          ${postcode ? `<div><span style="color:#6b7280;">Postcode:</span> <strong>${esc(postcode)}</strong></div>` : ""}
-        </div>
-
-        ${
-          details
-            ? `<h3 style="margin:16px 0 6px; font-size:14px;">Details</h3>
-               <div style="border:1px solid #e5e7eb; border-radius:12px; padding:12px; background:#fff; white-space:pre-wrap;">${esc(details)}</div>`
-            : ""
-        }
-
-        ${
-          dashboardUrl
-            ? `<p style="margin:16px 0 0;">
-                 <a href="${esc(dashboardUrl)}" style="display:inline-block; background:#111827; color:#fff; padding:10px 14px; border-radius:10px; text-decoration:none;">
-                   Open in FixFlow
-                 </a>
-               </p>`
-            : ""
-        }
-      </div>
-    `;
 
     const resend = new Resend(apiKey);
     const result = await resend.emails.send({
@@ -152,7 +222,10 @@ export async function POST(req: Request) {
 
     const anyResult = result as any;
     if (anyResult?.error) {
-      return NextResponse.json({ ok: false, error: anyResult.error }, { status: 500 });
+      return NextResponse.json(
+        { ok: false, error: anyResult.error },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ ok: true, result }, { status: 200 });
@@ -163,4 +236,3 @@ export async function POST(req: Request) {
     );
   }
 }
-

@@ -7,12 +7,16 @@ import { supabase } from "@/lib/supabaseClient";
 const FF = {
   pageBg: "#F6F8FC",
   card: "#FFFFFF",
-  border: "rgba(226,232,240,0.9)",
-  navy: "#0E1B36",
+  border: "#E6ECF5",
+  navy: "#0B2A55",
   navySoft: "#1F355C",
   text: "#0B1320",
   muted: "#5C6B84",
-  blue: "#1F6FFF",
+  blue: "#245BFF",
+  blueSoft: "#EAF1FF",
+  blueSoft2: "#F4F7FF",
+  blueLine:
+    "linear-gradient(90deg, rgba(36,91,255,1) 0%, rgba(31,111,255,0.35) 55%, rgba(11,42,85,0.15) 100%)",
 };
 
 type PaymentsForm = {
@@ -201,120 +205,234 @@ export default function PaymentsSettingsPage() {
         </div>
       </div>
 
-      <style jsx>{`
-        .ff-page {
-          min-height: 100vh;
-          background: ${FF.pageBg};
-          padding: 24px;
-        }
-        .ff-wrap {
-          max-width: 980px;
-          margin: 0 auto;
-        }
-        .ff-head {
-          display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 14px;
-        }
-        .ff-title {
-          font-size: 26px;
-          font-weight: 900;
-          color: ${FF.navy};
-          letter-spacing: -0.02em;
-        }
-        .ff-sub {
-          color: ${FF.muted};
-          font-size: 13px;
-          margin-top: 4px;
-        }
-        .ff-btn {
-          background: ${FF.navy};
-          color: #fff;
-          border: 1px solid rgba(15, 23, 42, 0.08);
-          border-radius: 12px;
-          padding: 10px 14px;
-          font-weight: 800;
-          cursor: pointer;
-        }
-        .ff-btn:disabled {
-          opacity: 0.55;
-          cursor: not-allowed;
-        }
-        .ff-alert {
-          border-radius: 12px;
-          padding: 10px 12px;
-          margin-bottom: 12px;
-          font-size: 13px;
-        }
-        .ff-alertErr {
-          background: #fff1f2;
-          border: 1px solid #fecdd3;
-          color: #9f1239;
-        }
-        .ff-alertOk {
-          background: #ecfdf5;
-          border: 1px solid #bbf7d0;
-          color: #065f46;
-        }
-        .ff-card {
-          background: ${FF.card};
-          border: 1px solid ${FF.border};
-          border-radius: 16px;
-          padding: 16px;
-        }
-        .ff-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-        }
-        .ff-span2 {
-          grid-column: span 2;
-        }
-        .ff-field span {
-          display: block;
-          font-size: 12px;
-          font-weight: 800;
-          color: ${FF.navySoft};
-          margin-bottom: 6px;
-        }
-        input,
-        textarea {
-          width: 100%;
-          border: 1px solid ${FF.border};
-          border-radius: 12px;
-          padding: 10px 12px;
-          font-size: 14px;
-          outline: none;
-          color: ${FF.text};
-          background: #fff;
-        }
-        input:focus,
-        textarea:focus {
-          border-color: rgba(31, 111, 255, 0.35);
-          box-shadow: 0 0 0 4px rgba(31, 111, 255, 0.12);
-        }
-        .ff-field small {
-          display: block;
-          margin-top: 6px;
-          font-size: 11px;
-          color: ${FF.muted};
-        }
-        .ff-note {
-          margin-top: 12px;
-          font-size: 12px;
-          color: ${FF.muted};
-        }
-        @media (max-width: 780px) {
-          .ff-grid {
-            grid-template-columns: 1fr;
-          }
-          .ff-span2 {
-            grid-column: span 1;
-          }
-        }
-      `}</style>
+     <style jsx>{`
+  .ff-page {
+    min-height: 100vh;
+    background: ${FF.pageBg};
+    padding: 24px;
+  }
+
+  .ff-wrap {
+    max-width: 980px;
+    margin: 0 auto;
+    display: grid;
+    gap: 14px;
+  }
+
+  .ff-head {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 18px 16px;
+    border: 1px solid ${FF.border};
+    border-radius: 24px;
+    background: linear-gradient(
+      135deg,
+      rgba(143, 169, 214, 0.18),
+      rgba(255, 255, 255, 0.98)
+    );
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 14px 32px rgba(15, 23, 42, 0.05);
+  }
+
+  .ff-head::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      radial-gradient(circle at 14% 18%, rgba(143, 169, 214, 0.18), transparent 52%),
+      radial-gradient(circle at 84% 20%, rgba(31, 53, 92, 0.07), transparent 58%);
+  }
+
+  .ff-head > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .ff-title {
+    font-size: 28px;
+    font-weight: 950;
+    color: ${FF.navySoft};
+    letter-spacing: -0.03em;
+    line-height: 1.02;
+  }
+
+  .ff-title::after {
+    content: "";
+    display: block;
+    width: 180px;
+    height: 3px;
+    margin-top: 10px;
+    border-radius: 999px;
+    background: ${FF.blueLine};
+    opacity: 0.95;
+  }
+
+  .ff-sub {
+    color: ${FF.muted};
+    font-size: 13px;
+    margin-top: 10px;
+    line-height: 1.5;
+    font-weight: 600;
+    max-width: 620px;
+  }
+
+  .ff-btn {
+    height: 38px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(180deg, ${FF.navySoft}, ${FF.navy});
+    color: #fff;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow:
+      0 14px 28px rgba(31, 53, 92, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .ff-btn:hover {
+    transform: translateY(-1px);
+  }
+
+  .ff-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .ff-alert {
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .ff-alertErr {
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    color: #9f1239;
+  }
+
+  .ff-alertOk {
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+    color: #065f46;
+  }
+
+  .ff-card {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(36, 91, 255, 0.18);
+    border-radius: 24px;
+    background: linear-gradient(
+      180deg,
+      rgba(36, 91, 255, 0.08) 0%,
+      rgba(36, 91, 255, 0.03) 38%,
+      rgba(255, 255, 255, 1) 100%
+    );
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 14px 32px rgba(15, 23, 42, 0.05);
+    padding: 18px;
+  }
+
+  .ff-card::before {
+    content: "";
+    position: absolute;
+    left: 18px;
+    right: 18px;
+    top: 14px;
+    height: 3px;
+    border-radius: 999px;
+    background: ${FF.blueLine};
+    opacity: 0.95;
+  }
+
+  .ff-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 12px;
+  }
+
+  .ff-span2 {
+    grid-column: span 2;
+  }
+
+  .ff-field span {
+    display: block;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: ${FF.muted};
+    margin-bottom: 8px;
+  }
+
+  input,
+  textarea {
+    width: 100%;
+    border: 1px solid ${FF.border};
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-size: 14px;
+    outline: none;
+    color: ${FF.text};
+    background: #fff;
+    box-sizing: border-box;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  }
+
+  input:focus,
+  textarea:focus {
+    border-color: rgba(36, 91, 255, 0.22);
+    box-shadow:
+      0 0 0 3px rgba(36, 91, 255, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.82);
+  }
+
+  .ff-field small {
+    display: block;
+    margin-top: 6px;
+    font-size: 11px;
+    color: ${FF.muted};
+  }
+
+  .ff-note {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid ${FF.border};
+    font-size: 12px;
+    color: ${FF.muted};
+    line-height: 1.5;
+  }
+
+  @media (max-width: 780px) {
+    .ff-head {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .ff-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .ff-span2 {
+      grid-column: span 1;
+    }
+  }
+`}</style>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabaseClient";
 import QuickEstimateCard from "../../components/QuickEstimateCard";
 import { getEnquiryCounts } from "@/lib/enquiryCounts";
 import { getJobCounts } from "@/lib/jobCounts";
-
+import { getFollowUpState, type FollowUpResult } from "@/lib/enquiries/followUp";
 /* ================================
    TYPES
 ================================ */
@@ -175,7 +175,12 @@ type RightTab =
   | "notes"
   | "messages";
 
-type ListTab = "all" | "unread" | "needsAction" | "followUp";
+type ListTab =
+  | "all"
+  | "unread"
+  | "needsAction"
+  | "followUp"
+  | "waiting";
 
 type BestAction = {
   title: string;
@@ -186,12 +191,7 @@ type BestAction = {
   };
 };
 
-type FollowUpState = {
-  due: boolean;
-  text: string;
-  tone: "gray" | "blue" | "amber";
-  priority: number;
-};
+
 
 /* ================================
    CONSTS
@@ -268,7 +268,22 @@ const FF = {
 /* ================================
    HELPERS
 ================================ */
+function getEnquiryPriority(args: {
+  followUp?: FollowUpResult | null;
+  replyStatus: string | null;
+  estimate?: QuickEstimateLite | null;
+}) {
+  const { followUp, estimate } = args;
 
+  if (followUp?.status === "customer_replied") return 100;
+  if (followUp?.status === "needs_reply") return 90;
+  if (followUp?.status === "estimate_follow_up_due") return 80;
+  if (followUp?.status === "follow_up_due") return 70;
+
+  if (String(estimate?.status || "").toLowerCase() === "sent") return 50;
+
+  return 10;
+}
 
 function getAlertState(params: {
   row: QuoteRequestRow;
@@ -308,6 +323,29 @@ function getAlertState(params: {
 function isSnoozedUntilActive(value?: string | null) {
   if (!value) return false;
   return new Date(value).getTime() > Date.now();
+}
+
+function isImageFile(name?: string | null) {
+  return /\.(jpg|jpeg|png|webp|gif)$/i.test(String(name || ""));
+}
+
+function prettyFileSize(bytes?: number | null) {
+  const n = Number(bytes || 0);
+  if (!n) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fileTypeLabel(name?: string | null) {
+  const n = String(name || "").toLowerCase();
+
+  if (/\.(jpg|jpeg|png|webp|gif)$/.test(n)) return "Image";
+  if (/\.(pdf)$/.test(n)) return "PDF";
+  if (/\.(doc|docx)$/.test(n)) return "Document";
+  if (/\.(xls|xlsx|csv)$/.test(n)) return "Spreadsheet";
+
+  return "File";
 }
 
 function ReadinessBar({ score }: { score: number }) {
@@ -662,6 +700,28 @@ function quoteReadinessState(score: number) {
   };
 }
 
+function getFollowUpMessage(params: {
+  customerName?: string | null;
+  status?: string | null;
+}) {
+  const name = titleCase(params.customerName) || "there";
+  const status = String(params.status || "").toLowerCase();
+
+  if (status === "estimate_follow_up_due") {
+    return `Hi ${name}, just checking you received the estimate I sent over. Let me know if you'd like to go ahead or if you'd like me to talk anything through.`;
+  }
+
+  if (status === "needs_reply") {
+    return `Hi ${name}, thanks for your enquiry — I’m just reviewing this now and will get back to you shortly.`;
+  }
+
+  if (status === "customer_replied") {
+    return `Hi ${name}, thanks for your reply — I’ll take a look and come back to you shortly.`;
+  }
+
+  return `Hi ${name}, just checking in to see if you'd still like to move forward with this job.`;
+}
+
 function getLeftNextAction(params: {
   stage?: string | null;
   estimateStatus?: string | null;
@@ -765,131 +825,7 @@ if (reply === "Customer replied") {
   };
 }
 
-function getFollowUpState(params: {
-  stage?: string | null;
-  estimateStatus?: string | null;
-  estimateCreatedAt?: string | null;
-  hasVisit: boolean;
-  hasReply: boolean;
-  snoozedUntil?: string | null;
-}) : FollowUpState {
-const {
-  stage,
-  estimateStatus,
-  estimateCreatedAt,
-  hasVisit,
-  hasReply,
-  snoozedUntil,
-} = params;
-const stageValue = String(stage || "").toLowerCase();
-const estimateValue = String(estimateStatus || "").toLowerCase();
 
-if (isSnoozedUntilActive(snoozedUntil)) {
-  return {
-    due: false,
-    text: "Snoozed",
-    tone: "gray",
-    priority: 0,
-  };
-}
-
-  if (stageValue === "won" || stageValue === "lost") {
-    return {
-      due: false,
-      text: "Closed",
-      tone: "gray",
-      priority: 0,
-    };
-  }
-
-  if (estimateValue === "accepted") {
-    return {
-      due: false,
-      text: "Accepted",
-      tone: "gray",
-      priority: 0,
-    };
-  }
-
-  if (estimateValue === "sent" && estimateCreatedAt) {
-    const sentAt = new Date(estimateCreatedAt).getTime();
-    const now = Date.now();
-    const diffDays = Math.floor((now - sentAt) / (1000 * 60 * 60 * 24));
-
-    if (diffDays >= 7) {
-      return {
-        due: true,
-        text: "Follow up now",
-        tone: "amber",
-        priority: 3,
-      };
-    }
-
-    if (diffDays >= 3) {
-      return {
-        due: true,
-        text: "Estimate sent 3+ days ago",
-        tone: "blue",
-        priority: 2,
-      };
-    }
-
-    return {
-      due: false,
-      text: "Recently sent",
-      tone: "gray",
-      priority: 1,
-    };
-  }
-
-  if (stageValue === "contacted" && !hasReply) {
-    return {
-      due: true,
-      text: "No reply yet",
-      tone: "blue",
-      priority: 2,
-    };
-  }
-
-  if (hasVisit && !estimateValue) {
-    return {
-      due: true,
-      text: "Visit done — quote next",
-      tone: "amber",
-      priority: 2,
-    };
-  }
-
-  return {
-    due: false,
-    text: "Not due",
-    tone: "gray",
-    priority: 0,
-  };
-}
-
-function isImageFile(name?: string | null) {
-  return /\.(jpg|jpeg|png|webp|gif)$/i.test(String(name || ""));
-}
-
-function prettyFileSize(bytes?: number | null) {
-  const n = Number(bytes || 0);
-  if (!n) return "";
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function fileTypeLabel(name?: string | null) {
-  const n = String(name || "").toLowerCase();
-
-  if (/\.(jpg|jpeg|png|webp|gif)$/.test(n)) return "Image";
-  if (/\.(pdf)$/.test(n)) return "PDF";
-  if (/\.(doc|docx)$/.test(n)) return "Document";
-  if (/\.(xls|xlsx|csv)$/.test(n)) return "Spreadsheet";
-
-  return "File";
-}
 
 /* ================================
    SMALL UI
@@ -1035,7 +971,7 @@ const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
   const [replyMessage, setReplyMessage] = useState("");
 
   const [tab, setTab] = useState<ListTab>("all");
-  const [postcodeFilter, setPostcodeFilter] = useState("");
+ const [searchFilter, setSearchFilter] = useState("");
   const [urgencyFilter, setUrgencyFilter] = useState("");
 
   const [rows, setRows] = useState<QuoteRequestRow[]>([]);
@@ -1238,16 +1174,47 @@ const selectedEstimateFollow = selectedRow
   ? estimateFollowUp(estimateMap[selectedRow.id])
   : null;
 
+const followUpMap = useMemo(() => {
+  const map: Record<string, FollowUpResult> = {};
+
+  for (const row of rows) {
+    const estimate = estimateMap[row.id];
+    const messages = threadMap[row.id] || [];
+
+    map[row.id] = getFollowUpState({
+enquiry: {
+  id: row.id,
+  stage: row.stage ?? null,
+  created_at: row.created_at,
+  snoozed_until: row.snoozed_until ?? null,
+  job_booked_at: row.job_booked_at ?? null,
+},
+     messages: messages.map((m) => ({
+  id: m.id,
+  direction: m.direction === "in" ? "in" : "out",
+  created_at: m.created_at,
+})),
+      estimate: estimate
+        ? {
+            id: estimate.id,
+            status: estimate.status,
+            created_at: estimate.created_at,
+            sent_at: estimate.created_at,
+            accepted_at: estimate.accepted_at,
+            first_viewed_at: estimate.first_viewed_at,
+            last_viewed_at: estimate.last_viewed_at,
+          }
+        : null,
+    });
+  }
+
+  return map;
+}, [rows, estimateMap, threadMap]);
+  
 const selectedFollowUp = selectedRow
-  ? getFollowUpState({
-      stage: selectedDerivedStage,
-      estimateStatus: selectedEstimateStatus,
-      estimateCreatedAt: estimateMap[selectedRow.id]?.created_at,
-      hasVisit: !!selectedVisit,
-      hasReply: hasCustomerReplyAfterOutbound(threadMap[selectedRow.id] || []),
-      snoozedUntil: selectedRow.snoozed_until,
-    })
+  ? followUpMap[selectedRow.id]
   : null;
+
 const selectedDisplayedAiAction = getDisplayedAiAction({
   row: selectedRow,
   estimateStatus: selectedEstimateStatus,
@@ -1295,14 +1262,7 @@ const selectedBestAction = useMemo<BestAction>(() => {
   const estimateDraft = estimateStatus === "draft";
   const estimateEngagement = getEstimateEngagementState(estimate);
 
-  const followUpState = getFollowUpState({
-    stage: derivedStage,
-    estimateStatus: selectedEstimateStatus,
-    estimateCreatedAt: estimate?.created_at,
-    hasVisit,
-    hasReply,
-    snoozedUntil: selectedRow.snoozed_until,
-  });
+ const followUpState = selectedRow ? followUpMap[selectedRow.id] : null;
 
 if (selectedDerivedStage === "won") {
   return {
@@ -1375,49 +1335,43 @@ button: {
 },
   };
 }
+if (
+  followUpState &&
+  (followUpState.status === "follow_up_due" ||
+    followUpState.status === "estimate_follow_up_due")
+) {
+  return {
+    title:
+      followUpState.status === "estimate_follow_up_due"
+        ? "Follow up on estimate"
+        : "Follow up now",
+    text:
+      followUpState.status === "estimate_follow_up_due"
+        ? followUpState.label === "Quote going cold"
+          ? "This estimate has been sitting for a while with no reply. This is a good time to chase it."
+          : followUpState.label === "Chase estimate"
+          ? "The estimate has been out for a few days now. A quick nudge could win the job."
+          : "The estimate was sent recently and is ready for a follow-up."
+        : "You’ve already messaged this customer and they’ve gone quiet. A follow-up now could bring the job back.",
+    button: {
+      label: "Follow up now",
+      action: () => {
+        syncRightTab("messages");
 
- if (followUpState.due) {
-    return {
-      title: "Follow up now",
-      text:
-        followUpState.text === "Follow up now"
-          ? "This enquiry is overdue a follow-up. A quick message could recover the job."
-          : followUpState.text === "Estimate sent 3+ days ago"
-          ? "The estimate has been sitting for a few days. This is a good time to nudge the customer."
-          : followUpState.text === "No reply yet"
-          ? "You already reached out, but the customer has not replied yet. A gentle follow-up could bring this back."
-          : followUpState.text === "Visit done — quote next"
-          ? "You’ve already visited. The next money move is getting the estimate out."
-          : "This enquiry needs a follow-up action.",
-      button: {
-        label:
-          followUpState.text === "Visit done — quote next"
-            ? "Create estimate"
-            : "Follow up now",
-action: () => {
-  if (followUpState.text === "Visit done — quote next") {
-    syncRightTab("estimate");
-    setScrollToEstimatePending(true);
-    return;
-  }
+        const customerName =
+          titleCase(selectedRow.customer_name) || "there";
 
-  syncRightTab("messages");
+        const followUpMessage =
+          followUpState.status === "estimate_follow_up_due"
+            ? `Hi ${customerName}, just checking you received the estimate I sent over and whether you'd like to go ahead.`
+            : `Hi ${customerName}, just checking in to see if you'd still like to go ahead with this job.`;
 
-  const customerName = titleCase(selectedRow.customer_name) || "there";
-
-  const followUpMessage =
-    followUpState.text === "Follow up now"
-      ? `Hi ${customerName}, just checking in to see if you'd still like to go ahead with this job.`
-      : followUpState.text === "Estimate sent 3+ days ago"
-      ? `Hi ${customerName}, just checking you received the estimate and whether you'd like to go ahead.`
-      : `Hi ${customerName}, just following up in case you'd still like help with this job.`;
-
-  setReplyBody(followUpMessage);
-  setScrollToComposerPending(true);
-},
+        setReplyBody(followUpMessage);
+        setScrollToComposerPending(true);
       },
-    };
-  }
+    },
+  };
+}
 
   if (estimateSent) {
     return {
@@ -1570,84 +1524,96 @@ button: {
     ];
   }, [selectedRow]);
 const isAutoFilled = replyBody.trim().startsWith("Hi ");
-  const filteredRows = useMemo(() => {
+
+
+ const filteredRows = useMemo(() => {
   let out = [...rows];
 
   if (tab === "unread") {
     out = out.filter((r) => !r.read_at);
   }
 
-if (tab === "needsAction") {
-  out = out.filter((r) => {
-    if (isSnoozedUntilActive(r.snoozed_until)) return false;
-
-    const estimate = estimateMap[r.id];
-    const visit = visitMap[r.id] || null;
-    const messages = threadMap[r.id] || [];
-    const stage = deriveEnquiryStage({
-      row: r,
-      estimate,
-      visit,
-      messages,
+  if (tab === "needsAction") {
+    out = out.filter((r) => {
+      return followUpMap[r.id]?.bucket === "needsAction";
     });
+  }
 
-    const estimateStatus = String(estimate?.status || "").toLowerCase();
-    const hasVisit = !!visit;
+  if (tab === "followUp") {
+    out = out.filter((r) => {
+      return followUpMap[r.id]?.bucket === "followUp";
+    });
+  }
+
+  if (tab === "waiting") {
+  out = out.filter((r) => {
+    return followUpMap[r.id]?.bucket === "allGood";
+  });
+}
+
+ if (searchFilter.trim()) {
+  const q = searchFilter.trim().toLowerCase();
+
+  out = out.filter((r) => {
+    const postcode = String(r.postcode || "").toLowerCase();
+    const address = String(r.address || "").toLowerCase();
+    const customerName = String(r.customer_name || "").toLowerCase();
+    const jobNumber = String(r.job_number || "").toLowerCase();
+    const phone = String(r.customer_phone || "").toLowerCase();
 
     return (
-      !r.read_at ||
-      stage === "new" ||
-      stage === "contacted" ||
-      estimateStatus === "sent" ||
-      (!estimate && !hasVisit && stage !== "won" && stage !== "lost")
+      postcode.includes(q) ||
+      address.includes(q) ||
+      customerName.includes(q) ||
+      jobNumber.includes(q) ||
+      phone.includes(q)
     );
   });
 }
-
-if (tab === "followUp") {
-  out = out.filter((r) => {
-    const estimate = estimateMap[r.id];
-    const visit = visitMap[r.id] || null;
-    const messages = threadMap[r.id] || [];
-
-    const derivedStage = deriveEnquiryStage({
-      row: r,
-      estimate,
-      visit,
-      messages,
-    });
-
-
-   const followUp = getFollowUpState({
-  stage: derivedStage,
-  estimateStatus: estimate?.status,
-  estimateCreatedAt: estimate?.created_at,
-  hasVisit: !!visit,
-  hasReply: hasCustomerReplyAfterOutbound(messages),
-  snoozedUntil: r.snoozed_until,
-});
-
-    return followUp.due;
-  });
-}
-  if (postcodeFilter.trim()) {
-    const q = postcodeFilter.trim().toLowerCase();
-    out = out.filter((r) =>
-      `${r.postcode || ""} ${r.address || ""}`.toLowerCase().includes(q)
-    );
-  }
 
   if (urgencyFilter) {
     out = out.filter((r) =>
-      String(r.urgency || "").toLowerCase().includes(urgencyFilter.toLowerCase())
+      String(r.urgency || "")
+        .toLowerCase()
+        .includes(urgencyFilter.toLowerCase())
     );
   }
 
   return out.sort(
     (a, b) =>
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      new Date(b.created_at).getTime() -
+      new Date(a.created_at).getTime()
   );
-}, [rows, tab, postcodeFilter, urgencyFilter, estimateMap, visitMap, threadMap]);
+}, [rows, tab, searchFilter, urgencyFilter, followUpMap]);
+function getReplyStatus(messages: EnquiryMessageRow[]) {
+  const hasOutbound = messages.some((m) => isOutboundDirection(m.direction));
+  const hasCustomerReply = hasCustomerReplyAfterOutbound(messages);
+
+  if (hasCustomerReply) return "Customer replied";
+  if (hasOutbound) return "Awaiting reply";
+  return "Awaiting first reply";
+}
+
+function getEnquiryPriority(args: {
+  followUp?: FollowUpResult | null;
+  replyStatus: string | null;
+  estimate?: QuickEstimateLite | null;
+}) {
+  const { followUp, replyStatus, estimate } = args;
+
+  if (followUp?.status === "customer_replied") return 100;
+  if (followUp?.status === "needs_reply") return 90;
+
+  if (replyStatus === "Customer replied") return 85;
+  if (replyStatus === "Awaiting first reply") return 80;
+
+  if (followUp?.status === "estimate_follow_up_due") return 70;
+  if (followUp?.status === "follow_up_due") return 60;
+
+  if (String(estimate?.status || "").toLowerCase() === "sent") return 50;
+
+  return 10;
+}
 
 const sortedRows = useMemo(() => {
   return [...filteredRows].sort((a, b) => {
@@ -1685,25 +1651,27 @@ const sortedRows = useMemo(() => {
     const aSelected = a.id === selectedId;
     const bSelected = b.id === selectedId;
 
-  
+    const aFollowUp = followUpMap[a.id];
+    const bFollowUp = followUpMap[b.id];
 
-    const aFollowUp = getFollowUpState({
-      stage: aDerivedStage,
-      estimateStatus: aEstimate?.status,
-      estimateCreatedAt: aEstimate?.created_at,
-      hasVisit: !!aVisit,
-      hasReply: hasCustomerReplyAfterOutbound(aMessages),
-      snoozedUntil: a.snoozed_until,
+    const aReplyStatus = getReplyStatus(aMessages);
+    const bReplyStatus = getReplyStatus(bMessages);
+
+    const aPriority = getEnquiryPriority({
+      followUp: aFollowUp,
+      replyStatus: aReplyStatus,
+      estimate: aEstimate,
     });
 
-    const bFollowUp = getFollowUpState({
-      stage: bDerivedStage,
-      estimateStatus: bEstimate?.status,
-      estimateCreatedAt: bEstimate?.created_at,
-      hasVisit: !!bVisit,
-      hasReply: hasCustomerReplyAfterOutbound(bMessages),
-      snoozedUntil: b.snoozed_until,
+    const bPriority = getEnquiryPriority({
+      followUp: bFollowUp,
+      replyStatus: bReplyStatus,
+      estimate: bEstimate,
     });
+
+    if (aPriority !== bPriority) {
+      return bPriority - aPriority;
+    }
 
     if (tab === "followUp" && aFollowUp.priority !== bFollowUp.priority) {
       return bFollowUp.priority - aFollowUp.priority;
@@ -1719,7 +1687,7 @@ const sortedRows = useMemo(() => {
 
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
-}, [filteredRows, selectedId, estimateMap, visitMap, tab, threadMap]);
+}, [filteredRows, selectedId, tab, followUpMap, estimateMap, visitMap, threadMap]);
 
 const enquiryCounts = useMemo(() => {
   return getEnquiryCounts({
@@ -1836,6 +1804,20 @@ const activeJobsCount = useMemo(() => {
     params.set("tab", next);
     router.replace(`/dashboard/enquiries?${params.toString()}`);
   }
+function openFollowUpComposer(params: {
+  customerName?: string | null;
+  status?: string | null;
+}) {
+  syncRightTab("messages");
+  setReplyBody(
+    getFollowUpMessage({
+      customerName: params.customerName,
+      status: params.status,
+    })
+  );
+  setScrollToComposerPending(true);
+}
+
 function getAiActionMeta(action: string | null) {
   const a = String(action || "").toLowerCase();
 
@@ -2709,7 +2691,6 @@ async function saveDetailedEstimate(
     setEstimateSaving(false);
   }
 }
-
 async function sendEstimate() {
   if (!selectedRow || !uid) return;
 
@@ -2717,20 +2698,36 @@ async function sendEstimate() {
 
   try {
     const saved = await saveDetailedEstimate("draft", { showToast: false });
-    if (!saved) return;
+    if (!saved) {
+      throw new Error("Couldn’t save estimate before sending");
+    }
+
+    const estimateIdToSend =
+      detailedEstimate?.id || estimateMap[selectedRow.id]?.id;
+
+    if (!estimateIdToSend) {
+      throw new Error("No estimate found to send");
+    }
 
     const {
       data: { session },
     } = await supabase.auth.getSession();
 
+    const accessToken = session?.access_token || "";
+
+    if (!accessToken) {
+      throw new Error("You are not authenticated");
+    }
+
     const res = await fetch("/api/estimates/send-email", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session?.access_token || ""}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         requestId: selectedRow.id,
+        estimateId: estimateIdToSend,
       }),
     });
 
@@ -2740,39 +2737,25 @@ async function sendEstimate() {
       throw new Error(json?.error || "Couldn’t send estimate email");
     }
 
-  const estimateIdToSend = detailedEstimate?.id || estimateMap[selectedRow.id]?.id;
-
-if (!estimateIdToSend) {
-  throw new Error("No estimate found to mark as sent");
-}
-
-const { error } = await supabase
-  .from("estimates")
-  .update({ status: "sent" })
-  .eq("id", estimateIdToSend);
-
-if (error) throw error;
-
-setEstimateMap((prev) => ({
-  ...prev,
-  [selectedRow.id]: prev[selectedRow.id]
-    ? { ...prev[selectedRow.id]!, status: "sent" }
-    : prev[selectedRow.id],
-}));
+    setEstimateMap((prev) => ({
+      ...prev,
+      [selectedRow.id]: prev[selectedRow.id]
+        ? { ...prev[selectedRow.id]!, status: "sent" }
+        : prev[selectedRow.id],
+    }));
 
     await updateStage("estimate_sent");
     await loadDetailedEstimate(selectedRow.id);
     await loadEstimateMap(uid);
 
     pushToast(`Estimate sent to ${selectedRow.customer_email || "customer"}`);
-  } catch (err) {
-    console.error(err);
-    pushToast("Couldn’t send estimate", "error");
+  } catch (err: any) {
+    console.error("sendEstimate failed:", err);
+    pushToast(err?.message || "Couldn’t send estimate", "error");
   } finally {
     setEstimateSending(false);
   }
 }
-
 async function saveEstimateDraft() {
   await saveDetailedEstimate("draft", { showToast: true });
 }
@@ -3192,6 +3175,10 @@ useEffect(() => {
   <div className="ff-statLabel">Follow up</div>
  <div className="ff-statValue">{enquiryCounts.followUp}</div>
 </div>
+<div className="ff-statCard ff-statCardSoft">
+<div className="ff-statLabel">Waiting on customer</div>
+<div className="ff-statValue">{enquiryCounts.allGood}</div>
+</div>
                 </div>
               </div>
             </div>
@@ -3203,47 +3190,54 @@ useEffect(() => {
               <div className="ff-leftTop">
                 <div className="ff-leftTitle">All enquiries</div>
 
-                <div className="ff-leftFilters">
-                  <div className="ff-segmented">
-  <button
-    type="button"
-    className={`ff-segBtn ${tab === "all" ? "isActive" : ""}`}
-    onClick={() => setTab("all")}
-  >
-    All
-  </button>
+<div className="ff-leftFilters">
+  <div className="ff-segmented">
+    <button
+      type="button"
+      className={`ff-segBtn ${tab === "all" ? "isActive" : ""}`}
+      onClick={() => setTab("all")}
+    >
+      All
+    </button>
 
-  <button
-    type="button"
-    className={`ff-segBtn ${tab === "unread" ? "isActive" : ""}`}
-    onClick={() => setTab("unread")}
-  >
-    Unread
-  </button>
+    <button
+      type="button"
+      className={`ff-segBtn ${tab === "unread" ? "isActive" : ""}`}
+      onClick={() => setTab("unread")}
+    >
+      Unread
+    </button>
 
-  <button
-    type="button"
-    className={`ff-segBtn ${tab === "needsAction" ? "isActive" : ""}`}
-    onClick={() => setTab("needsAction")}
-  >
-    Needs action
-  </button>
+    <button
+      type="button"
+      className={`ff-segBtn ${tab === "needsAction" ? "isActive" : ""}`}
+      onClick={() => setTab("needsAction")}
+    >
+      Needs action
+    </button>
 
-  <button
-    type="button"
-    className={`ff-segBtn ${tab === "followUp" ? "isActive" : ""}`}
-    onClick={() => setTab("followUp")}
-  >
-    Follow up
-  </button>
-</div>
+    <button
+      type="button"
+      className={`ff-segBtn ${tab === "followUp" ? "isActive" : ""}`}
+      onClick={() => setTab("followUp")}
+    >
+      Follow up
+    </button>
 
+    <button
+      type="button"
+      className={`ff-segBtn ${tab === "waiting" ? "isActive" : ""}`}
+      onClick={() => setTab("waiting")}
+    >
+      Waiting
+    </button>
+  </div>
                   <input
-                    className="ff-input"
-                    placeholder="Filter by postcode"
-                    value={postcodeFilter}
-                    onChange={(e) => setPostcodeFilter(e.target.value)}
-                  />
+  className="ff-input"
+  placeholder="Search by postcode, name or job no."
+  value={searchFilter}
+  onChange={(e) => setSearchFilter(e.target.value)}
+/>
 
                   <select
                     className="ff-input"
@@ -3329,14 +3323,7 @@ const nextAction = getLeftNextAction({
 
 const showBottomHint = nextAction.type === "hint";
 
-const followUp = getFollowUpState({
-    stage: derivedStage,
-    estimateStatus: estimate?.status,
-    estimateCreatedAt: estimate?.created_at,
-    hasVisit: !!visit,
-    hasReply: hasCustomerReplyAfterOutbound(messages),
-    snoozedUntil: r.snoozed_until,
-  });
+const followUp = followUpMap[r.id];
 
   return (
     <button
@@ -3346,7 +3333,13 @@ const followUp = getFollowUpState({
       className={`ff-leftItem 
         ${isActive ? "isActive" : ""} 
         ${isWon ? "ff-leftWon" : getUrgencyGlowClass(r.urgency)} 
-        ${!isWon && followUp.due ? "ff-leftFollowUp" : ""}
+       ${
+  !isWon &&
+  (followUp?.status === "follow_up_due" ||
+    followUp?.status === "estimate_follow_up_due")
+    ? "ff-leftFollowUp"
+    : ""
+}
       `}
       onClick={() => selectEnquiry(r.id)}
     >
@@ -3424,31 +3417,92 @@ const followUp = getFollowUpState({
       ) : null}
 
 {(aiActionMeta || nextAction.type === "primary") && (
-  <div
+  <button
+    type="button"
     className={
       aiActionMeta
         ? aiActionMeta.cls
         : nextAction.cls
     }
+    onClick={(e) => {
+      e.stopPropagation();
+
+      if (aiActionMeta?.text === "Message customer" || nextAction.text === "Reply now" || nextAction.text === "Next: First reply") {
+        selectEnquiry(r.id);
+        openFollowUpComposer({
+          customerName: r.customer_name,
+          status:
+            replyStatus === "Customer replied"
+              ? "customer_replied"
+              : replyStatus === "Awaiting first reply"
+              ? "needs_reply"
+              : "follow_up_due",
+        });
+        return;
+      }
+
+      if (aiActionMeta?.text === "Book visit" || nextAction.text === "Next: Book visit") {
+        selectEnquiry(r.id);
+        syncRightTab("visit");
+        setScrollToVisitPending(true);
+        return;
+      }
+
+      if (
+        aiActionMeta?.text === "Create estimate" ||
+        nextAction.text === "Create estimate" ||
+        nextAction.text === "Next: Quote now" ||
+        nextAction.text === "Next: Chase estimate" ||
+        nextAction.text === "Next: Check estimate"
+      ) {
+        selectEnquiry(r.id);
+        syncRightTab("estimate");
+        setScrollToEstimatePending(true);
+        return;
+      }
+    }}
   >
     {aiActionMeta
       ? aiActionMeta.text
       : nextAction.text}
-  </div>
+  </button>
 )}
 
-{!(nextAction.type === "primary" && followUp.text === "Visit done — quote next") ? (
-  <Chip
-    cls={
-      followUp.tone === "amber"
-        ? "ff-chip ff-chipAmber"
-        : followUp.tone === "blue"
-        ? "ff-chip ff-chipBlue"
-        : "ff-chip ff-chipGray"
-    }
+{followUp ? (
+  <button
+    type="button"
+    onClick={(e) => {
+      e.stopPropagation();
+
+      if (
+        followUp.status === "needs_reply" ||
+        followUp.status === "customer_replied" ||
+        followUp.status === "follow_up_due" ||
+        followUp.status === "estimate_follow_up_due"
+      ) {
+        selectEnquiry(r.id);
+        openFollowUpComposer({
+          customerName: r.customer_name,
+          status: followUp.status,
+        });
+      }
+    }}
+    className="ff-chipButton"
   >
-    {followUp.text}
-  </Chip>
+    <Chip
+      cls={
+        followUp.status === "needs_reply" ||
+        followUp.status === "customer_replied"
+          ? "ff-chip ff-chipBlue"
+          : followUp.status === "follow_up_due" ||
+            followUp.status === "estimate_follow_up_due"
+          ? "ff-chip ff-chipAmber"
+          : "ff-chip ff-chipGray"
+      }
+    >
+      {followUp.label}
+    </Chip>
+  </button>
 ) : null}
     </>
   )}
@@ -3522,27 +3576,25 @@ const nextAction = getLeftNextAction({
   replyStatus,
 });
 
-                    const followUp = getFollowUpState({
-                      stage: derivedStage,
-                      estimateStatus: estimate?.status,
-                      estimateCreatedAt: estimate?.created_at,
-                      hasVisit: !!visit,
-                      hasReply: hasCustomerReplyAfterOutbound(messages),
-                      snoozedUntil: r.snoozed_until,
-                    });
-
+                   const followUp = followUpMap[r.id];
                     return (
-                      <button
-                        key={r.id}
-                        type="button"
-                        ref={isActive ? activeEnquiryRef : null}
-                        className={`ff-leftItem 
-                          ${isActive ? "isActive" : ""} 
-                          ${isWon ? "ff-leftWon" : getUrgencyGlowClass(r.urgency)} 
-                          ${!isWon && followUp.due ? "ff-leftFollowUp" : ""}
-                        `}
-                        onClick={() => selectEnquiry(r.id)}
-                      >
+                    <button
+  key={r.id}
+  type="button"
+  ref={isActive ? activeEnquiryRef : null}
+  className={`ff-leftItem 
+    ${isActive ? "isActive" : ""} 
+    ${isWon ? "ff-leftWon" : getUrgencyGlowClass(r.urgency)} 
+    ${
+      !isWon &&
+      (followUp?.status === "follow_up_due" ||
+        followUp?.status === "estimate_follow_up_due")
+        ? "ff-leftFollowUp"
+        : ""
+    }
+  `}
+  onClick={() => selectEnquiry(r.id)}
+>
                         <div className="ff-leftItemTop">
                           <div className="ff-leftJobWrap">
                             <div className="ff-jobNumber">
@@ -3619,17 +3671,21 @@ const nextAction = getLeftNextAction({
   <div className={nextAction.cls}>{nextAction.text}</div>
 ) : null}
 
-                              <Chip
-                                cls={
-                                  followUp.tone === "amber"
-                                    ? "ff-chip ff-chipAmber"
-                                    : followUp.tone === "blue"
-                                    ? "ff-chip ff-chipBlue"
-                                    : "ff-chip ff-chipGray"
-                                }
-                              >
-                                {followUp.text}
-                              </Chip>
+                              {followUp ? (
+  <Chip
+    cls={
+      followUp.status === "needs_reply" ||
+      followUp.status === "customer_replied"
+        ? "ff-chip ff-chipBlue"
+        : followUp.status === "follow_up_due" ||
+          followUp.status === "estimate_follow_up_due"
+        ? "ff-chip ff-chipAmber"
+        : "ff-chip ff-chipGray"
+    }
+  >
+    {followUp.label}
+  </Chip>
+) : null}
                             </>
                           )}
                         </div>
@@ -3891,12 +3947,16 @@ const nextAction = getLeftNextAction({
 <div className="ff-overviewTopGrid" style={{ marginBottom: 4 }}>
   <div className="ff-overviewMiniCard">
     <div className="ff-overviewMiniLabel">Follow up</div>
-    <div className="ff-overviewMiniValue">
-      {selectedFollowUp?.text || "Not due"}
-    </div>
+<div className="ff-overviewMiniValue">
+  {selectedFollowUp?.label || "All good"}
+</div>
 <div className="ff-overviewMiniSub">
-  {selectedFollowUp?.due
-    ? "This enquiry needs a follow-up action."
+  {selectedFollowUp &&
+  (selectedFollowUp.status === "follow_up_due" ||
+    selectedFollowUp.status === "estimate_follow_up_due" ||
+    selectedFollowUp.status === "needs_reply" ||
+    selectedFollowUp.status === "customer_replied")
+    ? selectedFollowUp.reason
     : selectedRow?.snoozed_until && isSnoozedUntilActive(selectedRow.snoozed_until)
     ? "This enquiry is currently snoozed."
     : selectedDerivedStage === "won"
@@ -4432,80 +4492,64 @@ const nextAction = getLeftNextAction({
       <div className="ff-detailLabel">Visit</div>
       <div className="ff-detailValue">{selectedVisitLabel}</div>
     </div>
+<div className="ff-detailRow">
+  <div className="ff-detailLabel">Follow up</div>
+  <div className="ff-detailValue">
+    {selectedFollowUp?.label || "All good"}
+  </div>
+</div>
 
-    <div className="ff-detailRow">
-      <div className="ff-detailLabel">Follow up</div>
-      <div className="ff-detailValue">
-        {selectedFollowUp?.text || "Not due"}
-      </div>
-    </div>
-
-    {selectedFollowUp?.due ? (
-      <div
-        style={{
-          marginTop: 14,
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-        }}
-      >
-<button
-  type="button"
-  className="ff-btn ff-btnGhost ff-btnSm"
-  onClick={() => {
-    syncRightTab("messages");
-
-    const customerName =
-      titleCase(selectedRow?.customer_name) || "there";
-
-    let message = "";
-
-    if (selectedFollowUp.text === "Follow up now") {
-      message = `Hi ${customerName}, just checking in to see if you'd like to go ahead with this estimate. Let me know if you'd like to move forward or if you have any questions.`;
-    } else if (selectedFollowUp.text === "Estimate sent 3+ days ago") {
-      message = `Hi ${customerName}, just following up on the estimate I sent over. Let me know if you'd like to go ahead or if you'd like me to talk anything through.`;
-    } else if (selectedFollowUp.text === "No reply yet") {
-      message = `Hi ${customerName}, just checking in on your enquiry. Let me know if you'd still like help with this job.`;
-    } else if (selectedFollowUp.text === "Visit done — quote next") {
-      message = `Hi ${customerName}, thanks again for your time on the visit. I’ll get your estimate over shortly.`;
-    } else {
-      message = `Hi ${customerName}, just checking in to see if you'd still like to move forward with this job.`;
-    }
-
-    setReplyBody(message);
-
-    // 🔥 ALWAYS runs now
-    setScrollToComposerPending(true);
+{selectedFollowUp &&
+(selectedFollowUp.status === "follow_up_due" ||
+  selectedFollowUp.status === "estimate_follow_up_due" ||
+  selectedFollowUp.status === "needs_reply" ||
+  selectedFollowUp.status === "customer_replied") ? (
+  <div
+  style={{
+    marginTop: 14,
+    display: "flex",
+    gap: 8,
+    flexWrap: "wrap",
   }}
 >
-  Follow up now
-</button>
-      </div>
-    ) : selectedRow?.snoozed_until &&
-      isSnoozedUntilActive(selectedRow.snoozed_until) ? (
-      <div
-        style={{
-          marginTop: 14,
-          display: "flex",
-          gap: 8,
-          flexWrap: "wrap",
-          alignItems: "center",
-        }}
-      >
-        <Chip cls="ff-chip ff-chipGray">
-          Snoozed until {niceDateOnly(selectedRow.snoozed_until)}
-        </Chip>
+  <button
+    type="button"
+    className="ff-btn ff-btnGhost ff-btnSm"
+    onClick={() => {
+      openFollowUpComposer({
+        customerName: selectedRow?.customer_name,
+        status: selectedFollowUp.status,
+      });
+    }}
+  >
+    Follow up now
+  </button>
+</div>
+) : selectedRow?.snoozed_until &&
+  isSnoozedUntilActive(selectedRow.snoozed_until) ? (
+  <div
+    style={{
+      marginTop: 14,
+      display: "flex",
+      gap: 8,
+      flexWrap: "wrap",
+      alignItems: "center",
+    }}
+  >
+    <Chip cls="ff-chip ff-chipGray">
+      Snoozed until {niceDateOnly(selectedRow.snoozed_until)}
+    </Chip>
 
-        <button
-          type="button"
-          className="ff-btn ff-btnGhost ff-btnSm"
-          onClick={clearSnooze}
-          disabled={snoozeSaving}
-        >
-          Clear snooze
-        </button>
-      </div>
-    ) : null}
+    <button
+      type="button"
+      className="ff-btn ff-btnGhost ff-btnSm"
+      onClick={clearSnooze}
+      disabled={snoozeSaving}
+    >
+      Clear snooze
+    </button>
+  </div>
+) : null}
 
 <div style={{ marginTop: 18 }}>
   <button
@@ -5319,277 +5363,273 @@ const nextAction = getLeftNextAction({
                     ) : null}
 
                     {rightTab === "messages" ? (
-                      <div className="ff-chatWrap">
-                        {selectedFollowUp?.due ? (
-  <div
-    style={{
-      marginBottom: 14,
-      padding: 14,
-      borderRadius: 16,
-      border: `1px solid ${FF.border}`,
-      background:
-        selectedFollowUp.tone === "amber" ? "#FFF7ED" : "#F4F7FF",
-    }}
-  >
-    <div
-      style={{
-        fontSize: 11,
-        fontWeight: 800,
-        letterSpacing: "0.04em",
-        textTransform: "uppercase",
-        color: FF.muted,
-        marginBottom: 6,
-      }}
-    >
-      Follow-up reminder
+  <div className="ff-chatWrap">
+    {selectedFollowUp &&
+    (selectedFollowUp.status === "follow_up_due" ||
+      selectedFollowUp.status === "estimate_follow_up_due") ? (
+      <div
+        style={{
+          marginBottom: 14,
+          padding: 14,
+          borderRadius: 16,
+          border: `1px solid ${FF.border}`,
+          background:
+            selectedFollowUp.status === "estimate_follow_up_due"
+              ? "#FFF7ED"
+              : "#F4F7FF",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 800,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+            color: FF.muted,
+            marginBottom: 6,
+          }}
+        >
+          Follow-up reminder
+        </div>
+
+        <div
+          style={{
+            fontSize: 15,
+            fontWeight: 800,
+            color: FF.text,
+            marginBottom: 6,
+          }}
+        >
+          {selectedFollowUp.label}
+        </div>
+
+        <div
+          style={{
+            fontSize: 13,
+            lineHeight: 1.5,
+            color: FF.muted,
+          }}
+        >
+          A quick, polite message now could help bring this job back.
+        </div>
+      </div>
+    ) : null}
+
+    <div className="ff-chatTop">
+      <div>
+        <div className="ff-detailLabel">Customer messages</div>
+        <div className="ff-detailSub">
+          View replies and send updates from this enquiry.
+        </div>
+
+        <div className="ff-chatStatusRow">
+          <Chip
+            cls={
+              selectedReplyStatus === "Customer replied"
+                ? "ff-chip ff-chipBlue"
+                : selectedReplyStatus === "Awaiting first reply"
+                ? "ff-chip ff-chipAmber"
+                : "ff-chip ff-chipGray"
+            }
+          >
+            {selectedReplyStatus === "Customer replied"
+              ? "Customer waiting"
+              : selectedReplyStatus === "Awaiting first reply"
+              ? "Awaiting first reply"
+              : "Waiting on customer"}
+          </Chip>
+        </div>
+      </div>
+
+      <button
+        className="ff-btn ff-btnGhost ff-btnSm"
+        type="button"
+        onClick={() => uid && selectedRow && loadThread(selectedRow.id, uid)}
+        disabled={threadLoading}
+      >
+        {threadLoading ? "Loading…" : "Refresh"}
+      </button>
     </div>
 
-    <div
-      style={{
-        fontSize: 15,
-        fontWeight: 800,
-        color: FF.text,
-        marginBottom: 6,
-      }}
-    >
-      {selectedFollowUp.text}
+    <div className="ff-chatBody">
+      {threadLoading ? (
+        <div style={{ color: FF.muted, fontSize: 13 }}>
+          Loading messages…
+        </div>
+      ) : thread.length ? (
+        thread.map((m) => {
+          const outbound = isOutboundDirection(m.direction);
+          const body = (m.body_text ?? "").trim();
+
+          return (
+            <button
+              key={m.id}
+              type="button"
+              className={`ff-chatRow ${
+                outbound ? "ff-chatRowOut" : "ff-chatRowIn"
+              }`}
+              onClick={() => setExpandedMsg(m)}
+              style={{
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              <div
+                className={`ff-chatBubble ${
+                  outbound ? "ff-chatBubbleOut" : "ff-chatBubbleIn"
+                }`}
+              >
+                <div className="ff-chatMeta">
+                  <span className="ff-chatName">
+                    {outbound ? "You" : "Customer"}
+                  </span>
+                  <span className="ff-chatTime">
+                    {niceDate(m.created_at)}
+                  </span>
+                </div>
+
+                {m.subject ? (
+                  <div className="ff-chatSubject">{m.subject}</div>
+                ) : null}
+
+                <div className="ff-chatText">{body || "—"}</div>
+              </div>
+            </button>
+          );
+        })
+      ) : (
+        <EmptyState
+          title="No messages yet"
+          sub="When you send or receive messages, they will appear here."
+        />
+      )}
+
+      <div ref={threadBottomRef} />
     </div>
 
-    <div
-      style={{
-        fontSize: 13,
-        lineHeight: 1.5,
-        color: FF.muted,
-      }}
-    >
-      A quick, polite message now could help bring this job back.
+    <div className="ff-chatComposer" ref={messageComposerRef}>
+      <div className="ff-chatComposerTop">
+        <input
+          className="ff-input"
+          value={replyTo}
+          onChange={(e) => setReplyTo(e.target.value)}
+          placeholder="Customer email"
+        />
+        <input
+          className="ff-input"
+          value={replySubject}
+          onChange={(e) => setReplySubject(e.target.value)}
+          placeholder="Subject"
+        />
+      </div>
+
+      <div className="ff-quickReplyRow">
+        {selectedFollowUp &&
+        (selectedFollowUp.status === "follow_up_due" ||
+          selectedFollowUp.status === "estimate_follow_up_due") ? (
+          <>
+            <button
+              type="button"
+              className="ff-quickReplyBtn"
+              onClick={() =>
+                setReplyBody(
+                  `Hi ${titleCase(selectedRow?.customer_name) || ""}, just checking in to see if you'd like to go ahead with this.`
+                )
+              }
+            >
+              Still interested?
+            </button>
+
+            {selectedFollowUp.status === "estimate_follow_up_due" ? (
+              <button
+                type="button"
+                className="ff-quickReplyBtn"
+                onClick={() =>
+                  setReplyBody(
+                    `Hi ${titleCase(selectedRow?.customer_name) || ""}, just following up on the estimate I sent over. Let me know if you'd like to move forward.`
+                  )
+                }
+              >
+                Follow up estimate
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              className="ff-quickReplyBtn"
+              onClick={() =>
+                setReplyBody(
+                  `Hi ${titleCase(selectedRow?.customer_name) || ""}, just checking whether you'd still like me to quote for this job.`
+                )
+              }
+            >
+              Check if still quoting
+            </button>
+          </>
+        ) : null}
+
+        {quickReplies.map((text) => (
+          <button
+            key={text}
+            type="button"
+            className="ff-quickReplyBtn"
+            onClick={() =>
+              setReplyBody((prev) => insertReplyText(prev, text))
+            }
+          >
+            {text}
+          </button>
+        ))}
+      </div>
+
+      <textarea
+        ref={replyBodyRef}
+        className="ff-chatInput"
+        value={replyBody}
+        onChange={(e) => setReplyBody(e.target.value)}
+      />
+
+      <div className="ff-chatActions">
+        <div className="ff-chatHint">
+          Replying to {replyTo || "customer"}
+        </div>
+
+        <div className="ff-chatActionButtons">
+          <button
+            className="ff-btn ff-btnGhost ff-btnSm"
+            type="button"
+            onClick={() => setReplyBody("")}
+          >
+            Clear
+          </button>
+
+          {isAutoFilled ? (
+            <button
+              className="ff-btn ff-btnGhost ff-btnSm ff-btnPulse"
+              type="button"
+              onClick={sendReply}
+              disabled={!replyTo.trim() || !replyBody.trim()}
+            >
+              ⚡ Send now
+            </button>
+          ) : null}
+
+          <button
+            className="ff-btn ff-btnPrimary ff-btnSm"
+            type="button"
+            onClick={sendReply}
+            disabled={!replyTo.trim() || !replyBody.trim()}
+          >
+            Send message
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 ) : null}
-                        <div className="ff-chatTop">
-                          <div>
-                            <div className="ff-detailLabel">
-                              Customer messages
-                            </div>
-                            <div className="ff-detailSub">
-                              View replies and send updates from this enquiry.
-                            </div>
-
-                            <div className="ff-chatStatusRow">
-  <Chip
-  cls={
-    selectedReplyStatus === "Customer replied"
-      ? "ff-chip ff-chipBlue"
-      : selectedReplyStatus === "Awaiting first reply"
-      ? "ff-chip ff-chipAmber"
-      : "ff-chip ff-chipGray"
-  }
->
-  {selectedReplyStatus === "Customer replied"
-    ? "Customer waiting"
-    : selectedReplyStatus === "Awaiting first reply"
-    ? "Awaiting first reply"
-    : "Waiting on customer"}
-</Chip>
-                            </div>
-                          </div>
-
-                          <button
-                            className="ff-btn ff-btnGhost ff-btnSm"
-                            type="button"
-                            onClick={() =>
-                              uid && selectedRow && loadThread(selectedRow.id, uid)
-                            }
-                            disabled={threadLoading}
-                          >
-                            {threadLoading ? "Loading…" : "Refresh"}
-                          </button>
-                        </div>
-
-                        <div className="ff-chatBody">
-                          {threadLoading ? (
-                            <div style={{ color: FF.muted, fontSize: 13 }}>
-                              Loading messages…
-                            </div>
-                          ) : thread.length ? (
-                            thread.map((m) => {
-                              const outbound = isOutboundDirection(m.direction);
-                              const body = (m.body_text ?? "").trim();
-
-                              return (
-                                <button
-                                  key={m.id}
-                                  type="button"
-                                  className={`ff-chatRow ${
-                                    outbound ? "ff-chatRowOut" : "ff-chatRowIn"
-                                  }`}
-                                  onClick={() => setExpandedMsg(m)}
-                                  style={{
-                                    background: "transparent",
-                                    border: "none",
-                                    padding: 0,
-                                    textAlign: "left",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  <div
-                                    className={`ff-chatBubble ${
-                                      outbound
-                                        ? "ff-chatBubbleOut"
-                                        : "ff-chatBubbleIn"
-                                    }`}
-                                  >
-                                    <div className="ff-chatMeta">
-                                      <span className="ff-chatName">
-                                        {outbound ? "You" : "Customer"}
-                                      </span>
-                                      <span className="ff-chatTime">
-                                        {niceDate(m.created_at)}
-                                      </span>
-                                    </div>
-
-                                    {m.subject ? (
-                                      <div className="ff-chatSubject">
-                                        {m.subject}
-                                      </div>
-                                    ) : null}
-
-                                    <div className="ff-chatText">
-                                      {body || "—"}
-                                    </div>
-                                  </div>
-                                </button>
-                              );
-                            })
-                          ) : (
-                            <EmptyState
-                              title="No messages yet"
-                              sub="When you send or receive messages, they will appear here."
-                            />
-                          )}
-
-                          <div ref={threadBottomRef} />
-                        </div>
-
-                       <div className="ff-chatComposer" ref={messageComposerRef}>
-                          <div className="ff-chatComposerTop">
-                            <input
-                              className="ff-input"
-                              value={replyTo}
-                              onChange={(e) => setReplyTo(e.target.value)}
-                              placeholder="Customer email"
-                            />
-                            <input
-                              className="ff-input"
-                              value={replySubject}
-                              onChange={(e) => setReplySubject(e.target.value)}
-                              placeholder="Subject"
-                            />
-                          </div>
-
-                         <div className="ff-quickReplyRow">
-  {selectedFollowUp?.due ? (
-    <>
-      <button
-        type="button"
-        className="ff-quickReplyBtn"
-        onClick={() =>
-          setReplyBody(
-            `Hi ${titleCase(selectedRow?.customer_name) || ""}, just checking in to see if you'd like to go ahead with this.`
-          )
-        }
-      >
-        Still interested?
-      </button>
-
-      <button
-        type="button"
-        className="ff-quickReplyBtn"
-        onClick={() =>
-          setReplyBody(
-            `Hi ${titleCase(selectedRow?.customer_name) || ""}, just following up on the estimate I sent over. Let me know if you'd like to move forward.`
-          )
-        }
-      >
-        Follow up estimate
-      </button>
-
-      <button
-        type="button"
-        className="ff-quickReplyBtn"
-        onClick={() =>
-          setReplyBody(
-            `Hi ${titleCase(selectedRow?.customer_name) || ""}, just checking whether you'd still like me to quote for this job.`
-          )
-        }
-      >
-        Check if still quoting
-      </button>
-    </>
-  ) : null}
-
-  {quickReplies.map((text) => (
-    <button
-      key={text}
-      type="button"
-      className="ff-quickReplyBtn"
-      onClick={() =>
-        setReplyBody((prev) =>
-          insertReplyText(prev, text)
-        )
-      }
-    >
-      {text}
-    </button>
-  ))}
-</div>
-
-
-  <textarea
-  ref={replyBodyRef}
-  className="ff-chatInput"
-  value={replyBody}
-  onChange={(e) => setReplyBody(e.target.value)}
-/>
-
-                          <div className="ff-chatActions">
-                            <div className="ff-chatHint">
-                              Replying to {replyTo || "customer"}
-                            </div>
-
-                           <div className="ff-chatActionButtons">
-  <button
-    className="ff-btn ff-btnGhost ff-btnSm"
-    type="button"
-    onClick={() => setReplyBody("")}
-  >
-    Clear
-  </button>
-
-  {isAutoFilled ? (
-<button
-  className="ff-btn ff-btnGhost ff-btnSm ff-btnPulse"
-  type="button"
-  onClick={sendReply}
-  disabled={!replyTo.trim() || !replyBody.trim()}
->
-  ⚡ Send now
-</button>
-  ) : null}
-
-  <button
-    className="ff-btn ff-btnPrimary ff-btnSm"
-    type="button"
-    onClick={sendReply}
-    disabled={!replyTo.trim() || !replyBody.trim()}
-  >
-    Send message
-  </button>
-</div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
                   </div>
                 </>
               )}

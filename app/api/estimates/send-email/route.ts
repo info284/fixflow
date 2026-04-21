@@ -408,9 +408,10 @@ export async function POST(req: Request) {
     const subject = subjectIn || `Your estimate from ${traderName}`;
 
     const appUrl =
-      process.env.NEXT_PUBLIC_APP_URL ||
-      process.env.APP_URL ||
-      "http://localhost:3000";
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.APP_URL ||
+  "https://thefixflowapp.com";
 
     const acceptUrl = `${appUrl.replace(/\/$/, "")}/estimate/${estimate.id}/accept`;
 

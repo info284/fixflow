@@ -123,13 +123,9 @@ export default function AcceptEstimatePage() {
       setBusy(true);
       setError(null);
 
-      const res = await fetch("/api/estimates/accept", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ estimateId: id }),
-      });
+const res = await fetch(`/api/estimates/${id}/accept`, {
+  method: "POST",
+});
 
       const json = await res.json();
 

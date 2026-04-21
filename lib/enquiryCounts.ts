@@ -1,17 +1,23 @@
 // lib/enquiryCounts.ts
 
+import { getFollowUpState, type FollowUpResult } from "@/lib/enquiries/followUp";
+
 export type QuoteRequestCountRow = {
   id: string;
   stage: string | null;
   read_at: string | null;
   snoozed_until: string | null;
   created_at: string;
+  job_booked_at?: string | null;
 };
 
 export type QuickEstimateCountLite = {
+  id?: string;
   status: string | null;
   accepted_at: string | null;
   created_at: string | null;
+  first_viewed_at?: string | null;
+  last_viewed_at?: string | null;
 };
 
 export type SiteVisitCountLite = {
@@ -19,6 +25,7 @@ export type SiteVisitCountLite = {
 } | null;
 
 export type EnquiryMessageCountRow = {
+  id?: string;
   direction: string | null;
   created_at: string;
 };
@@ -31,44 +38,17 @@ export type EnquiryCountsInput = {
 };
 
 export type EnquiryCounts = {
-  enquiriesOpen: number;
-  enquiriesUnread: number;
-  needsAction: number;
-  followUp: number;
-  wonJobs: number;
+enquiriesOpen: number;
+enquiriesUnread: number;
+needsAction: number;
+followUp: number;
+wonJobs: number;
+allGood: number;
 };
 
 function isOutboundDirection(direction?: string | null) {
   const v = String(direction || "").toLowerCase();
   return v === "out" || v === "outbound" || v === "sent";
-}
-
-function hasCustomerReplyAfterOutbound(messages: EnquiryMessageCountRow[]) {
-  if (!messages.length) return false;
-
-  const lastOutbound = [...messages]
-    .filter((m) => isOutboundDirection(m.direction))
-    .sort(
-      (a, b) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )[0];
-
-  if (!lastOutbound) return false;
-
-  return messages.some((m) => {
-    const inbound = !isOutboundDirection(m.direction);
-    if (!inbound) return false;
-
-    return (
-      new Date(m.created_at).getTime() >
-      new Date(lastOutbound.created_at).getTime()
-    );
-  });
-}
-
-function isSnoozedUntilActive(value?: string | null) {
-  if (!value) return false;
-  return new Date(value).getTime() > Date.now();
 }
 
 function deriveEnquiryStage(params: {
@@ -96,101 +76,6 @@ function deriveEnquiryStage(params: {
   return "new";
 }
 
-function getFollowUpState(params: {
-  stage?: string | null;
-  estimateStatus?: string | null;
-  estimateCreatedAt?: string | null;
-  hasVisit: boolean;
-  hasReply: boolean;
-  snoozedUntil?: string | null;
-}) {
-  const {
-    stage,
-    estimateStatus,
-    estimateCreatedAt,
-    hasVisit,
-    hasReply,
-    snoozedUntil,
-  } = params;
-
-  const stageValue = String(stage || "").toLowerCase();
-  const estimateValue = String(estimateStatus || "").toLowerCase();
-
-  if (isSnoozedUntilActive(snoozedUntil)) {
-    return {
-      due: false,
-      text: "Snoozed",
-      priority: 0,
-    };
-  }
-
-  if (stageValue === "won" || stageValue === "lost") {
-    return {
-      due: false,
-      text: "Closed",
-      priority: 0,
-    };
-  }
-
-  if (estimateValue === "accepted") {
-    return {
-      due: false,
-      text: "Accepted",
-      priority: 0,
-    };
-  }
-
-  if (estimateValue === "sent" && estimateCreatedAt) {
-    const sentAt = new Date(estimateCreatedAt).getTime();
-    const now = Date.now();
-    const diffDays = Math.floor((now - sentAt) / (1000 * 60 * 60 * 24));
-
-    if (diffDays >= 7) {
-      return {
-        due: true,
-        text: "Follow up now",
-        priority: 3,
-      };
-    }
-
-    if (diffDays >= 3) {
-      return {
-        due: true,
-        text: "Estimate sent 3+ days ago",
-        priority: 2,
-      };
-    }
-
-    return {
-      due: false,
-      text: "Recently sent",
-      priority: 1,
-    };
-  }
-
-  if (stageValue === "contacted" && !hasReply) {
-    return {
-      due: true,
-      text: "No reply yet",
-      priority: 2,
-    };
-  }
-
-  if (hasVisit && !estimateValue) {
-    return {
-      due: true,
-      text: "Visit done — quote next",
-      priority: 2,
-    };
-  }
-
-  return {
-    due: false,
-    text: "Not due",
-    priority: 0,
-  };
-}
-
 export function getEnquiryCounts({
   rows,
   estimateMap,
@@ -202,6 +87,7 @@ export function getEnquiryCounts({
   let needsAction = 0;
   let followUp = 0;
   let wonJobs = 0;
+  let allGood = 0;
 
   for (const row of rows) {
     const estimate = estimateMap[row.id] || null;
@@ -224,41 +110,50 @@ export function getEnquiryCounts({
       enquiriesUnread += 1;
     }
 
-    const estimateStatus = String(estimate?.status || "").toLowerCase();
-    const hasVisit = !!visit;
-
-    if (
-      !isSnoozedUntilActive(row.snoozed_until) &&
-      (
-        !row.read_at ||
-        derivedStage === "new" ||
-        derivedStage === "contacted" ||
-        estimateStatus === "sent" ||
-        (!estimate && !hasVisit && derivedStage !== "won" && derivedStage !== "lost")
-      )
-    ) {
-      needsAction += 1;
-    }
-
-    const followUpState = getFollowUpState({
-      stage: derivedStage,
-      estimateStatus: estimate?.status,
-      estimateCreatedAt: estimate?.created_at,
-      hasVisit,
-      hasReply: hasCustomerReplyAfterOutbound(messages),
-      snoozedUntil: row.snoozed_until,
+    const followUpState: FollowUpResult = getFollowUpState({
+      enquiry: {
+        id: row.id,
+        stage: row.stage ?? null,
+        created_at: row.created_at,
+        snoozed_until: row.snoozed_until ?? null,
+        job_booked_at: row.job_booked_at ?? null,
+      },
+      messages: messages.map((m, index) => ({
+        id: m.id || `${row.id}-${index}`,
+        direction: m.direction === "in" ? "in" : "out",
+        created_at: m.created_at,
+      })),
+      estimate: estimate
+        ? {
+            id: estimate.id || row.id,
+            status: estimate.status,
+            created_at: estimate.created_at,
+            sent_at: estimate.created_at,
+            accepted_at: estimate.accepted_at,
+            first_viewed_at: estimate.first_viewed_at ?? null,
+            last_viewed_at: estimate.last_viewed_at ?? null,
+          }
+        : null,
     });
 
-    if (followUpState.due) {
-      followUp += 1;
-    }
+if (isOpen) {
+  if (followUpState.bucket === "needsAction") {
+    needsAction += 1;
+  } else if (followUpState.bucket === "followUp") {
+    followUp += 1;
+  } else {
+    allGood += 1;
+  }
+}
   }
 
-  return {
-    enquiriesOpen,
-    enquiriesUnread,
-    needsAction,
-    followUp,
-    wonJobs,
-  };
+
+return {
+enquiriesOpen,
+enquiriesUnread,
+needsAction,
+followUp,
+wonJobs,
+allGood,
+};
 }

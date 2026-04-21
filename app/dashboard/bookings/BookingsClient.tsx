@@ -2730,39 +2730,71 @@ useEffect(() => {
                           )}
                         </div>
 
-                        <div className="ff-chatComposer">
-                          <div className="ff-chatComposerTop">
-                            <input
-                              className="ff-input"
-                              value={replyTo}
-                              onChange={(e) => setReplyTo(e.target.value)}
-                              placeholder="Customer email"
-                            />
-                            <input
-                              className="ff-input"
-                              value={replySubject}
-                              onChange={(e) => setReplySubject(e.target.value)}
-                              placeholder="Subject"
-                            />
-                          </div>
+<div className="ff-chatComposer">
+  <div className="ff-chatComposerTop">
+    <input
+      className="ff-input"
+      value={replyTo}
+      onChange={(e) => setReplyTo(e.target.value)}
+      placeholder="Customer email"
+    />
+    <input
+      className="ff-input"
+      value={replySubject}
+      onChange={(e) => setReplySubject(e.target.value)}
+      placeholder="Subject"
+    />
+  </div>
 
-                          <div className="ff-quickReplyRow">
-                            {quickReplies.map((text) => (
-                              <button
-                                key={text}
-                                type="button"
-                                className="ff-quickReplyBtn"
-                                onClick={() =>
-                                  setReplyBody((prev) =>
-                                    insertReplyText(prev, text)
-                                  )
-                                }
-                              >
-                                {text}
-                              </button>
-                            ))}
-                          </div>
+  <div className="ff-quickReplyRow">
+    {quickReplies.map((text) => (
+      <button
+        key={text}
+        type="button"
+        className="ff-quickReplyBtn"
+        onClick={() =>
+          setReplyBody((prev) =>
+            insertReplyText(prev, text)
+          )
+        }
+      >
+        {text}
+      </button>
+    ))}
+  </div>
 
+  <textarea
+    className="ff-chatInput"
+    value={replyBody}
+    onChange={(e) => setReplyBody(e.target.value)}
+    placeholder="Write your message to the customer…"
+  />
+
+  <div className="ff-chatActions">
+    <div className="ff-chatHint">
+      Replying to {replyTo || "customer"}
+    </div>
+
+    <div className="ff-chatActionButtons">
+      <button
+        className="ff-btn ff-btnGhost ff-btnSm"
+        type="button"
+        onClick={() => setReplyBody("")}
+      >
+        Clear
+      </button>
+
+      <button
+        className="ff-btn ff-btnPrimary ff-btnSm"
+        type="button"
+        onClick={sendReply}
+        disabled={!replyTo.trim() || !replyBody.trim()}
+      >
+        Send message
+      </button>
+    </div>
+  </div>
+</div>
                           <textarea
                             className="ff-chatInput"
                             value={replyBody}
@@ -2797,7 +2829,7 @@ useEffect(() => {
                             </div>
                           </div>
                         </div>
-                      </div>
+                     
                     ) : null}
 
                     {rightTab === "notes" ? (

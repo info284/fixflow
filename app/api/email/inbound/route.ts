@@ -317,10 +317,15 @@ const existingEnquiry = await findExistingEnquiry({
   customer_name: customerName,
   customer_email: customerEmail,
   details,
+
   status: "new",
   stage: "new",
+
   job_type: "General",
   urgency: "Flexible",
+  postcode: "Unknown",
+  property_type: "Unknown",
+
   ai_thread_status: "customer_replied",
   ai_last_customer_message_at: new Date().toISOString(),
 })

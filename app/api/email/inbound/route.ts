@@ -96,23 +96,56 @@ function parseForwardedOriginal(text: string) {
 async function findExistingEnquiry(params: {
   plumberId: string;
   customerEmail: string | null;
+  subject: string;
+  details: string;
 }) {
   if (!params.customerEmail) return null;
 
   const { data, error } = await supabaseAdmin
     .from("quote_requests")
-    .select("id, customer_name, customer_email, stage, created_at")
+    .select("id, customer_name, customer_email, stage, job_type, details, created_at")
     .eq("plumber_id", params.plumberId)
     .eq("customer_email", params.customerEmail)
     .order("created_at", { ascending: false })
-    .limit(1);
+    .limit(5);
 
   if (error) {
     console.error("Find existing enquiry error:", error);
     throw new Error("Failed to check existing enquiries");
   }
 
-  return data?.[0] || null;
+  const rows = data || [];
+
+  // Only consider open enquiries
+  const openRows = rows.filter((row) => {
+    const stage = String(row.stage || "").toLowerCase();
+    return !["won", "lost", "completed", "cancelled"].includes(stage);
+  });
+
+  if (!openRows.length) return null;
+
+  const newest = openRows[0];
+
+  // Ignore if too old (over 30 days)
+  const createdAt = new Date(newest.created_at).getTime();
+  const daysOld = (Date.now() - createdAt) / (1000 * 60 * 60 * 24);
+
+  if (daysOld > 30) return null;
+
+  // Compare text similarity
+  const oldText = `${newest.job_type || ""} ${newest.details || ""}`.toLowerCase();
+  const newText = `${params.subject || ""} ${params.details || ""}`.toLowerCase();
+
+  const sharedWords = newText
+    .split(/\W+/)
+    .filter((word) => word.length > 4 && oldText.includes(word));
+
+  // If similar enough → treat as same enquiry
+  if (sharedWords.length >= 2) {
+    return newest;
+  }
+
+  return null;
 }
 
 async function triggerAiForEnquiry(enquiryId: string) {
@@ -267,10 +300,12 @@ const details = parsed.details || cleanBody(rawText);
     let enquiryId: string;
     let createdNewEnquiry = false;
 
-    const existingEnquiry = await findExistingEnquiry({
-      plumberId: profile.id,
-      customerEmail,
-    });
+const existingEnquiry = await findExistingEnquiry({
+  plumberId: profile.id,
+  customerEmail,
+  subject: finalSubject,
+  details,
+});
 
     if (existingEnquiry?.id) {
       enquiryId = existingEnquiry.id;

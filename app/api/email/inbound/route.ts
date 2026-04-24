@@ -138,12 +138,20 @@ export async function POST(req: Request) {
   try {
     const payload = await req.json();
 
-    const rawFrom = (payload?.from || payload?.sender || "").toString();
-    const rawTo = (payload?.to || payload?.recipient || "").toString();
-    const inboundSubject = (payload?.subject || "").toString().trim();
-    const rawText =
-      (payload?.text || payload?.body_text || payload?.plain || "").toString() ||
-      "";
+ const emailData = payload?.data || payload;
+
+const rawFrom = (emailData?.from || emailData?.sender || "").toString();
+const rawTo = (emailData?.to || emailData?.recipient || "").toString();
+const inboundSubject = (emailData?.subject || "").toString().trim();
+
+const rawText =
+  (
+    emailData?.text ||
+    emailData?.body_text ||
+    emailData?.plain ||
+    emailData?.html ||
+    ""
+  ).toString();
 
     const to = extractEmailAddress(rawTo);
     const requestId = extractRequestIdFromTo(to);

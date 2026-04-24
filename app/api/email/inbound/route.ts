@@ -258,9 +258,9 @@ const { data: profile, error: profileError } = await supabaseAdmin
 
     const parsed = parseForwardedOriginal(rawText);
 
-    const customerEmail = parsed.customerEmail || null;
-    const customerName = parsed.customerName || null;
-    const details = parsed.details || cleanBody(rawText);
+const customerEmail = parsed.customerEmail || forwardedByEmail;
+const customerName = parsed.customerName || extractNameFromHeader(rawFrom);
+const details = parsed.details || cleanBody(rawText);
     const finalSubject =
       parsed.originalSubject || inboundSubject || "Forwarded email";
 
@@ -293,10 +293,10 @@ const { data: profile, error: profileError } = await supabaseAdmin
       if (enquiryError) {
         console.error("Create enquiry error:", enquiryError);
 
-        return NextResponse.json(
-          { ok: false, error: "Failed to create enquiry" },
-          { status: 500 }
-        );
+return NextResponse.json(
+  { ok: false, error: enquiryError.message },
+  { status: 500 }
+);
       }
 
       enquiryId = enquiry.id;

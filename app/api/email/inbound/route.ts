@@ -147,7 +147,9 @@ export async function POST(req: Request) {
 
     const to = extractEmailAddress(rawTo);
     const requestId = extractRequestIdFromTo(to);
-    const forwardedByEmail = extractEmailAddress(rawFrom);
+    const forwardedByEmail = extractEmailAddress(rawFrom)
+  .toLowerCase()
+  .trim();
 
     /*
       Case 1:
@@ -218,7 +220,7 @@ export async function POST(req: Request) {
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("id, notify_email")
-      .eq("notify_email", forwardedByEmail)
+      .ilike("notify_email", forwardedByEmail)
       .maybeSingle();
 
     if (profileError) {

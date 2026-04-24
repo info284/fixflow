@@ -312,16 +312,18 @@ const existingEnquiry = await findExistingEnquiry({
     } else {
       const { data: enquiry, error: enquiryError } = await supabaseAdmin
         .from("quote_requests")
-        .insert({
-          plumber_id: profile.id,
-          customer_name: customerName,
-          customer_email: customerEmail,
-          details,
-          status: "new",
-          stage: "new",
-          ai_thread_status: "customer_replied",
-          ai_last_customer_message_at: new Date().toISOString(),
-        })
+.insert({
+  plumber_id: profile.id,
+  customer_name: customerName,
+  customer_email: customerEmail,
+  details,
+  status: "new",
+  stage: "new",
+  job_type: "General",
+  urgency: "Flexible",
+  ai_thread_status: "customer_replied",
+  ai_last_customer_message_at: new Date().toISOString(),
+})
         .select("id, customer_name, customer_email, created_at")
         .single();
 

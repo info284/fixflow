@@ -316,10 +316,18 @@ const existingEnquiry = await findExistingEnquiry({
   plumber_id: profile.id,
   customer_name: customerName || "Customer",
   customer_email: customerEmail,
+
   details: details || "Customer emailed an enquiry.",
 
-  status: "new",
-  stage: "new",
+  status: "requested",   // ✅ FIXED
+  stage: "requested",    // ✅ SAFE MATCH
+
+  job_type: "bathroom",
+  urgency: "flexible",
+  postcode: null,
+  address: null,
+  property_type: null,
+  problem_location: "bathroom",
 
   ai_thread_status: "customer_replied",
   ai_last_customer_message_at: new Date().toISOString(),

@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 function extractEmailAddress(value: string) {
@@ -13,6 +13,7 @@ function extractEmailAddress(value: string) {
   const plainEmailMatch = value.match(
     /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i
   );
+
   if (plainEmailMatch?.[0]) return plainEmailMatch[0].trim().toLowerCase();
 
   return value.trim().toLowerCase();
@@ -20,12 +21,14 @@ function extractEmailAddress(value: string) {
 
 function extractNameFromHeader(value: string) {
   const angleMatch = value.match(/^(.+?)\s*<[^>]+>$/);
+
   if (angleMatch?.[1]) {
     return angleMatch[1].replace(/(^"|"$)/g, "").trim();
   }
 
   const email = extractEmailAddress(value);
   const local = email.split("@")[0] || "";
+
   return (
     local
       .replace(/[._-]+/g, " ")
@@ -75,6 +78,7 @@ function parseForwardedOriginal(text: string) {
 
   for (const pattern of forwardedSeparatorPatterns) {
     const match = cleaned.match(pattern);
+
     if (match?.index != null) {
       details = cleaned.slice(match.index);
       break;
@@ -111,6 +115,25 @@ async function findExistingEnquiry(params: {
   return data?.[0] || null;
 }
 
+async function triggerAiForEnquiry(enquiryId: string) {
+  try {
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      "http://localhost:3000";
+
+    await fetch(`${baseUrl.replace(/\/$/, "")}/api/ai/run-enquiry`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ enquiryId }),
+    });
+  } catch (aiError) {
+    console.error("Failed to trigger AI after inbound email:", aiError);
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const payload = await req.json();
@@ -126,15 +149,72 @@ export async function POST(req: Request) {
     const requestId = extractRequestIdFromTo(to);
     const forwardedByEmail = extractEmailAddress(rawFrom);
 
+    /*
+      Case 1:
+      Customer replies to:
+      enquiries+<requestId>@send.thefixflowapp.com
+
+      This should go straight into the existing enquiry thread.
+    */
     if (requestId) {
+      const { data: enquiry, error: enquiryError } = await supabaseAdmin
+        .from("quote_requests")
+        .select("id, plumber_id")
+        .eq("id", requestId)
+        .single();
+
+      if (enquiryError || !enquiry) {
+        return NextResponse.json(
+          { ok: false, error: "Enquiry not found for reply address" },
+          { status: 404 }
+        );
+      }
+
+      const { error: messageError } = await supabaseAdmin
+        .from("enquiry_messages")
+        .insert({
+          request_id: requestId,
+          plumber_id: enquiry.plumber_id,
+          direction: "in",
+          channel: "email",
+          subject: inboundSubject || "Customer reply",
+          body_text: cleanBody(rawText),
+          from_email: forwardedByEmail,
+          to_email: to,
+        });
+
+      if (messageError) {
+        console.error("Create inbound thread message error:", messageError);
+
+        return NextResponse.json(
+          { ok: false, error: messageError.message },
+          { status: 500 }
+        );
+      }
+
+      await supabaseAdmin
+        .from("quote_requests")
+        .update({
+          ai_last_customer_message_at: new Date().toISOString(),
+          ai_thread_status: "customer_replied",
+        })
+        .eq("id", requestId);
+
+      await triggerAiForEnquiry(requestId);
+
       return NextResponse.json({
         ok: true,
         mode: "existing-thread-by-address",
-        requestId,
-        message: "Request-id flow comes next",
+        enquiryId: requestId,
       });
     }
 
+    /*
+      Case 2:
+      Trader forwards an outside customer email into FixFlow.
+      We match trader by notify_email and either attach to an existing enquiry
+      or create a new one.
+    */
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select("id, notify_email")
@@ -143,6 +223,7 @@ export async function POST(req: Request) {
 
     if (profileError) {
       console.error("Profile lookup error:", profileError);
+
       return NextResponse.json(
         { ok: false, error: "Could not look up trader profile" },
         { status: 500 }
@@ -188,12 +269,15 @@ export async function POST(req: Request) {
           details,
           status: "new",
           stage: "new",
+          ai_thread_status: "customer_replied",
+          ai_last_customer_message_at: new Date().toISOString(),
         })
         .select("id, customer_name, customer_email, created_at")
         .single();
 
       if (enquiryError) {
         console.error("Create enquiry error:", enquiryError);
+
         return NextResponse.json(
           { ok: false, error: "Failed to create enquiry" },
           { status: 500 }
@@ -212,13 +296,14 @@ export async function POST(req: Request) {
         direction: "in",
         channel: "email",
         subject: finalSubject,
-        body_text: rawText,
+        body_text: cleanBody(rawText),
         from_email: customerEmail || forwardedByEmail,
         to_email: forwardedByEmail,
       });
 
     if (messageError) {
       console.error("Create enquiry message error:", messageError);
+
       return NextResponse.json(
         {
           ok: false,
@@ -230,23 +315,26 @@ export async function POST(req: Request) {
     }
 
     if (!createdNewEnquiry) {
-      const updates: Record<string, string> = {};
+      const updates: Record<string, string> = {
+        ai_last_customer_message_at: new Date().toISOString(),
+        ai_thread_status: "customer_replied",
+      };
 
       if (customerName) updates.customer_name = customerName;
       if (customerEmail) updates.customer_email = customerEmail;
       if (details) updates.details = details;
 
-      if (Object.keys(updates).length > 0) {
-        const { error: updateError } = await supabaseAdmin
-          .from("quote_requests")
-          .update(updates)
-          .eq("id", enquiryId);
+      const { error: updateError } = await supabaseAdmin
+        .from("quote_requests")
+        .update(updates)
+        .eq("id", enquiryId);
 
-        if (updateError) {
-          console.error("Update existing enquiry error:", updateError);
-        }
+      if (updateError) {
+        console.error("Update existing enquiry error:", updateError);
       }
     }
+
+    await triggerAiForEnquiry(enquiryId);
 
     return NextResponse.json({
       ok: true,

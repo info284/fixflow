@@ -22,12 +22,13 @@ export function buildFixFlowEmail({
   introHtml,
   bodyHtml,
   ctaHtml = "",
-  closingHtml = `
-    <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
-      Thanks,<br />
-      <span style="font-weight:800; color:#1F355C;">FixFlow</span>
-    </div>
-  `,
+closingHtml = `
+  <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
+    Thanks,<br />
+    <span style="font-weight:800; color:#1F355C;">Your trader</span><br/>
+    <span style="font-size:12px; color:#8A94A6;">via FixFlow</span>
+  </div>
+`,
 }: FixFlowEmailOptions) {
   return `
     <div style="margin:0; padding:24px; background:#F6F8FC; font-family:Arial, sans-serif; color:#0B1320;">

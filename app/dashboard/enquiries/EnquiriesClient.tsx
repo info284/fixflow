@@ -197,6 +197,7 @@ type BestAction = {
    CONSTS
 ================================ */
 
+
 function estimateFollowUp(estimate?: QuickEstimateLite | null) {
   if (!estimate) return null;
   if (estimate.status !== "sent") return null;
@@ -969,19 +970,27 @@ const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
   const [uid, setUid] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [replyMessage, setReplyMessage] = useState("");
+const [visitBooking, setVisitBooking] = useState(false);
 
   const [tab, setTab] = useState<ListTab>("all");
  const [searchFilter, setSearchFilter] = useState("");
   const [urgencyFilter, setUrgencyFilter] = useState("");
 
   const [rows, setRows] = useState<QuoteRequestRow[]>([]);
+
+  const [aiRunStatus, setAiRunStatus] = useState<
+  "idle" | "running" | "sent" | "draft" | "error"
+>("idle");
+
+const [aiRunMessage, setAiRunMessage] = useState<string | null>(null);
   const [rightTab, setRightTab] = useState<RightTab>("details");
 
   const [toast, setToast] = useState<{
     text: string;
     type: "success" | "error";
   } | null>(null);
-
+const [estimateSent, setEstimateSent] = useState(false);
+const [estimateDraftSaved, setEstimateDraftSaved] = useState(false);
   const [thread, setThread] = useState<EnquiryMessageRow[]>([]);
   const [threadMap, setThreadMap] = useState<Record<string, EnquiryMessageRow[]>>({});
   const [threadLoading, setThreadLoading] = useState(false);
@@ -1002,7 +1011,14 @@ const [aiLoadingId, setAiLoadingId] = useState<string | null>(null);
   const [detailedEstimateItems, setDetailedEstimateItems] = useState<DetailedEstimateItemRow[]>([]);
   const [detailedEstimateLoading, setDetailedEstimateLoading] = useState(false);
   const [estimateMap, setEstimateMap] = useState<Record<string, QuickEstimateLite | null>>({});
-
+const [notesSaved, setNotesSaved] = useState(false);
+const [replySending, setReplySending] = useState(false);
+const [replySent, setReplySent] = useState(false);
+const [quickEstimateSending, setQuickEstimateSending] = useState(false);
+const [quickEstimateSent, setQuickEstimateSent] = useState(false);
+const [siteVisitBooked, setSiteVisitBooked] = useState(false);
+const [fileUploading, setFileUploading] = useState(false);
+const [fileUploaded, setFileUploaded] = useState(false);
   const [siteVisitOpen, setSiteVisitOpen] = useState(false);
   const [siteVisitStartsAt, setSiteVisitStartsAt] = useState("");
   const [siteVisitDuration, setSiteVisitDuration] = useState(60);
@@ -1045,7 +1061,7 @@ const [snoozeSaving, setSnoozeSaving] = useState(false);
 
 
   const lastMarkedRef = useRef<string | null>(null);
-  const activeEnquiryRef = useRef<HTMLButtonElement | null>(null);
+  const activeEnquiryRef = useRef<HTMLDivElement | null>(null);
   const rightPaneScrollRef = useRef<HTMLDivElement | null>(null);
 const messageComposerRef = useRef<HTMLDivElement | null>(null);
 const replyBodyRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1157,6 +1173,7 @@ const selectedVisitLabel = selectedVisit
   ? niceDate(selectedVisit.starts_at)
   : "No visit booked";
 
+
 const selectedDerivedStage = selectedRow
   ? deriveEnquiryStage({
       row: selectedRow,
@@ -1182,18 +1199,18 @@ const followUpMap = useMemo(() => {
     const messages = threadMap[row.id] || [];
 
     map[row.id] = getFollowUpState({
-enquiry: {
-  id: row.id,
-  stage: row.stage ?? null,
-  created_at: row.created_at,
-  snoozed_until: row.snoozed_until ?? null,
-  job_booked_at: row.job_booked_at ?? null,
-},
-     messages: messages.map((m) => ({
-  id: m.id,
-  direction: m.direction === "in" ? "in" : "out",
-  created_at: m.created_at,
-})),
+      enquiry: {
+        id: row.id,
+        stage: row.stage ?? null,
+        created_at: row.created_at,
+        snoozed_until: row.snoozed_until ?? null,
+        job_booked_at: row.job_booked_at ?? null,
+      },
+      messages: messages.map((m) => ({
+        id: m.id,
+        direction: m.direction === "in" ? "in" : "out",
+        created_at: m.created_at,
+      })),
       estimate: estimate
         ? {
             id: estimate.id,
@@ -1210,9 +1227,13 @@ enquiry: {
 
   return map;
 }, [rows, estimateMap, threadMap]);
-  
+
 const selectedFollowUp = selectedRow
   ? followUpMap[selectedRow.id]
+  : null;
+
+const selectedFollowUpState = selectedRow
+  ? followUpMap[selectedRow.id] || null
   : null;
 
 const selectedDisplayedAiAction = getDisplayedAiAction({
@@ -1888,7 +1909,69 @@ function getDisplayedAiAction(params: {
      LOADERS
   ================================= */
 
+async function handleRunAiEngine(enquiryId: string) {
+  try {
+    setAiRunStatus("running");
+    setAiRunMessage("AI assistant is analysing the enquiry…");
 
+    const res = await fetch("/api/ai/run-enquiry", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ enquiryId }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Failed to run AI");
+    }
+
+    const action = data?.decision?.recommended_action;
+
+    if (data?.sent) {
+      setAiRunStatus("sent");
+
+      if (action === "ask_for_details") {
+        setAiRunMessage("Asked the customer for more details and photos");
+      } else if (action === "ask_for_photos") {
+        setAiRunMessage("Asked the customer to send photos");
+      } else if (action === "follow_up") {
+        setAiRunMessage("Sent a follow-up to the customer");
+      } else if (action === "book_visit") {
+        setAiRunMessage("Asked the customer for visit availability");
+      } else if (action === "send_estimate") {
+        setAiRunMessage("Prompted the customer about the estimate");
+      } else {
+        setAiRunMessage("AI contacted the customer");
+      }
+    } else {
+      setAiRunStatus("draft");
+
+      if (action === "ask_for_details") {
+        setAiRunMessage("AI decided more details are needed before quoting");
+      } else if (action === "follow_up") {
+        setAiRunMessage("AI prepared a follow-up for this enquiry");
+      } else if (action === "book_visit") {
+        setAiRunMessage("AI decided this needs a visit");
+      } else if (action === "send_estimate") {
+        setAiRunMessage("AI decided an estimate should be sent");
+      } else {
+        setAiRunMessage("AI updated the next step");
+      }
+    }
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 1200);
+
+  } catch (err) {
+    console.error("run AI error", err);
+    setAiRunStatus("error");
+    setAiRunMessage("Something went wrong. Try again.");
+  }
+}
 
   async function loadTraderProfile(userId: string) {
     const { data } = await supabase
@@ -1916,22 +1999,22 @@ async function loadEstimateMap(userId: string) {
 
   const map: Record<string, QuickEstimateLite | null> = {};
 
-  for (const row of (data || []) as any[]) {
-    if (!row.request_id) continue;
+for (const row of (data || []) as any[]) {
+  if (!row.request_id) continue;
 
-    if (!map[row.request_id]) {
-      map[row.request_id] = {
-        id: row.id,
-        request_id: row.request_id,
-        status: row.status || "draft",
-        total_amount: Number(row.total || 0),
-        accepted_at: row.accepted_at || null,
-        created_at: row.created_at,
-        first_viewed_at: row.first_viewed_at || null,
-        last_viewed_at: row.last_viewed_at || null,
-      };
-    }
+  if (!map[row.request_id]) {
+    map[row.request_id] = {
+      id: row.id,
+      request_id: row.request_id,
+      status: row.status || "draft",
+      total_amount: Number(row.total || 0),
+      accepted_at: row.accepted_at || null,
+      created_at: row.created_at,
+      first_viewed_at: row.first_viewed_at || null,
+      last_viewed_at: row.last_viewed_at || null,
+    };
   }
+}
 
   setEstimateMap(map);
 }
@@ -2050,7 +2133,7 @@ async function loadEstimateMap(userId: string) {
     .order("created_at", { ascending: true });
 
   if (error) {
-    console.error("loadThreadMapForRows error:", error);
+    console.error("loadThreadMapForRows error:", error?.message, error);
     return;
   }
 
@@ -2191,13 +2274,22 @@ async function handleAnalyseEnquiry(enquiryId: string) {
   try {
     setAiLoadingId(enquiryId);
 
-    const res = await fetch("/api/ai/analyse-enquiry", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ enquiryId }),
-    });
+
+
+  const {
+  data: { session },
+} = await supabase.auth.getSession();
+
+const accessToken = session?.access_token;
+
+const res = await fetch("/api/ai/analyse-enquiry", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${accessToken}`,
+  },
+  body: JSON.stringify({ enquiryId }),
+});
 
     const data = await res.json();
 
@@ -2208,13 +2300,13 @@ async function handleAnalyseEnquiry(enquiryId: string) {
     }
 
     const patch = {
-      ai_urgency_score: data.ai.urgencyScore,
-      ai_job_value_band: data.ai.jobValueBand,
-      ai_conversion_score: data.ai.conversionScore,
-      ai_recommended_action: data.ai.recommendedAction,
-      ai_summary: data.ai.summary,
-      ai_suggested_reply: data.ai.suggestedReply,
-      ai_last_processed_at: new Date().toISOString(),
+      ai_urgency_score: data.ai_urgency_score,
+      ai_job_value_band: data.ai_job_value_band,
+      ai_conversion_score: data.ai_conversion_score,
+      ai_recommended_action: data.ai_recommended_action,
+      ai_summary: data.ai_summary,
+      ai_suggested_reply: data.ai_suggested_reply,
+      ai_last_processed_at: data.ai_last_processed_at,
     };
 
     setRows((prev) =>
@@ -2224,17 +2316,15 @@ async function handleAnalyseEnquiry(enquiryId: string) {
               ...row,
               ...patch,
             }
-          : row,
-      ),
+          : row
+      )
     );
 
- setAiJustUpdatedId(enquiryId);
+    setAiJustUpdatedId(enquiryId);
 
-window.setTimeout(() => {
-  setAiJustUpdatedId((prev) => (prev === enquiryId ? null : prev));
-}, 2200);
-
-
+    window.setTimeout(() => {
+      setAiJustUpdatedId((prev) => (prev === enquiryId ? null : prev));
+    }, 2200);
   } catch (error) {
     console.error("AI analyse error:", error);
     alert("Something went wrong analysing this enquiry");
@@ -2243,6 +2333,52 @@ window.setTimeout(() => {
   }
 }
 
+async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  if (!selectedRow || !uid) return;
+
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  try {
+    setFileUploading(true);
+    setFileUploaded(false);
+
+    const filePath = `quote/${selectedRow.id}/customer/${Date.now()}_${file.name}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("quote-files")
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    // optional: save metadata
+    const { error: insertError } = await supabase.from("job_files").insert({
+      request_id: selectedRow.id,
+      plumber_id: uid,
+      path: filePath,
+      file_name: file.name,
+      area: "customer",
+      label: "other",
+    });
+
+    if (insertError) throw insertError;
+
+    await loadFiles(selectedRow.id);
+
+    // ✅ success state
+    setFileUploaded(true);
+    window.setTimeout(() => {
+      setFileUploaded(false);
+    }, 2000);
+
+    pushToast("File uploaded");
+  } catch (err) {
+    console.error(err);
+    pushToast("Upload failed", "error");
+  } finally {
+    setFileUploading(false);
+  }
+}
   /* ================================
      ACTIONS
   ================================= */
@@ -2333,32 +2469,34 @@ async function updateStage(nextStage: string) {
 }
 
 async function saveTraderNotes() {
-  if (!selectedRow) return;
+  if (!selectedRow || !uid) return;
 
-  setNotesSaving(true);
-  setNotesMsg(null);
+  try {
+    setNotesSaving(true);
+    setNotesSaved(false);
 
-  const { error } = await supabase
-    .from("quote_requests")
-    .update({ trader_notes: traderNotes })
-    .eq("id", selectedRow.id);
+    const { error } = await supabase
+      .from("quote_requests")
+      .update({
+        trader_notes: traderNotes,
+      })
+      .eq("id", selectedRow.id)
+      .eq("plumber_id", uid);
 
-  if (error) {
-    console.error(error);
-    setNotesMsg("Couldn’t save notes");
+    if (error) throw error;
+
+    setNotesSaved(true);
+    window.setTimeout(() => {
+      setNotesSaved(false);
+    }, 2000);
+
+    pushToast("Notes saved");
+  } catch (err) {
+    console.error(err);
+    pushToast("Couldn’t save notes", "error");
+  } finally {
     setNotesSaving(false);
-    return;
   }
-
-  setRows((prev) =>
-    prev.map((r) =>
-      r.id === selectedRow.id ? { ...r, trader_notes: traderNotes } : r
-    )
-  );
-
-  setNotesMsg("Notes saved");
-  pushToast("Notes saved");
-  setNotesSaving(false);
 }
 
 async function onUploadTraderFiles(
@@ -2367,6 +2505,7 @@ async function onUploadTraderFiles(
   if (!selectedRow || !e.target.files?.length) return;
 
   setUploading(true);
+  setFileUploaded(false);
   setFileMsg(null);
 
   try {
@@ -2384,17 +2523,22 @@ async function onUploadTraderFiles(
     }
 
     await loadFiles(selectedRow.id);
+
+    setFileUploaded(true);
+    window.setTimeout(() => {
+      setFileUploaded(false);
+    }, 2000);
+
     pushToast("Files uploaded");
   } catch (err) {
     console.error(err);
     setFileMsg("Upload failed");
     pushToast("Upload failed", "error");
+  } finally {
+    setUploading(false);
+    e.target.value = "";
   }
-
-  setUploading(false);
-  e.target.value = "";
 }
-
 async function deleteTraderFile(path: string) {
   if (!selectedRow) return;
 
@@ -2432,7 +2576,21 @@ function openSiteVisitModal() {
 async function bookSiteVisit() {
   if (!selectedRow || !uid || !siteVisitStartsAt) return;
 
+  const customerEmail = String(selectedRow.customer_email || "").trim();
+
+if (!customerEmail || !customerEmail.includes("@")) {
+  setSiteVisitMsg("Customer email is missing or invalid");
+  return;
+}
+
+
+  if (!customerEmail || !customerEmail.includes("@")) {
+    setSiteVisitMsg("Customer email is missing or invalid");
+    return;
+  }
+
   setSiteVisitSending(true);
+  setSiteVisitBooked(false);
   setSiteVisitMsg(null);
 
   try {
@@ -2441,18 +2599,18 @@ async function bookSiteVisit() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        requestId: selectedRow.id,
-        plumberId: uid,
-        startsAtLocal: siteVisitStartsAt,
-        durationMins: siteVisitDuration,
-        customerEmail: selectedRow.customer_email,
-        customerName: selectedRow.customer_name,
-        traderName:
-          traderProfile?.business_name ||
-          traderProfile?.display_name ||
-          "Your trader",
-      }),
+body: JSON.stringify({
+  requestId: selectedRow.id,
+  plumberId: uid,
+  startsAtLocal: siteVisitStartsAt,
+  durationMins: siteVisitDuration,
+  customerEmail,
+  customerName: selectedRow.customer_name,
+  traderName:
+    traderProfile?.business_name ||
+    traderProfile?.display_name ||
+    "Your trader",
+}),
     });
 
     const json = await res.json().catch(() => null);
@@ -2501,13 +2659,18 @@ async function bookSiteVisit() {
       }
     }
 
+    setSiteVisitBooked(true);
+    window.setTimeout(() => {
+      setSiteVisitBooked(false);
+    }, 2000);
+
     pushToast("Site visit booked");
   } catch (err: any) {
     console.error(err);
     setSiteVisitMsg(err?.message || "Couldn’t book visit");
+  } finally {
+    setSiteVisitSending(false);
   }
-
-  setSiteVisitSending(false);
 }
 
 async function sendReply() {
@@ -2515,6 +2678,9 @@ async function sendReply() {
   if (!replyTo.trim() || !replyBody.trim()) return;
 
   try {
+    setReplySending(true);
+    setReplySent(false);
+
     const res = await fetch("/api/enquiries/send-email", {
       method: "POST",
       headers: {
@@ -2540,14 +2706,21 @@ async function sendReply() {
     setReplyBody("");
     await loadThread(selectedRow.id, uid);
 
+    if (String(selectedRow.stage || "").toLowerCase() === "new") {
+      await updateStage("contacted");
+    }
 
-if (String(selectedRow.stage || "").toLowerCase() === "new") {
-  await updateStage("contacted");
-}
+    setReplySent(true);
+    window.setTimeout(() => {
+      setReplySent(false);
+    }, 2000);
+
     pushToast("Message sent");
   } catch (err) {
     console.error(err);
     pushToast("Couldn’t send message", "error");
+  } finally {
+    setReplySending(false);
   }
 }
 
@@ -2695,6 +2868,8 @@ async function sendEstimate() {
   if (!selectedRow || !uid) return;
 
   setEstimateSending(true);
+  setEstimateSent(false);
+  setEstimateDraftSaved(false);
 
   try {
     const saved = await saveDetailedEstimate("draft", { showToast: false });
@@ -2702,12 +2877,41 @@ async function sendEstimate() {
       throw new Error("Couldn’t save estimate before sending");
     }
 
-    const estimateIdToSend =
-      detailedEstimate?.id || estimateMap[selectedRow.id]?.id;
+let estimateIdToSend =
+  detailedEstimate?.id || estimateMap[selectedRow.id]?.id;
 
-    if (!estimateIdToSend) {
-      throw new Error("No estimate found to send");
-    }
+if (!estimateIdToSend) {
+  // create estimate first
+const { data, error } = await supabase
+  .from("estimates")
+  .insert({
+    request_id: selectedRow.id,
+    user_id: uid,
+    plumber_id: uid,
+    status: "draft",
+    labour: num(estimateForm.labour),
+    materials: materialsSell,
+    callout: num(estimateForm.callout),
+    parts: num(estimateForm.parts),
+    other: num(estimateForm.other),
+    subtotal: estimateSubtotal,
+    vat: estimateVat,
+    total: estimateTotal,
+    valid_until: estimateForm.validUntil || null,
+    customer_message: estimateForm.customerMessage || null,
+    included_notes: estimateForm.includedNotes || null,
+    excluded_notes: estimateForm.excludedNotes || null,
+  })
+  .select("id")
+  .single();
+
+if (error || !data?.id) {
+  console.error("create estimate failed:", error);
+ throw new Error(error?.message || "Failed to create estimate");
+}
+
+  estimateIdToSend = data.id;
+}
 
     const {
       data: { session },
@@ -2744,9 +2948,18 @@ async function sendEstimate() {
         : prev[selectedRow.id],
     }));
 
+    setDetailedEstimate((prev) =>
+      prev ? { ...prev, status: "sent" } : prev
+    );
+
     await updateStage("estimate_sent");
     await loadDetailedEstimate(selectedRow.id);
     await loadEstimateMap(uid);
+
+    setEstimateSent(true);
+    window.setTimeout(() => {
+      setEstimateSent(false);
+    }, 2000);
 
     pushToast(`Estimate sent to ${selectedRow.customer_email || "customer"}`);
   } catch (err: any) {
@@ -2757,7 +2970,22 @@ async function sendEstimate() {
   }
 }
 async function saveEstimateDraft() {
-  await saveDetailedEstimate("draft", { showToast: true });
+  try {
+    setEstimateDraftSaved(false);
+
+    const saved = await saveDetailedEstimate("draft", { showToast: true });
+
+    if (!saved) {
+      throw new Error("Couldn’t save estimate draft");
+    }
+
+    setEstimateDraftSaved(true);
+    window.setTimeout(() => {
+      setEstimateDraftSaved(false);
+    }, 2000);
+  } catch (err) {
+    console.error("saveEstimateDraft failed:", err);
+  }
 }
 
 async function downloadEstimatePdf() {
@@ -2923,9 +3151,6 @@ useEffect(() => {
     const loaded = (data || []) as QuoteRequestRow[];
     setRows(loaded);
 
-    if (!selectedId && loaded.length) {
-      setSelectedIdState(loaded[0].id);
-    }
 
     await Promise.all([
       loadPhotoCounts(loaded),
@@ -3325,24 +3550,31 @@ const showBottomHint = nextAction.type === "hint";
 
 const followUp = followUpMap[r.id];
 
-  return (
-    <button
-      key={r.id}
-      type="button"
-      ref={isActive ? activeEnquiryRef : null}
-      className={`ff-leftItem 
-        ${isActive ? "isActive" : ""} 
-        ${isWon ? "ff-leftWon" : getUrgencyGlowClass(r.urgency)} 
-       ${
-  !isWon &&
-  (followUp?.status === "follow_up_due" ||
-    followUp?.status === "estimate_follow_up_due")
-    ? "ff-leftFollowUp"
-    : ""
-}
-      `}
-      onClick={() => selectEnquiry(r.id)}
-    >
+return (
+  <div
+  key={r.id}
+  role="button"
+  tabIndex={0}
+  ref={isActive ? activeEnquiryRef : null}
+  className={`ff-leftItem 
+    ${isActive ? "isActive" : ""} 
+    ${isWon ? "ff-leftWon" : getUrgencyGlowClass(r.urgency)} 
+    ${
+      !isWon &&
+      (followUp?.status === "follow_up_due" ||
+        followUp?.status === "estimate_follow_up_due")
+        ? "ff-leftFollowUp"
+        : ""
+    }
+  `}
+  onClick={() => selectEnquiry(r.id)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      selectEnquiry(r.id);
+    }
+  }}
+>
                         <div className="ff-leftItemTop">
   <div className="ff-leftJobWrap">
     <div className="ff-jobNumber">
@@ -3417,8 +3649,7 @@ const followUp = followUpMap[r.id];
       ) : null}
 
 {(aiActionMeta || nextAction.type === "primary") && (
-  <button
-    type="button"
+  <div
     className={
       aiActionMeta
         ? aiActionMeta.cls
@@ -3427,7 +3658,11 @@ const followUp = followUpMap[r.id];
     onClick={(e) => {
       e.stopPropagation();
 
-      if (aiActionMeta?.text === "Message customer" || nextAction.text === "Reply now" || nextAction.text === "Next: First reply") {
+      if (
+        aiActionMeta?.text === "Message customer" ||
+        nextAction.text === "Reply now" ||
+        nextAction.text === "Next: First reply"
+      ) {
         selectEnquiry(r.id);
         openFollowUpComposer({
           customerName: r.customer_name,
@@ -3441,7 +3676,10 @@ const followUp = followUpMap[r.id];
         return;
       }
 
-      if (aiActionMeta?.text === "Book visit" || nextAction.text === "Next: Book visit") {
+      if (
+        aiActionMeta?.text === "Book visit" ||
+        nextAction.text === "Next: Book visit"
+      ) {
         selectEnquiry(r.id);
         syncRightTab("visit");
         setScrollToVisitPending(true);
@@ -3461,11 +3699,10 @@ const followUp = followUpMap[r.id];
         return;
       }
     }}
+    style={{ cursor: "pointer" }}
   >
-    {aiActionMeta
-      ? aiActionMeta.text
-      : nextAction.text}
-  </button>
+    {aiActionMeta ? aiActionMeta.text : nextAction.text}
+  </div>
 )}
 
 {followUp ? (
@@ -3507,7 +3744,7 @@ const followUp = followUpMap[r.id];
     </>
   )}
 </div>
-                                            </button>
+                                            </div>
                     );
                   })}
 
@@ -3578,9 +3815,10 @@ const nextAction = getLeftNextAction({
 
                    const followUp = followUpMap[r.id];
                     return (
-                    <button
+                   <div
   key={r.id}
-  type="button"
+  role="button"
+  tabIndex={0}
   ref={isActive ? activeEnquiryRef : null}
   className={`ff-leftItem 
     ${isActive ? "isActive" : ""} 
@@ -3594,6 +3832,12 @@ const nextAction = getLeftNextAction({
     }
   `}
   onClick={() => selectEnquiry(r.id)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      selectEnquiry(r.id);
+    }
+  }}
 >
                         <div className="ff-leftItemTop">
                           <div className="ff-leftJobWrap">
@@ -3689,7 +3933,7 @@ const nextAction = getLeftNextAction({
                             </>
                           )}
                         </div>
-                      </button>
+                     </div>
                     );
                   })}
                 </>
@@ -3739,28 +3983,39 @@ const nextAction = getLeftNextAction({
   </div>
 
 <div className="ff-rightTopActions">
-<button
-  type="button"
-  className={`ff-btn ff-btnGhost ff-btnSm ${getAiButtonClass(selectedDisplayedAiAction, "messages")}`}
-  onClick={() => {
-    setRightTab("messages");
-    setScrollToComposerPending(true);
-  }}
->
-  {String(selectedDisplayedAiAction || "").toLowerCase().includes("reply") ||
-  String(selectedDisplayedAiAction || "").toLowerCase().includes("follow")
-    ? "⚡ Message customer"
-    : "Message customer"}
-</button>
 
- <button
-  type="button"
-  className="ff-btn ff-btnGhost ff-btnSm"
-  onClick={() => handleAnalyseEnquiry(selectedRow.id)}
-  disabled={aiLoadingId === selectedRow.id}
->
-  {aiLoadingId === selectedRow.id ? "Refreshing..." : "Refresh AI"}
-</button>
+  <button
+    type="button"
+    className={`ff-btn ff-btnGhost ff-btnSm ${getAiButtonClass(selectedDisplayedAiAction, "messages")}`}
+    onClick={() => {
+      setRightTab("messages");
+      setScrollToComposerPending(true);
+    }}
+  >
+    {String(selectedDisplayedAiAction || "").toLowerCase().includes("reply") ||
+    String(selectedDisplayedAiAction || "").toLowerCase().includes("follow")
+      ? "⚡ Message customer"
+      : "Message customer"}
+  </button>
+
+  <button
+    type="button"
+    className="ff-btn ff-btnGhost ff-btnSm"
+    onClick={() => handleAnalyseEnquiry(selectedRow.id)}
+    disabled={aiLoadingId === selectedRow.id}
+  >
+    {aiLoadingId === selectedRow.id ? "Refreshing..." : "Refresh AI"}
+  </button>
+
+  <button
+    type="button"
+    className="ff-btn ff-btnPrimary ff-btnSm"
+    onClick={() => selectedRow && handleRunAiEngine(selectedRow.id)}
+  >
+    ⚡ Run AI
+  </button>
+
+</div>
 
   {String(selectedEstimateStatus || "").toLowerCase() === "accepted" ? (
     <button
@@ -3799,8 +4054,16 @@ const nextAction = getLeftNextAction({
     </>
   )}
 </div>
-</div>
-                  
+
+   {aiRunStatus !== "idle" && aiRunMessage && (
+  <div className={`ff-aiRunStatus ff-aiRunStatus--${aiRunStatus}`}>
+    {aiRunStatus === "running" && "⚡ "}
+    {aiRunStatus === "sent" && "✓ "}
+    {aiRunStatus === "draft" && "• "}
+    {aiRunStatus === "error" && "⚠ "}
+    {aiRunMessage}
+  </div>
+)}           
 
                   <div className="ff-tabs">
                     {[
@@ -3823,753 +4086,742 @@ const nextAction = getLeftNextAction({
                   </div>
 
                   <div className="ff-rightInner" ref={rightPaneScrollRef}>
-                                        {rightTab === "details" ? (
-                      <>
-                        <div className="ff-mobileNextStep">
-                          <div className="ff-nextStepCard">
-                            <div className="ff-nextStepTop">
-                              <div>
-                                <div className="ff-nextStepEyebrow">
-                                  Suggested next step
-                                </div>
-                                <div className="ff-nextStepTitle">
-                                  {selectedBestAction.title}
-                                </div>
-                                <div className="ff-nextStepText">
-                                  {selectedBestAction.text}
-                                </div>
-                              </div>
 
-                              {selectedBestAction.button ? (
-                                <button
-                                  type="button"
-                                  className="ff-btn ff-btnPrimary ff-btnSm"
-                                  onClick={selectedBestAction.button.action}
-                                >
-                                  {selectedBestAction.button.label}
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
+{rightTab === "details" ? (
+  <>
+    <div className="ff-mobileNextStep">
+      <div className="ff-nextStepCard">
+        <div className="ff-nextStepTop">
+          <div>
+            <div className="ff-nextStepEyebrow">Suggested next step</div>
+            <div className="ff-nextStepTitle">{selectedBestAction.title}</div>
+            <div className="ff-nextStepText">{selectedBestAction.text}</div>
+          </div>
 
-{selectedRow?.ai_summary && (
-  <div className="ff-card">
-    <div className="ff-aiInner">
-      <div className="ff-aiEyebrow">Best next step</div>
-
-{selectedRow.ai_recommended_action && (
-  <button
-    type="button"
-    className={`ff-aiAction ff-aiAction--${selectedDisplayedAiAction}`}
-    onClick={() => {
-      if (
-        selectedDisplayedAiAction === "reply_now" ||
-        selectedDisplayedAiAction === "follow_up" ||
-        selectedDisplayedAiAction === "ask_for_photos"
-      ) {
-        setRightTab("messages");
-        setReplyBody(selectedRow.ai_suggested_reply || "");
-
-        if (!replySubject.trim()) {
-          setReplySubject(
-            `Re: ${titleCase(selectedRow.job_type || "Enquiry")}`
-          );
-        }
-
-        setScrollToComposerPending(true);
-        return;
-      }
-
-      if (selectedDisplayedAiAction === "book_visit") {
-        setRightTab("visit");
-        return;
-      }
-
-      if (selectedDisplayedAiAction === "send_estimate") {
-        setRightTab("estimate");
-        return;
-      }
-    }}
-  >
-    {selectedDisplayedAiAction === "reply_now" &&
-      "⚡ Reply now — customer is waiting"}
-    {selectedDisplayedAiAction === "book_visit" &&
-      "📅 Book a visit — this needs seeing in person"}
-    {selectedDisplayedAiAction === "send_estimate" &&
-      "🧾 Send estimate — good chance to win this job"}
-    {selectedDisplayedAiAction === "ask_for_photos" &&
-      "📸 Ask for photos — you need a bit more detail"}
-    {selectedDisplayedAiAction === "low_priority" &&
-      "🕓 Low priority — no need to jump on this first"}
-    {selectedDisplayedAiAction === "follow_up" &&
-      "💬 Follow up — time to nudge this one"}
-  </button>
-)}
-
-      <div className="ff-aiSection">
-        <div className="ff-aiLabel">What’s going on</div>
-        <p>{selectedRow.ai_summary}</p>
-      </div>
-
-      {selectedRow.ai_suggested_reply && (
-        <div className="ff-aiReplyBox">
-          <div className="ff-aiLabel">Quick reply</div>
-          <p>{selectedRow.ai_suggested_reply}</p>
+          {selectedBestAction.button ? (
+            <button
+              type="button"
+              className="ff-btn ff-btnPrimary ff-btnSm"
+              onClick={selectedBestAction.button.action}
+            >
+              {selectedBestAction.button.label}
+            </button>
+          ) : null}
         </div>
-      )}
+      </div>
+    </div>
 
-      {selectedRow.ai_suggested_reply && (
+    {selectedFollowUpState?.label ? (
+      <div className="ff-followUpBanner">
+        {selectedFollowUpState.label}
+
         <button
           type="button"
-          className="ff-btn ff-btnPrimary ff-btnSm ff-btnFull"
-          style={{ marginTop: 22 }}
+          className="ff-btn ff-btnSm ff-btnPrimary"
           onClick={() => {
             setRightTab("messages");
-            setReplyBody(selectedRow.ai_suggested_reply || "");
-
-            if (!replySubject.trim()) {
-              setReplySubject(
-                `Re: ${titleCase(selectedRow.job_type || "Enquiry")}`
-              );
-            }
-
             setScrollToComposerPending(true);
           }}
         >
-          Use this reply
-        </button>
-      )}
-    </div>
-  </div>
-)}
-
-<div className="ff-overviewTopGrid" style={{ marginBottom: 4 }}>
-  <div className="ff-overviewMiniCard">
-    <div className="ff-overviewMiniLabel">Follow up</div>
-<div className="ff-overviewMiniValue">
-  {selectedFollowUp?.label || "All good"}
-</div>
-<div className="ff-overviewMiniSub">
-  {selectedFollowUp &&
-  (selectedFollowUp.status === "follow_up_due" ||
-    selectedFollowUp.status === "estimate_follow_up_due" ||
-    selectedFollowUp.status === "needs_reply" ||
-    selectedFollowUp.status === "customer_replied")
-    ? selectedFollowUp.reason
-    : selectedRow?.snoozed_until && isSnoozedUntilActive(selectedRow.snoozed_until)
-    ? "This enquiry is currently snoozed."
-    : selectedDerivedStage === "won"
-    ? "This enquiry has moved into booked work."
-    : selectedDerivedStage === "lost"
-    ? "This enquiry is closed."
-    : "No follow-up needed right now."}
-</div>
-  </div>
-
-  <div className="ff-overviewMiniCard">
-    <div className="ff-overviewMiniLabel">Estimate</div>
-    <div className="ff-overviewMiniValue">{selectedEstimateLabel}</div>
-    <div className="ff-overviewMiniSub">
-      {selectedEstimateStatus === "accepted"
-        ? "Accepted by the customer and now moved into your Jobs workflow."
-        : selectedEstimateStatus === "sent"
-        ? "Sent to customer and ready for follow-up."
-        : selectedEstimateStatus === "draft"
-        ? "Draft started and ready to finish."
-        : "No estimate created yet."}
-    </div>
-  </div>
-
-<div className="ff-overviewMiniCard">
-  <div className="ff-overviewMiniLabel">Visit</div>
-  <div className="ff-overviewMiniValue">{selectedVisitLabel}</div>
-  <div className="ff-overviewMiniSub">
-    {selectedVisit
-      ? selectedDerivedStage === "won"
-        ? "Visit completed and this enquiry is now in Jobs."
-        : "Visit booked. Next step is usually estimate or follow-up."
-      : selectedDerivedStage === "won"
-      ? "This enquiry is now managed in Jobs."
-      : "No appointment booked yet."}
-  </div>
-</div>
-
-  <div className="ff-overviewMiniCard">
-    <div className="ff-overviewMiniLabel">Reply</div>
-    <div className="ff-overviewMiniValue">{selectedReplyStatus}</div>
-    <div className="ff-overviewMiniSub">
-      {selectedReplyStatus === "Customer replied"
-  ? "The customer has replied after your last message."
-  : selectedReplyStatus === "Awaiting reply"
-  ? "You have replied and are waiting for the customer."
-  : "Customer is still waiting for your first reply."}
-    </div>
-  </div>
-
-
-  <div className="ff-overviewMiniCard ff-bestActionCard">
-    <div className="ff-bestActionEyebrow">Best next action</div>
-
-    <div className="ff-bestActionTitle">{selectedBestAction.title}</div>
-
-    <div className="ff-bestActionText">{selectedBestAction.text}</div>
-
-    {selectedBestAction.button ? (
-      <div style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          className="ff-btn ff-btnPrimary ff-btnSm"
-          onClick={selectedBestAction.button.action}
-        >
-          {selectedBestAction.button.label}
+          Follow up
         </button>
       </div>
     ) : null}
-  </div>
 
-<div className="ff-overviewMiniCard ff-overviewMiniCardWide">
-  <div className="ff-overviewMiniLabel">Snooze</div>
+    {selectedRow?.ai_summary ? (
+      <div className="ff-card">
+        <div className="ff-aiInner">
+          <div className="ff-aiEyebrow">Best next step</div>
 
-  <div className="ff-overviewMiniValue">
-    {selectedRow?.snoozed_until && isSnoozedUntilActive(selectedRow.snoozed_until)
-      ? "Reminder paused"
-      : "Pause this enquiry"}
-  </div>
+          {selectedRow.ai_recommended_action ? (
+            <button
+              type="button"
+              className={`ff-aiAction ff-aiAction--${selectedDisplayedAiAction}`}
+              onClick={() => {
+                if (
+                  selectedDisplayedAiAction === "reply_now" ||
+                  selectedDisplayedAiAction === "follow_up" ||
+                  selectedDisplayedAiAction === "ask_for_photos"
+                ) {
+                  setRightTab("messages");
+                  setReplyBody(selectedRow.ai_suggested_reply || "");
 
-  <div className="ff-overviewMiniSub">
-    {selectedRow?.snoozed_until && isSnoozedUntilActive(selectedRow.snoozed_until)
-      ? `Snoozed until ${niceDateOnly(selectedRow.snoozed_until)}`
-      : "Hide this enquiry from your immediate list until later."}
-  </div>
+                  if (!replySubject.trim()) {
+                    setReplySubject(
+                      `Re: ${titleCase(selectedRow.job_type || "Enquiry")}`
+                    );
+                  }
 
-  {selectedRow?.snoozed_until && isSnoozedUntilActive(selectedRow.snoozed_until) ? (
-    <div
-      style={{
-        marginTop: 14,
-        display: "grid",
-        gap: 8,
-        justifyItems: "start",
-        maxWidth: 220,
-      }}
-      >
-      <button
-        type="button"
-        className="ff-btn ff-btnGhost ff-btnSm"
-        onClick={clearSnooze}
-        disabled={snoozeSaving}
-      >
-        Clear snooze
-      </button>
-    </div>
-  ) : (
-    <div
-      style={{
-        marginTop: 14,
-        display: "grid",
-        gap: 8,
-        justifyItems: "start",
-        maxWidth: 220,
-      }}
-    >
-      <button
-        type="button"
-        className="ff-btn ff-btnGhost ff-btnSm"
-        onClick={() => snoozeEnquiry(1)}
-        disabled={snoozeSaving}
-      >
-        Snooze until tomorrow
-      </button>
+                  setScrollToComposerPending(true);
+                  return;
+                }
 
-      <button
-        type="button"
-        className="ff-btn ff-btnGhost ff-btnSm"
-        onClick={() => snoozeEnquiry(3)}
-        disabled={snoozeSaving}
-      >
-        Snooze for 3 days
-      </button>
+                if (selectedDisplayedAiAction === "book_visit") {
+                  setRightTab("visit");
+                  return;
+                }
 
-      <button
-        type="button"
-        className="ff-btn ff-btnGhost ff-btnSm"
-        onClick={() => snoozeEnquiry(7)}
-        disabled={snoozeSaving}
-      >
-        Snooze until next week
-      </button>
-    </div>
-  )}
-</div>
-</div>
+                if (selectedDisplayedAiAction === "send_estimate") {
+                  setRightTab("estimate");
+                }
+              }}
+            >
+              {selectedDisplayedAiAction === "reply_now" &&
+                "⚡ Reply now — customer is waiting"}
+              {selectedDisplayedAiAction === "book_visit" &&
+                "📅 Book a visit — this needs seeing in person"}
+              {selectedDisplayedAiAction === "send_estimate" &&
+                "🧾 Send estimate — good chance to win this job"}
+              {selectedDisplayedAiAction === "ask_for_photos" &&
+                "📸 Ask for photos — you need more detail"}
+              {selectedDisplayedAiAction === "low_priority" &&
+                "🕓 Low priority — no need to rush"}
+              {selectedDisplayedAiAction === "follow_up" &&
+                "💬 Follow up — time to nudge this one"}
+            </button>
+          ) : null}
 
-<div style={{ marginTop: 24, marginBottom: 4 }}>
-  <div className="ff-sectionLabel">Quick price guide</div>
+          <div className="ff-aiSection">
+            <div className="ff-aiLabel">What’s going on</div>
+            <p>{selectedRow.ai_summary}</p>
+          </div>
 
-  <div
-    className={`ff-overviewEstimateWrap ${getUrgencyGlowClass(
-      selectedRow?.urgency
-    )}`}
-  >
-    <QuickEstimateCard
-      selectedQuote={selectedRow}
-      trader={traderProfile}
-    />
-  </div>
-</div>
+          {selectedRow.ai_suggested_reply ? (
+            <>
+              <div className="ff-aiReplyBox">
+                <div className="ff-aiLabel">Quick reply</div>
+                <p>{selectedRow.ai_suggested_reply}</p>
+              </div>
 
-<div style={{ marginTop: 18 }}>
-  <div className="ff-detailCard">
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 16,
-        flexWrap: "wrap",
-        marginBottom: 14,
-      }}
-    >
-      <div>
-        <div className="ff-detailLabel" style={{ marginBottom: 6 }}>
-          Quote readiness
+              <button
+                type="button"
+                className="ff-btn ff-btnPrimary ff-btnSm ff-btnFull"
+                style={{ marginTop: 22 }}
+                onClick={() => {
+                  setRightTab("messages");
+                  setReplyBody(selectedRow.ai_suggested_reply || "");
+
+                  if (!replySubject.trim()) {
+                    setReplySubject(
+                      `Re: ${titleCase(selectedRow.job_type || "Enquiry")}`
+                    );
+                  }
+
+                  setScrollToComposerPending(true);
+                }}
+              >
+                Use this reply
+              </button>
+            </>
+          ) : null}
         </div>
-        <div className="ff-detailSub">
-          Can you confidently price this job yet?
+      </div>
+    ) : null}
+
+    <div className="ff-overviewTopGrid" style={{ marginBottom: 4 }}>
+      <div className="ff-overviewMiniCard">
+        <div className="ff-overviewMiniLabel">Follow up</div>
+        <div className="ff-overviewMiniValue">
+          {selectedFollowUp?.label || "All good"}
+        </div>
+        <div className="ff-overviewMiniSub">
+          {selectedFollowUp &&
+          (selectedFollowUp.status === "follow_up_due" ||
+            selectedFollowUp.status === "estimate_follow_up_due" ||
+            selectedFollowUp.status === "needs_reply" ||
+            selectedFollowUp.status === "customer_replied")
+            ? selectedFollowUp.reason
+            : selectedRow?.snoozed_until &&
+              isSnoozedUntilActive(selectedRow.snoozed_until)
+            ? "This enquiry is currently snoozed."
+            : selectedDerivedStage === "won"
+            ? "This enquiry has moved into booked work."
+            : selectedDerivedStage === "lost"
+            ? "This enquiry is closed."
+            : "No follow-up needed right now."}
         </div>
       </div>
 
-      <Chip cls={selectedReadinessState.cls}>
-        {selectedReadinessState.text}
-      </Chip>
+      <div className="ff-overviewMiniCard">
+        <div className="ff-overviewMiniLabel">Estimate</div>
+        <div className="ff-overviewMiniValue">{selectedEstimateLabel}</div>
+        <div className="ff-overviewMiniSub">
+          {selectedEstimateStatus === "accepted"
+            ? "Accepted by the customer and now moved into your Jobs workflow."
+            : selectedEstimateStatus === "sent"
+            ? "Sent to customer and ready for follow-up."
+            : selectedEstimateStatus === "draft"
+            ? "Draft started and ready to finish."
+            : "No estimate created yet."}
+        </div>
+      </div>
+
+      <div className="ff-overviewMiniCard">
+        <div className="ff-overviewMiniLabel">Visit</div>
+        <div className="ff-overviewMiniValue">{selectedVisitLabel}</div>
+        <div className="ff-overviewMiniSub">
+          {selectedVisit
+            ? selectedDerivedStage === "won"
+              ? "Visit completed and this enquiry is now in Jobs."
+              : "Visit booked. Next step is usually estimate or follow-up."
+            : selectedDerivedStage === "won"
+            ? "This enquiry is now managed in Jobs."
+            : "No appointment booked yet."}
+        </div>
+      </div>
+
+      <div className="ff-overviewMiniCard">
+        <div className="ff-overviewMiniLabel">Reply</div>
+        <div className="ff-overviewMiniValue">{selectedReplyStatus}</div>
+        <div className="ff-overviewMiniSub">
+          {selectedReplyStatus === "Customer replied"
+            ? "The customer has replied after your last message."
+            : selectedReplyStatus === "Awaiting reply"
+            ? "You have replied and are waiting for the customer."
+            : "Customer is still waiting for your first reply."}
+        </div>
+      </div>
+
+      <div className="ff-overviewMiniCard ff-bestActionCard">
+        <div className="ff-bestActionEyebrow">Best next action</div>
+        <div className="ff-bestActionTitle">{selectedBestAction.title}</div>
+        <div className="ff-bestActionText">{selectedBestAction.text}</div>
+
+        {selectedBestAction.button ? (
+          <div style={{ marginTop: 16 }}>
+            <button
+              type="button"
+              className="ff-btn ff-btnPrimary ff-btnSm"
+              onClick={selectedBestAction.button.action}
+            >
+              {selectedBestAction.button.label}
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="ff-overviewMiniCard ff-overviewMiniCardWide">
+        <div className="ff-overviewMiniLabel">Snooze</div>
+
+        <div className="ff-overviewMiniValue">
+          {selectedRow?.snoozed_until &&
+          isSnoozedUntilActive(selectedRow.snoozed_until)
+            ? "Reminder paused"
+            : "Pause this enquiry"}
+        </div>
+
+        <div className="ff-overviewMiniSub">
+          {selectedRow?.snoozed_until &&
+          isSnoozedUntilActive(selectedRow.snoozed_until)
+            ? `Snoozed until ${niceDateOnly(selectedRow.snoozed_until)}`
+            : "Hide this enquiry from your immediate list until later."}
+        </div>
+
+        {selectedRow?.snoozed_until &&
+        isSnoozedUntilActive(selectedRow.snoozed_until) ? (
+          <div
+            style={{
+              marginTop: 14,
+              display: "grid",
+              gap: 8,
+              justifyItems: "start",
+              maxWidth: 220,
+            }}
+          >
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnSm"
+              onClick={clearSnooze}
+              disabled={snoozeSaving}
+            >
+              Clear snooze
+            </button>
+          </div>
+        ) : (
+          <div
+            style={{
+              marginTop: 14,
+              display: "grid",
+              gap: 8,
+              justifyItems: "start",
+              maxWidth: 220,
+            }}
+          >
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnSm"
+              onClick={() => snoozeEnquiry(1)}
+              disabled={snoozeSaving}
+            >
+              Snooze until tomorrow
+            </button>
+
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnSm"
+              onClick={() => snoozeEnquiry(3)}
+              disabled={snoozeSaving}
+            >
+              Snooze for 3 days
+            </button>
+
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnSm"
+              onClick={() => snoozeEnquiry(7)}
+              disabled={snoozeSaving}
+            >
+              Snooze until next week
+            </button>
+          </div>
+        )}
+      </div>
     </div>
 
-    <div style={{ marginTop: 4 }}>
+    <div style={{ marginTop: 24, marginBottom: 4 }}>
+      <div className="ff-sectionLabel">Quick price guide</div>
+
       <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          gap: 12,
-          marginBottom: 8,
-        }}
+        className={`ff-overviewEstimateWrap ${getUrgencyGlowClass(
+          selectedRow?.urgency
+        )}`}
       >
-        <div
-          style={{
-            fontSize: 30,
-            fontWeight: 900,
-            letterSpacing: "-0.02em",
-            color: FF.text,
-          }}
-        >
-          {selectedReadinessScore}%
-        </div>
-
-        <div
-          style={{
-            fontSize: 13,
-            color: FF.muted,
-            lineHeight: 1.4,
-          }}
-        >
-          {selectedReadinessState.sub}
-        </div>
+        <QuickEstimateCard
+          selectedQuote={selectedRow}
+          trader={traderProfile}
+        />
       </div>
-
-      <ReadinessBar score={selectedReadinessScore} />
     </div>
 
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-        gap: 10,
-        marginTop: 16,
-      }}
-    >
-      {selectedReadinessItems.map((item) => (
+    <div style={{ marginTop: 18 }}>
+      <div className="ff-detailCard">
         <div
-          key={item.label}
           style={{
             display: "flex",
-            alignItems: "center",
-            gap: 10,
-            padding: "12px 14px",
-            borderRadius: 14,
-            border: `1px solid ${FF.border}`,
-            background: item.ok ? "#F8FBFF" : "#fff",
-            fontSize: 12,
-            fontWeight: 700,
-            color: item.ok ? FF.navySoft : FF.muted,
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 16,
+            flexWrap: "wrap",
+            marginBottom: 14,
           }}
         >
-          <span style={{ fontSize: 14 }}>{item.ok ? "✓" : "—"}</span>
-          <span>{item.label}</span>
-        </div>
-      ))}
-    </div>
+          <div>
+            <div className="ff-detailLabel" style={{ marginBottom: 6 }}>
+              Quote readiness
+            </div>
+            <div className="ff-detailSub">
+              Can you confidently price this job yet?
+            </div>
+          </div>
 
-    {selectedMissingInfo.length ? (
-      <>
+          <Chip cls={selectedReadinessState.cls}>
+            {selectedReadinessState.text}
+          </Chip>
+        </div>
+
+        <div style={{ marginTop: 4 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "baseline",
+              gap: 12,
+              marginBottom: 8,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 30,
+                fontWeight: 900,
+                letterSpacing: "-0.02em",
+                color: FF.text,
+              }}
+            >
+              {selectedReadinessScore}%
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                color: FF.muted,
+                lineHeight: 1.4,
+              }}
+            >
+              {selectedReadinessState.sub}
+            </div>
+          </div>
+
+          <ReadinessBar score={selectedReadinessScore} />
+        </div>
+
         <div
-          className="ff-detailLabel"
-          style={{ marginTop: 18, marginBottom: 8 }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: 10,
+            marginTop: 16,
+          }}
         >
-          Missing before quote
-        </div>
-
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-          {selectedMissingInfo.map((item) => (
-            <Chip key={item} cls="ff-chip ff-chipAmber">
-              {item}
-            </Chip>
+          {selectedReadinessItems.map((item) => (
+            <div
+              key={item.label}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "12px 14px",
+                borderRadius: 14,
+                border: `1px solid ${FF.border}`,
+                background: item.ok ? "#F8FBFF" : "#fff",
+                fontSize: 12,
+                fontWeight: 700,
+                color: item.ok ? FF.navySoft : FF.muted,
+              }}
+            >
+              <span style={{ fontSize: 14 }}>{item.ok ? "✓" : "—"}</span>
+              <span>{item.label}</span>
+            </div>
           ))}
         </div>
 
+        {selectedMissingInfo.length ? (
+          <>
+            <div
+              className="ff-detailLabel"
+              style={{ marginTop: 18, marginBottom: 8 }}
+            >
+              Missing before quote
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {selectedMissingInfo.map((item) => (
+                <Chip key={item} cls="ff-chip ff-chipAmber">
+                  {item}
+                </Chip>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                className="ff-btn ff-btnGhost ff-btnSm"
+                onClick={() => {
+                  const customerName =
+                    titleCase(selectedRow?.customer_name) || "there";
+
+                  const text = `Hi ${customerName}, could you please send:\n- ${selectedMissingInfo.join(
+                    "\n- "
+                  )}`;
+
+                  syncRightTab("messages");
+                  setReplyBody(text);
+                  setScrollToComposerPending(true);
+                }}
+              >
+                Ask for missing info
+              </button>
+            </div>
+          </>
+        ) : (
+          <div style={{ marginTop: 16 }}>
+            <button
+              type="button"
+              className="ff-btn ff-btnPrimary ff-btnSm"
+              onClick={() => syncRightTab("estimate")}
+            >
+              Create estimate
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <div className="ff-detailGrid" style={{ marginTop: 32 }}>
+      <div className="ff-detailCard ff-detailCardHero">
+        <div className="ff-problemHead">
+          <div>
+            <div className="ff-detailLabel" style={{ marginBottom: 8 }}>
+              Job brief
+            </div>
+            <div className="ff-problemTitle">
+              {titleCase(selectedRow.job_type || "Enquiry")}
+            </div>
+          </div>
+        </div>
+
+        <div className="ff-problemText" style={{ marginTop: 14 }}>
+          {selectedRow.details || "No job details provided."}
+        </div>
+
+        <div className="ff-problemMetaRow">
+          <span className="ff-problemMetaPill">
+            {titleCase(selectedRow.urgency || "Flexible")}
+          </span>
+
+          <span className="ff-problemMetaPill">
+            {formatBudget(selectedRow.budget)}
+          </span>
+
+          {selectedRow.property_type ? (
+            <span className="ff-problemMetaPill">
+              {titleCase(selectedRow.property_type)}
+            </span>
+          ) : null}
+
+          {selectedRow.problem_location ? (
+            <span className="ff-problemMetaPill">
+              {titleCase(selectedRow.problem_location)}
+            </span>
+          ) : null}
+
+          <span className="ff-problemMetaPill">
+            {selectedPhotoCount} file{selectedPhotoCount === 1 ? "" : "s"}
+          </span>
+        </div>
+
+        <div className="ff-problemFooter">
+          <div className="ff-problemFooterItem">
+            <span className="ff-problemFooterLabel">Customer</span>
+            <strong>
+              {titleCase(selectedRow.customer_name || "Customer")}
+            </strong>
+          </div>
+
+          <div className="ff-problemFooterItem">
+            <span className="ff-problemFooterLabel">Postcode</span>
+            <strong>{formatPostcode(selectedRow.postcode) || "—"}</strong>
+          </div>
+
+          <div className="ff-problemFooterItem">
+            <span className="ff-problemFooterLabel">Status</span>
+            <strong>{selectedStage?.text || "Open"}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="ff-detailCard">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap",
+            marginBottom: 14,
+          }}
+        >
+          <div>
+            <div className="ff-detailLabel" style={{ marginBottom: 6 }}>
+              Customer
+            </div>
+            <div className="ff-customerName">
+              {titleCase(selectedRow.customer_name || "Customer")}
+            </div>
+          </div>
+
+          {selectedRow.customer_phone ? (
+            <a
+              href={telHref(selectedRow.customer_phone)}
+              className="ff-btn ff-btnPrimary ff-btnSm"
+              style={{ textDecoration: "none" }}
+            >
+              Call
+            </a>
+          ) : null}
+        </div>
+
+        <div className="ff-customerGrid">
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Email</span>
+            <strong>{selectedRow.customer_email || "—"}</strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Phone</span>
+            <strong>{selectedRow.customer_phone || "—"}</strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Address</span>
+            <strong>{selectedRow.address || selectedRow.postcode || "—"}</strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Property</span>
+            <strong>{selectedRow.property_type || "—"}</strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Problem area</span>
+            <strong>{selectedRow.problem_location || "—"}</strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Urgency</span>
+            <strong>{titleCase(selectedRow.urgency || "Flexible")}</strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Budget</span>
+            <strong>{formatBudget(selectedRow.budget)}</strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Parking / access</span>
+            <strong>{selectedRow.parking || "—"}</strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Still working</span>
+            <strong>{selectedRow.is_still_working || "—"}</strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Happened before</span>
+            <strong>{selectedRow.has_happened_before || "—"}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="ff-detailCard">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "flex-start",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <div>
+            <div className="ff-detailLabel" style={{ marginBottom: 6 }}>
+              Photos & files
+            </div>
+            <div className="ff-detailSub">
+              {selectedPhotoCount > 0
+                ? "Customer uploaded files are ready to review."
+                : "No customer photos yet."}
+            </div>
+          </div>
+
+          <Chip cls="ff-chip ff-chipBlue">
+            {selectedPhotoCount} file{selectedPhotoCount === 1 ? "" : "s"}
+          </Chip>
+        </div>
+
         <div style={{ marginTop: 14 }}>
-      <button
-  type="button"
-  className="ff-btn ff-btnGhost ff-btnSm"
-  onClick={() => {
-    const customerName =
-      titleCase(selectedRow?.customer_name) || "there";
-
-    const text = `Hi ${customerName}, could you please send:\n- ${selectedMissingInfo.join(
-      "\n- "
-    )}`;
-
-    syncRightTab("messages");
-    setReplyBody(text);
-
-    // 🔥 scroll + focus
-    setScrollToComposerPending(true);
-  }}
->
-  Ask for missing info
-</button>
-        </div>
-      </>
-    ) : (
-      <div style={{ marginTop: 16 }}>
-        <button
-          type="button"
-          className="ff-btn ff-btnPrimary ff-btnSm"
-          onClick={() => syncRightTab("estimate")}
-        >
-          Create estimate
-        </button>
-      </div>
-    )}
-  </div>
-</div>
-
-<div className="ff-detailGrid" style={{ marginTop: 32 }}>
-  <div className="ff-detailCard ff-detailCardHero">
-    <div className="ff-problemHead">
-      <div>
-        <div
-          className="ff-detailLabel"
-          style={{ marginBottom: 8 }}
-        >
-          Job brief
-        </div>
-        <div className="ff-problemTitle">
-          {titleCase(selectedRow.job_type || "Enquiry")}
-        </div>
-      </div>
-    </div>
-
-    <div
-      className="ff-problemText"
-      style={{ marginTop: 14 }}
-    >
-      {selectedRow.details || "No job details provided."}
-    </div>
-
-    <div className="ff-problemMetaRow">
-      <span className="ff-problemMetaPill">
-        {titleCase(selectedRow.urgency || "Flexible")}
-      </span>
-
-      <span className="ff-problemMetaPill">
-        {formatBudget(selectedRow.budget)}
-      </span>
-
-      {selectedRow.property_type ? (
-        <span className="ff-problemMetaPill">
-          {titleCase(selectedRow.property_type)}
-        </span>
-      ) : null}
-
-      {selectedRow.problem_location ? (
-        <span className="ff-problemMetaPill">
-          {titleCase(selectedRow.problem_location)}
-        </span>
-      ) : null}
-
-      <span className="ff-problemMetaPill">
-        {selectedPhotoCount} file{selectedPhotoCount === 1 ? "" : "s"}
-      </span>
-    </div>
-
-    <div className="ff-problemFooter">
-      <div className="ff-problemFooterItem">
-        <span className="ff-problemFooterLabel">Customer</span>
-        <strong>
-          {titleCase(selectedRow.customer_name || "Customer")}
-        </strong>
-      </div>
-
-      <div className="ff-problemFooterItem">
-        <span className="ff-problemFooterLabel">Postcode</span>
-        <strong>
-          {formatPostcode(selectedRow.postcode) || "—"}
-        </strong>
-      </div>
-
-      <div className="ff-problemFooterItem">
-        <span className="ff-problemFooterLabel">Status</span>
-        <strong>{selectedStage?.text || "Open"}</strong>
-      </div>
-    </div>
-  </div>
-
-  <div className="ff-detailCard">
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 12,
-        flexWrap: "wrap",
-        marginBottom: 14,
-      }}
-    >
-      <div>
-        <div
-          className="ff-detailLabel"
-          style={{ marginBottom: 6 }}
-        >
-          Customer
-        </div>
-        <div className="ff-customerName">
-          {titleCase(selectedRow.customer_name || "Customer")}
+          <button
+            type="button"
+            className="ff-btn ff-btnGhost ff-btnSm"
+            onClick={() => syncRightTab("files")}
+          >
+            View all files
+          </button>
         </div>
       </div>
 
-      {selectedRow.customer_phone ? (
-        <a
-          href={telHref(selectedRow.customer_phone)}
-          className="ff-btn ff-btnPrimary ff-btnSm"
-          style={{ textDecoration: "none" }}
-        >
-          Call
-        </a>
-      ) : null}
-    </div>
-
-    <div className="ff-customerGrid">
-      <div className="ff-customerItem">
-        <span className="ff-customerLabel">Email</span>
-        <strong>{selectedRow.customer_email || "—"}</strong>
-      </div>
-
-      <div className="ff-customerItem">
-        <span className="ff-customerLabel">Phone</span>
-        <strong>{selectedRow.customer_phone || "—"}</strong>
-      </div>
-
-      <div className="ff-customerItem">
-        <span className="ff-customerLabel">Address</span>
-        <strong>
-          {selectedRow.address || selectedRow.postcode || "—"}
-        </strong>
-      </div>
-
-      <div className="ff-customerItem">
-        <span className="ff-customerLabel">Property</span>
-        <strong>{selectedRow.property_type || "—"}</strong>
-      </div>
-
-      <div className="ff-customerItem">
-        <span className="ff-customerLabel">Problem area</span>
-        <strong>{selectedRow.problem_location || "—"}</strong>
-      </div>
-
-      <div className="ff-customerItem">
-        <span className="ff-customerLabel">Urgency</span>
-        <strong>{titleCase(selectedRow.urgency || "Flexible")}</strong>
-      </div>
-
-      <div className="ff-customerItem">
-        <span className="ff-customerLabel">Budget</span>
-        <strong>{formatBudget(selectedRow.budget)}</strong>
-      </div>
-
-      <div className="ff-customerItem">
-        <span className="ff-customerLabel">Parking / access</span>
-        <strong>{selectedRow.parking || "—"}</strong>
-      </div>
-
-      <div className="ff-customerItem">
-        <span className="ff-customerLabel">Still working</span>
-        <strong>{selectedRow.is_still_working || "—"}</strong>
-      </div>
-
-      <div className="ff-customerItem">
-        <span className="ff-customerLabel">Happened before</span>
-        <strong>{selectedRow.has_happened_before || "—"}</strong>
-      </div>
-    </div>
-  </div>
-
-  <div className="ff-detailCard">
-    <div
-      style={{
-        display: "flex",
-        alignItems: "flex-start",
-        justifyContent: "space-between",
-        gap: 12,
-        marginBottom: 12,
-        flexWrap: "wrap",
-      }}
-    >
-      <div>
-        <div className="ff-detailLabel" style={{ marginBottom: 6 }}>
-          Photos & files
+      <div className="ff-detailCard">
+        <div style={{ marginBottom: 14 }}>
+          <div className="ff-detailLabel" style={{ marginBottom: 6 }}>
+            Quick status
+          </div>
+          <div className="ff-detailSub">
+            A quick view of where this enquiry currently stands.
+          </div>
         </div>
-        <div className="ff-detailSub">
-          {selectedPhotoCount > 0
-            ? "Customer uploaded files are ready to review."
-            : "No customer photos yet."}
+
+        <div className="ff-detailRow">
+          <div className="ff-detailLabel">Stage</div>
+          <div className="ff-detailValue">{selectedStage?.text || "Open"}</div>
+        </div>
+
+        <div className="ff-detailRow">
+          <div className="ff-detailLabel">Reply</div>
+          <div className="ff-detailValue">{selectedReplyStatus}</div>
+        </div>
+
+        <div className="ff-detailRow">
+          <div className="ff-detailLabel">Estimate</div>
+          <div className="ff-detailValue">{selectedEstimateLabel}</div>
+        </div>
+
+        <div className="ff-detailRow">
+          <div className="ff-detailLabel">Visit</div>
+          <div className="ff-detailValue">{selectedVisitLabel}</div>
+        </div>
+
+        <div className="ff-detailRow">
+          <div className="ff-detailLabel">Follow up</div>
+          <div className="ff-detailValue">
+            {selectedFollowUp?.label || "All good"}
+          </div>
+        </div>
+
+        {selectedFollowUp &&
+        (selectedFollowUp.status === "follow_up_due" ||
+          selectedFollowUp.status === "estimate_follow_up_due" ||
+          selectedFollowUp.status === "needs_reply" ||
+          selectedFollowUp.status === "customer_replied") ? (
+          <div
+            style={{
+              marginTop: 14,
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnSm"
+              onClick={() => {
+                openFollowUpComposer({
+                  customerName: selectedRow?.customer_name,
+                  status: selectedFollowUp.status,
+                });
+              }}
+            >
+              Follow up now
+            </button>
+          </div>
+        ) : selectedRow?.snoozed_until &&
+          isSnoozedUntilActive(selectedRow.snoozed_until) ? (
+          <div
+            style={{
+              marginTop: 14,
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <Chip cls="ff-chip ff-chipGray">
+              Snoozed until {niceDateOnly(selectedRow.snoozed_until)}
+            </Chip>
+
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnSm"
+              onClick={clearSnooze}
+              disabled={snoozeSaving}
+            >
+              Clear snooze
+            </button>
+          </div>
+        ) : null}
+
+        <div style={{ marginTop: 18 }}>
+          <button
+            type="button"
+            className="ff-btn ff-btnDanger ff-btnSm"
+            onClick={deleteEnquiry}
+          >
+            Delete enquiry
+          </button>
         </div>
       </div>
-
-      <Chip cls="ff-chip ff-chipBlue">
-        {selectedPhotoCount} file{selectedPhotoCount === 1 ? "" : "s"}
-      </Chip>
     </div>
-
-    <div style={{ marginTop: 14 }}>
-      <button
-        type="button"
-        className="ff-btn ff-btnGhost ff-btnSm"
-        onClick={() => syncRightTab("files")}
-      >
-        View all files
-      </button>
-    </div>
-  </div>
-
-  <div className="ff-detailCard">
-    <div style={{ marginBottom: 14 }}>
-      <div
-        className="ff-detailLabel"
-        style={{ marginBottom: 6 }}
-      >
-        Quick status
-      </div>
-      <div className="ff-detailSub">
-        A quick view of where this enquiry currently stands.
-      </div>
-    </div>
-
-    <div className="ff-detailRow">
-      <div className="ff-detailLabel">Stage</div>
-      <div className="ff-detailValue">{selectedStage?.text || "Open"}</div>
-    </div>
-
-    <div className="ff-detailRow">
-      <div className="ff-detailLabel">Reply</div>
-      <div className="ff-detailValue">{selectedReplyStatus}</div>
-    </div>
-
-    <div className="ff-detailRow">
-      <div className="ff-detailLabel">Estimate</div>
-      <div className="ff-detailValue">{selectedEstimateLabel}</div>
-    </div>
-
-    <div className="ff-detailRow">
-      <div className="ff-detailLabel">Visit</div>
-      <div className="ff-detailValue">{selectedVisitLabel}</div>
-    </div>
-<div className="ff-detailRow">
-  <div className="ff-detailLabel">Follow up</div>
-  <div className="ff-detailValue">
-    {selectedFollowUp?.label || "All good"}
-  </div>
-</div>
-
-{selectedFollowUp &&
-(selectedFollowUp.status === "follow_up_due" ||
-  selectedFollowUp.status === "estimate_follow_up_due" ||
-  selectedFollowUp.status === "needs_reply" ||
-  selectedFollowUp.status === "customer_replied") ? (
-  <div
-  style={{
-    marginTop: 14,
-    display: "flex",
-    gap: 8,
-    flexWrap: "wrap",
-  }}
->
-  <button
-    type="button"
-    className="ff-btn ff-btnGhost ff-btnSm"
-    onClick={() => {
-      openFollowUpComposer({
-        customerName: selectedRow?.customer_name,
-        status: selectedFollowUp.status,
-      });
-    }}
-  >
-    Follow up now
-  </button>
-</div>
-) : selectedRow?.snoozed_until &&
-  isSnoozedUntilActive(selectedRow.snoozed_until) ? (
-  <div
-    style={{
-      marginTop: 14,
-      display: "flex",
-      gap: 8,
-      flexWrap: "wrap",
-      alignItems: "center",
-    }}
-  >
-    <Chip cls="ff-chip ff-chipGray">
-      Snoozed until {niceDateOnly(selectedRow.snoozed_until)}
-    </Chip>
-
-    <button
-      type="button"
-      className="ff-btn ff-btnGhost ff-btnSm"
-      onClick={clearSnooze}
-      disabled={snoozeSaving}
-    >
-      Clear snooze
-    </button>
-  </div>
+  </>
 ) : null}
-
-<div style={{ marginTop: 18 }}>
-  <button
-    type="button"
-    className="ff-btn ff-btnDanger ff-btnSm"
-    onClick={deleteEnquiry}
-  >
-    Delete enquiry
-  </button>
-</div>
-
-  </div>
-</div>
-
-                      </>
-                    ) : null}
-
-                 
-
-
 
 {rightTab === "estimate" ? (
   <div className="ff-detailGrid">
@@ -4664,21 +4916,30 @@ const nextAction = getLeftNextAction({
                   </button>
 
                   <button
-                    type="button"
-                    className="ff-btn ff-btnGhost ff-btnSm"
-                    onClick={saveEstimateDraft}
-                  >
-                    Save draft
-                  </button>
+  type="button"
+  className={`ff-btn ff-btnSm ${
+    estimateDraftSaved ? "ff-btnSuccess" : "ff-btnGhost"
+  }`}
+  onClick={saveEstimateDraft}
+  disabled={estimateSaving}
+>
+  {estimateSaving ? "Saving…" : estimateDraftSaved ? "Saved ✓" : "Save draft"}
+</button>
 
-                  <button
-                    type="button"
-                    className="ff-btn ff-btnPrimary ff-btnSm"
-                    onClick={sendEstimate}
-                    disabled={estimateSending}
-                  >
-                    {estimateSending ? "Sending…" : "Send estimate"}
-                  </button>
+                 <button
+  className={`ff-btn ff-btnSm ${
+    estimateSent ? "ff-btnSuccess" : "ff-btnPrimary"
+  }`}
+  type="button"
+  onClick={sendEstimate}
+  disabled={estimateSending}
+>
+  {estimateSending
+    ? "Sending…"
+    : estimateSent
+    ? "Sent ✓"
+    : "Send estimate"}
+</button>
                 </div>
               </div>
             </div>
@@ -5105,33 +5366,50 @@ const nextAction = getLeftNextAction({
                             )}
                           </div>
 
-                          <div style={{ marginTop: 20 }}>
-                            <div
-                              className="ff-detailLabel"
-                              style={{ marginBottom: 8 }}
-                            >
-                              Upload your files
-                            </div>
+<div style={{ marginTop: 20 }}>
+  <div
+    className="ff-detailLabel"
+    style={{ marginBottom: 8 }}
+  >
+    Upload your files
+  </div>
 
-                            <input
-                              type="file"
-                              multiple
-                              onChange={onUploadTraderFiles}
-                              disabled={uploading}
-                              className="ff-input"
-                            />
+  <label
+    className={`ff-btn ff-btnSm ${
+      fileUploaded ? "ff-btnSuccess" : "ff-btnPrimary"
+    }`}
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      cursor: uploading ? "not-allowed" : "pointer",
+      opacity: uploading ? 0.7 : 1,
+    }}
+  >
+    {uploading
+      ? "Uploading..."
+      : fileUploaded
+      ? "Uploaded ✓"
+      : "Upload files"}
 
-                            <div
-                              style={{
-                                marginTop: 8,
-                                fontSize: 12,
-                                color: FF.muted,
-                              }}
-                            >
-                              Upload quotes, PDFs, photos, job notes or parts
-                              lists.
-                            </div>
-                          </div>
+    <input
+      type="file"
+      multiple
+      onChange={onUploadTraderFiles}
+      disabled={uploading}
+      style={{ display: "none" }}
+    />
+  </label>
+
+  <div
+    style={{
+      marginTop: 8,
+      fontSize: 12,
+      color: FF.muted,
+    }}
+  >
+    Upload quotes, PDFs, photos, job notes or parts lists.
+  </div>
+</div>
 
                           <div style={{ marginTop: 20 }}>
                             <div
@@ -5349,20 +5627,22 @@ const nextAction = getLeftNextAction({
                           />
 
                           <div style={{ marginTop: 10 }}>
-                            <button
-                              className="ff-btn ff-btnPrimary ff-btnSm"
-                              type="button"
-                              onClick={saveTraderNotes}
-                              disabled={notesSaving}
-                            >
-                              {notesSaving ? "Saving…" : "Save notes"}
-                            </button>
+                          <button
+  className={`ff-btn ff-btnSm ${
+    notesSaved ? "ff-btnSuccess" : "ff-btnPrimary"
+  }`}
+  type="button"
+  onClick={saveTraderNotes}
+  disabled={notesSaving}
+>
+  {notesSaving ? "Saving…" : notesSaved ? "Saved ✓" : "Save notes"}
+</button>
                           </div>
                         </div>
                       </div>
                     ) : null}
 
-                    {rightTab === "messages" ? (
+{rightTab === "messages" ? (
   <div className="ff-chatWrap">
     {selectedFollowUp &&
     (selectedFollowUp.status === "follow_up_due" ||
@@ -5501,10 +5781,13 @@ const nextAction = getLeftNextAction({
           );
         })
       ) : (
-        <EmptyState
-          title="No messages yet"
-          sub="When you send or receive messages, they will appear here."
-        />
+        <div className="ff-emptyState">
+          <div className="ff-emptyIcon">💬</div>
+          <div className="ff-emptyTitle">No messages yet</div>
+          <div className="ff-emptyText">
+            When you send or receive messages, they will appear here.
+          </div>
+        </div>
       )}
 
       <div ref={threadBottomRef} />
@@ -5618,18 +5901,25 @@ const nextAction = getLeftNextAction({
           ) : null}
 
           <button
-            className="ff-btn ff-btnPrimary ff-btnSm"
+            className={`ff-btn ff-btnSm ${
+              replySent ? "ff-btnSuccess" : "ff-btnPrimary"
+            }`}
             type="button"
             onClick={sendReply}
-            disabled={!replyTo.trim() || !replyBody.trim()}
+            disabled={replySending || !replyTo.trim() || !replyBody.trim()}
           >
-            Send message
+            {replySending
+              ? "Sending…"
+              : replySent
+              ? "Sent ✓"
+              : "Send message"}
           </button>
         </div>
       </div>
     </div>
   </div>
 ) : null}
+
                   </div>
                 </>
               )}
@@ -5698,26 +5988,31 @@ const nextAction = getLeftNextAction({
           >
             <button
               type="button"
-              className="ff-btn ff-btnGhost"
+              className="ff-btn ff-btnGhost ff-btnSm"
               onClick={() => setSiteVisitOpen(false)}
             >
               Cancel
             </button>
 
             <button
+              className={`ff-btn ff-btnSm ${
+                siteVisitBooked ? "ff-btnSuccess" : "ff-btnPrimary"
+              }`}
               type="button"
-              className="ff-btn ff-btnPrimary"
-              disabled={siteVisitSending}
               onClick={bookSiteVisit}
+              disabled={siteVisitSending || !siteVisitStartsAt}
             >
-              {siteVisitSending ? "Booking…" : "Confirm booking"}
+              {siteVisitSending
+                ? "Booking..."
+                : siteVisitBooked
+                ? "Booked ✓"
+                : selectedVisit
+                ? "Rebook visit"
+                : "Book visit"}
             </button>
           </div>
         </div>
       </Modal>
-
-
- 
 
       <Modal
         open={!!expandedMsg}

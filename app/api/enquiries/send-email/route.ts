@@ -163,11 +163,7 @@ export async function POST(req: Request) {
       String(reqRow.customer_name || "there")
     );
 
-    const subject = subjectRaw || `New message from ${traderName}`;
-
-    const replyTo = RESEND_REPLY_TO.includes("{requestId}")
-      ? RESEND_REPLY_TO.replace("{requestId}", requestId)
-      : RESEND_REPLY_TO;
+const replyTo = `enquiries+${requestId}@send.thefixflowapp.com`;
 
     const resend = new Resend(RESEND_API_KEY);
 
@@ -214,23 +210,25 @@ export async function POST(req: Request) {
       ctaHtml: buildFixFlowButton("View and reply", messageUrl),
     });
 
-    const sent = await resend.emails.send({
-      from: RESEND_FROM,
-      to,
-      subject,
-      replyTo,
-      text: `${traderName} sent you a message about your enquiry.
+const subject = `New message from ${traderName}`;
+
+const sent = await resend.emails.send({
+  from: `${traderName} <quotes@send.thefixflowapp.com>`,
+  to,
+  subject,
+  replyTo,
+  text: `${traderName} sent you a message about your enquiry.
 
 ${preview}
 
 View and reply here:
 ${messageUrl}`,
-      html,
-      headers: {
-        "X-Fixflow-Request-Id": requestId,
-        "X-Fixflow-Plumber-Id": user.id,
-      },
-    } as any);
+  html,
+  headers: {
+    "X-Fixflow-Request-Id": requestId,
+    "X-Fixflow-Plumber-Id": user.id,
+  },
+} as any);
 
     if ((sent as any)?.error) {
       return json(500, {

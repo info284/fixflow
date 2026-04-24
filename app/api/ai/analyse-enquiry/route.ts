@@ -1,413 +1,253 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
+import { createClient } from "@supabase/supabase-js";
+import { buildEnquiryPrompt } from "@/lib/ai/buildEnquiryPrompt";
+import type { AiDecision } from "@/lib/ai/types";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-/* =========================
-   TYPES
-========================= */
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
-type AiRecommendedAction =
-  | "reply_now"
-  | "book_visit"
-  | "send_estimate"
-  | "ask_for_photos"
-  | "low_priority"
-  | "follow_up";
-
-type AiResult = {
-  urgency_score: number;
-  job_value_band: "low" | "medium" | "high";
-  conversion_score: number;
-  recommended_action: AiRecommendedAction;
-  summary: string;
-  suggested_reply: string;
-};
-
-/* =========================
-   HELPERS
-========================= */
-
-function createSupabaseAdmin() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!url || !serviceKey) {
-    throw new Error("Missing Supabase environment variables");
-  }
-
-  return createClient(url, serviceKey, {
-    auth: { persistSession: false },
-  });
+function cleanJsonBlock(text: string) {
+  return text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```$/i, "")
+    .trim();
 }
 
-function createSupabaseAnon() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
-    throw new Error("Missing Supabase anon environment variables");
-  }
-
-  return createClient(url, anonKey, {
-    auth: { persistSession: false },
-  });
+function normaliseDecision(input: any): AiDecision {
+  return {
+    summary:
+      typeof input?.summary === "string" && input.summary.trim()
+        ? input.summary.trim()
+        : "No summary provided.",
+    state:
+      typeof input?.state === "string" && input.state.trim()
+        ? input.state
+        : "needs_human",
+    recommended_action:
+      typeof input?.recommended_action === "string" &&
+      input.recommended_action.trim()
+        ? input.recommended_action
+        : "needs_human",
+    confidence:
+      typeof input?.confidence === "number"
+        ? Math.max(0, Math.min(100, Math.round(input.confidence)))
+        : 50,
+    needs_human: Boolean(input?.needs_human),
+    visit_required: Boolean(input?.visit_required),
+    ready_to_quote: Boolean(input?.ready_to_quote),
+    quote_type:
+      input?.quote_type === "quick" || input?.quote_type === "detailed"
+        ? input.quote_type
+        : null,
+    missing_fields: Array.isArray(input?.missing_fields)
+      ? input.missing_fields.filter((v: unknown) => typeof v === "string")
+      : [],
+    should_send_message: Boolean(input?.should_send_message),
+    message_type:
+      input?.message_type === "reply" ||
+      input?.message_type === "question" ||
+      input?.message_type === "follow_up" ||
+      input?.message_type === "handoff" ||
+      input?.message_type === "booking_prompt"
+        ? input.message_type
+        : "handoff",
+    customer_sentiment:
+      input?.customer_sentiment === "positive" ||
+      input?.customer_sentiment === "neutral" ||
+      input?.customer_sentiment === "negative" ||
+      input?.customer_sentiment === "urgent"
+        ? input.customer_sentiment
+        : "neutral",
+    next_action_due_hours:
+      typeof input?.next_action_due_hours === "number"
+        ? input.next_action_due_hours
+        : null,
+    draft_message:
+      typeof input?.draft_message === "string" ? input.draft_message.trim() : "",
+    automation_reason:
+      typeof input?.automation_reason === "string" &&
+      input.automation_reason.trim()
+        ? input.automation_reason.trim()
+        : "AI analysed enquiry",
+  };
 }
-
-async function getAuthedUserId(req: Request) {
-  const authHeader = req.headers.get("authorization") || "";
-  const token = authHeader.toLowerCase().startsWith("bearer ")
-    ? authHeader.slice(7).trim()
-    : "";
-
-  if (!token) return null;
-
-  const supabaseAnon = createSupabaseAnon();
-  const { data, error } = await supabaseAnon.auth.getUser(token);
-
-  if (error || !data?.user?.id) return null;
-  return data.user.id;
-}
-
-function safeJsonParse(content: string): AiResult | null {
-  try {
-    const parsed = JSON.parse(content);
-
-    return {
-      urgency_score: clampNumber(parsed?.urgency_score, 0, 100, 50),
-      job_value_band: normaliseBand(parsed?.job_value_band),
-      conversion_score: clampNumber(parsed?.conversion_score, 0, 100, 50),
-      recommended_action: normaliseAction(parsed?.recommended_action),
-      summary: String(parsed?.summary || "").trim(),
-      suggested_reply: String(parsed?.suggested_reply || "").trim(),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function clampNumber(
-  value: unknown,
-  min: number,
-  max: number,
-  fallback: number
-) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.max(min, Math.min(max, Math.round(n)));
-}
-
-function normaliseBand(value: unknown): "low" | "medium" | "high" {
-  const v = String(value || "").trim().toLowerCase();
-  if (v === "low" || v === "medium" || v === "high") return v;
-  return "medium";
-}
-
-function normaliseAction(value: unknown): AiRecommendedAction {
-  const v = String(value || "").trim().toLowerCase();
-
-  if (
-    v === "reply_now" ||
-    v === "book_visit" ||
-    v === "send_estimate" ||
-    v === "ask_for_photos" ||
-    v === "low_priority" ||
-    v === "follow_up"
-  ) {
-    return v;
-  }
-
-  return "reply_now";
-}
-
-function buildFallbackReply(input: {
-  customerName?: string | null;
-  recommendedAction: AiRecommendedAction;
-  jobType?: string | null;
-}) {
-  const customerName = String(input.customerName || "there").trim();
-  const jobType = String(input.jobType || "the job").trim();
-
-  if (input.recommendedAction === "ask_for_photos") {
-    return `Hi ${customerName}, thanks for your message. Please could you send over a few photos of ${jobType} so I can advise properly and work out the next step?`;
-  }
-
-  if (input.recommendedAction === "book_visit") {
-    return `Hi ${customerName}, thanks for your message. This looks like something I’d need to see in person before confirming the price. Let me know a couple of times that suit you and I can get a visit booked in.`;
-  }
-
-  if (input.recommendedAction === "send_estimate") {
-    return `Hi ${customerName}, thanks for your message. I’ve had a look and I should be able to put an estimate together for you shortly. I’ll send that over as soon as I can.`;
-  }
-
-  if (input.recommendedAction === "follow_up") {
-    return `Hi ${customerName}, just checking in on this one in case you still need help. Let me know if you’d like to go ahead or if you have any questions.`;
-  }
-
-  if (input.recommendedAction === "low_priority") {
-    return `Hi ${customerName}, thanks for your message. I’ve got this and I’ll come back to you as soon as I can.`;
-  }
-
-  return `Hi ${customerName}, thanks for your message. I’ve had a look and I’ll get back to you shortly.`;
-}
-
-/* =========================
-   ROUTE
-========================= */
 
 export async function POST(req: Request) {
   try {
-    const userId = await getAuthedUserId(req);
-
-    if (!userId) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    const openaiKey = process.env.OPENAI_API_KEY;
-
-    if (!openaiKey) {
-      return NextResponse.json(
-        { error: "Missing OPENAI_API_KEY" },
-        { status: 500 }
-      );
-    }
-
-    const openai = new OpenAI({
-      apiKey: openaiKey,
-    });
-
     const body = await req.json();
-    const enquiryId = String(body?.enquiryId || "").trim();
+    const enquiryId = body?.enquiryId as string | undefined;
 
     if (!enquiryId) {
       return NextResponse.json(
-        { error: "Missing enquiryId" },
+        { ok: false, error: "Missing enquiryId" },
         { status: 400 }
       );
     }
 
-    const supabase = createSupabaseAdmin();
-
-    const { data: enquiry, error: enquiryError } = await supabase
+    const { data: enquiry, error: enquiryError } = await supabaseAdmin
       .from("quote_requests")
-      .select(`
-        id,
-        plumber_id,
-        customer_name,
-        customer_email,
-        customer_phone,
-        postcode,
-        address,
-        job_type,
-        urgency,
-        details,
-        status,
-        stage,
-        created_at,
-        trader_notes,
-        budget,
-        property_type,
-        ai_urgency_score,
-        ai_job_value_band,
-        ai_conversion_score,
-        ai_recommended_action,
-        ai_summary,
-        ai_suggested_reply
-      `)
+      .select("*")
       .eq("id", enquiryId)
-      .eq("plumber_id", userId)
-      .maybeSingle();
+      .single();
 
-    if (enquiryError) {
+    if (enquiryError || !enquiry) {
       return NextResponse.json(
-        { error: enquiryError.message },
-        { status: 500 }
-      );
-    }
-
-    if (!enquiry) {
-      return NextResponse.json(
-        { error: "Enquiry not found" },
+        { ok: false, error: "Enquiry not found" },
         { status: 404 }
       );
     }
 
-    const { data: messages, error: messagesError } = await supabase
+    const { data: messages, error: messagesError } = await supabaseAdmin
       .from("enquiry_messages")
-      .select(`
-        id,
-        direction,
-        channel,
-        subject,
-        body_text,
-        from_email,
-        to_email,
-        created_at
-      `)
+      .select("*")
       .eq("request_id", enquiryId)
       .order("created_at", { ascending: true });
 
     if (messagesError) {
       return NextResponse.json(
-        { error: messagesError.message },
+        { ok: false, error: messagesError.message },
         { status: 500 }
       );
     }
 
-    const { data: estimates, error: estimatesError } = await supabase
+    const { data: estimate, error: estimateError } = await supabaseAdmin
       .from("estimates")
-      .select(`
-        id,
-        status,
-        subtotal,
-        vat,
-        total,
-        created_at,
-        accepted_at,
-        first_viewed_at,
-        last_viewed_at,
-        view_count
-      `)
+      .select("*")
       .eq("request_id", enquiryId)
-      .eq("plumber_id", userId)
-      .order("created_at", { ascending: false });
+      .maybeSingle();
 
-    if (estimatesError) {
-      return NextResponse.json(
-        { error: estimatesError.message },
-        { status: 500 }
-      );
+    if (estimateError) {
+      console.warn("estimate lookup failed", estimateError);
     }
 
-    const { data: visits, error: visitsError } = await supabase
+    let quickEstimate: any = null;
+
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("quick_estimates")
+        .select("*")
+        .eq("request_id", enquiryId)
+        .maybeSingle();
+
+      if (error) {
+        console.warn("quick_estimates failed", error);
+      } else {
+        quickEstimate = data ?? null;
+      }
+    } catch (err) {
+      console.warn("quick_estimates crashed", err);
+    }
+
+    const { data: visit, error: visitError } = await supabaseAdmin
       .from("site_visits")
-      .select(`
-        id,
-        starts_at,
-        duration_mins,
-        created_at
-      `)
+      .select("*")
       .eq("request_id", enquiryId)
-      .eq("plumber_id", userId)
-      .order("created_at", { ascending: false });
+      .order("starts_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (visitsError) {
-      return NextResponse.json(
-        { error: visitsError.message },
-        { status: 500 }
-      );
+    if (visitError) {
+      console.warn("site_visits lookup failed", visitError);
     }
 
-    const enquiryPayload = {
+    const prompt = buildEnquiryPrompt({
       enquiry,
       messages: messages || [],
-      estimates: estimates || [],
-      visits: visits || [],
-    };
+      estimate: estimate || null,
+      quickEstimate: quickEstimate || null,
+      visit: visit || null,
+    });
 
-    const systemPrompt = `
-You are an AI assistant for FixFlow, a trades enquiry app for plumbers and similar trades.
-
-Your job is to analyse one enquiry and return JSON only.
-
-Rules:
-- Be practical, concise, and commercially useful.
-- urgency_score must be a number from 0 to 100.
-- conversion_score must be a number from 0 to 100.
-- job_value_band must be one of: low, medium, high.
-- recommended_action must be one of:
-  reply_now, book_visit, send_estimate, ask_for_photos, low_priority, follow_up
-- summary must be 1 to 3 short sentences.
-- suggested_reply must sound natural, human, and helpful. No markdown. No emojis.
-- If enough detail exists and it sounds quotable remotely, prefer send_estimate.
-- If more visual/detail info is needed, prefer ask_for_photos.
-- If it clearly needs seeing in person, prefer book_visit.
-- If the customer is waiting on a response, prefer reply_now.
-- If the trader already sent something and it is time to chase, prefer follow_up.
-
-Return strictly valid JSON with this shape:
-{
-  "urgency_score": 72,
-  "job_value_band": "medium",
-  "conversion_score": 68,
-  "recommended_action": "reply_now",
-  "summary": "Customer has given decent detail and looks genuine. They are waiting for a reply and this could likely move forward quickly.",
-  "suggested_reply": "Hi Sarah, thanks for your message..."
-}
-`.trim();
-
-    const userPrompt = `
-Analyse this enquiry data and return JSON only.
-
-${JSON.stringify(enquiryPayload, null, 2)}
-`.trim();
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.3,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+    const response = await openai.responses.create({
+      model: "gpt-5",
+      input: [
+        {
+          role: "system",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "Return exactly one valid JSON object matching the requested schema. Fill every field. No markdown, no code fences, no extra text.",
+            },
+          ],
+        },
+        {
+          role: "user",
+          content: [{ type: "input_text", text: prompt }],
+        },
       ],
     });
 
-    const content =
-      completion.choices?.[0]?.message?.content?.trim() || "";
+    const rawText = cleanJsonBlock(response.output_text || "");
+    console.log("AI rawText", rawText);
 
-    const parsed = safeJsonParse(content);
-
-    if (!parsed) {
-      return NextResponse.json(
-        { error: "AI returned invalid JSON", raw: content },
-        { status: 500 }
-      );
+    let parsed: any;
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      console.error("AI returned invalid JSON rawText:", rawText);
+      throw new Error("AI returned invalid JSON");
     }
 
-    const summary =
-      parsed.summary || "This enquiry has been analysed by AI.";
-    const suggestedReply =
-      parsed.suggested_reply ||
-      buildFallbackReply({
-        customerName: enquiry.customer_name,
-        recommendedAction: parsed.recommended_action,
-        jobType: enquiry.job_type,
-      });
+    const decision = normaliseDecision(parsed);
+    console.log("AI decision for enquiry", enquiryId, decision);
 
-    const updatePayload = {
-      ai_urgency_score: parsed.urgency_score,
-      ai_job_value_band: parsed.job_value_band,
-      ai_conversion_score: parsed.conversion_score,
-      ai_recommended_action: parsed.recommended_action,
-      ai_summary: summary,
-      ai_suggested_reply: suggestedReply,
-      ai_last_processed_at: new Date().toISOString(),
-    };
+    const nowIso = new Date().toISOString();
 
-    const { error: updateError } = await supabase
+    const { data: updatedRow, error: updateError } = await supabaseAdmin
       .from("quote_requests")
-      .update(updatePayload)
+      .update({
+        ai_summary: decision.summary,
+        ai_recommended_action: decision.recommended_action,
+        ai_suggested_reply: decision.draft_message,
+        ai_last_processed_at: nowIso,
+        ai_state: decision.state,
+        ai_status: "active",
+        ai_confidence: decision.confidence,
+        ai_needs_human: decision.needs_human,
+        ai_missing_fields: decision.missing_fields,
+        ai_ready_to_quote: decision.ready_to_quote,
+        ai_quote_type: decision.quote_type,
+        ai_visit_required: decision.visit_required,
+        ai_customer_sentiment: decision.customer_sentiment,
+        ai_last_action: decision.automation_reason,
+        ai_last_action_at: nowIso,
+      })
       .eq("id", enquiryId)
-      .eq("plumber_id", userId);
+      .select("*")
+      .single();
 
     if (updateError) {
+      console.error("quote_requests update failed:", updateError);
       return NextResponse.json(
-        { error: updateError.message },
+        { ok: false, error: updateError.message },
         { status: 500 }
       );
     }
+
+    console.log("Updated row after AI write", updatedRow);
 
     return NextResponse.json({
       ok: true,
-      enquiryId,
-      ...updatePayload,
+      decision,
+      updatedRow,
     });
   } catch (error: any) {
-    console.error("AI analyse enquiry error:", error);
+    console.error("analyse-enquiry error", error);
 
     return NextResponse.json(
-      { error: error?.message || "Failed to analyse enquiry" },
+      {
+        ok: false,
+        error: error?.message || "Failed to analyse enquiry",
+      },
       { status: 500 }
     );
   }

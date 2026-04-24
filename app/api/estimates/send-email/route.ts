@@ -395,17 +395,11 @@ export async function POST(req: Request) {
 
     const resend = new Resend(resendKey);
 
-    const from =
-      process.env.RESEND_FROM ||
-      process.env.EMAIL_FROM ||
-      "FixFlow <quotes@send.thefixflowapp.com>";
+const from = `${traderName} <quotes@send.thefixflowapp.com>`;
 
-    const replyTo =
-      process.env.RESEND_REPLY_TO ||
-      process.env.EMAIL_REPLY_TO ||
-      "hello@thefixflowapp.com";
+const replyTo = `enquiries+${finalRequestId}@send.thefixflowapp.com`;
 
-    const subject = subjectIn || `Your estimate from ${traderName}`;
+const subject = subjectIn || `Your estimate from ${traderName}`;
 
     const appUrl =
   process.env.NEXT_PUBLIC_SITE_URL ||

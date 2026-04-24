@@ -129,7 +129,8 @@ export default function QuickEstimateCard({
   const [firstViewedAt, setFirstViewedAt] = useState<string | null>(null);
   const [lastViewedAt, setLastViewedAt] = useState<string | null>(null);
   const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
-
+const [draftSaved, setDraftSaved] = useState(false);
+const [quickPriceSent, setQuickPriceSent] = useState(false);
   const isAccepted = estimateStatus === "accepted";
 
   const urgency = String(selectedQuote?.urgency || "").toLowerCase();
@@ -217,21 +218,27 @@ export default function QuickEstimateCard({
         return;
       }
 
-      if (selectedQuote?.job_type) {
-        const { data: historyData } = await supabase
-          .from("quick_estimates")
-          .select("total_amount")
-          .ilike("job_type", `%${selectedQuote.job_type}%`)
-          .limit(10);
+if (selectedQuote?.job_type) {
+  const { data: historyData, error } = await supabase
+    .from("quick_estimates")
+    .select("*")
+    .limit(10);
 
-        if (historyData && historyData.length > 0) {
-          const avg =
-            historyData.reduce((sum, r) => sum + Number(r.total_amount || 0), 0) /
-            historyData.length;
+  if (error) {
+    console.error("quick_estimates history error:", error);
+    return;
+  }
 
-          setAveragePrice(Math.round(avg));
-        }
-      }
+  if (historyData && historyData.length > 0) {
+    const avg =
+      historyData.reduce(
+        (sum, r) => sum + Number(r.total_amount || 0),
+        0
+      ) / historyData.length;
+
+    setAveragePrice(Math.round(avg));
+  }
+}
 
       const existing = data as ExistingEstimate | null;
 
@@ -261,114 +268,131 @@ export default function QuickEstimateCard({
     loadExistingEstimate();
   }, [selectedQuote?.id, selectedQuote?.job_type]);
 
-  async function saveEstimate(nextStatus: EstimateStatus) {
-    if (!selectedQuote?.id) return;
+async function saveEstimate(nextStatus: EstimateStatus) {
+  if (!selectedQuote?.id) return;
 
-    setSaving(true);
-    setMsg(null);
+  setSaving(true);
+  setMsg(null);
 
-    let savedEstimateId = estimateId;
+if (nextStatus === "draft") {
+  setDraftSaved(false);
+}
 
-    try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+if (nextStatus === "sent") {
+  setQuickPriceSent(false);
+}
 
-      if (!user) throw new Error("You must be logged in.");
+  let savedEstimateId = estimateId;
 
-      const payload = {
-        request_id: selectedQuote.id,
-        plumber_id: user.id,
-        estimate_type: "rough",
-        labour_amount: labour,
-        materials_amount: materials,
-        other_amount: other,
-        total_amount: total,
-        notes,
-        status: nextStatus,
-        
-      };
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-      if (estimateId) {
-        const { error } = await supabase
-          .from("quick_estimates")
-          .update(payload)
-          .eq("id", estimateId)
-          .eq("plumber_id", user.id);
+    if (!user) throw new Error("You must be logged in.");
 
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase
-          .from("quick_estimates")
-          .insert(payload)
-          .select("id, status")
-          .single();
+    const payload = {
+      request_id: selectedQuote.id,
+      plumber_id: user.id,
+      estimate_type: "rough",
+      labour_amount: labour,
+      materials_amount: materials,
+      other_amount: other,
+      total_amount: total,
+      notes,
+      status: nextStatus,
+    };
 
-        if (error) throw error;
+    if (estimateId) {
+      const { error } = await supabase
+        .from("quick_estimates")
+        .update(payload)
+        .eq("id", estimateId)
+        .eq("plumber_id", user.id);
 
-        savedEstimateId = data.id;
-        setEstimateId(data.id);
-        setEstimateStatus(data.status as EstimateStatus);
-      }
+      if (error) throw error;
+    } else {
+      const { data, error } = await supabase
+        .from("quick_estimates")
+        .insert(payload)
+        .select("id, status")
+        .single();
 
-      if (nextStatus === "sent") {
-        const to = String(selectedQuote.customer_email || "").trim();
-        if (!to) throw new Error("Customer email is missing.");
-        if (!savedEstimateId) throw new Error("Estimate ID missing.");
+      if (error) throw error;
 
-        const traderName =
-          trader?.business_name || trader?.display_name || "Your business";
-
-        const traderLogoUrl = trader?.logo_url || null;
-
-        const res = await fetch("/api/enquiries/send-estimate", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            estimateId: savedEstimateId,
-            requestId: selectedQuote.id,
-            plumberId: user.id,
-            to,
-            customerName: selectedQuote.customer_name || "there",
-            traderName,
-            traderLogoUrl,
-            jobNumber: selectedQuote.job_number || "Estimate",
-            jobType: selectedQuote.job_type || "Job",
-            labourAmount: labour,
-            materialsAmount: materials,
-            otherAmount: other,
-            totalAmount: total,
-            notes,
-          }),
-        });
-
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          throw new Error(data?.error || "Estimate email failed.");
-        }
-      }
-
-      setEstimateStatus(nextStatus);
-
-      if (nextStatus === "accepted") {
-        setAcceptedAt(new Date().toISOString());
-      }
-
-      setMsg(
-        nextStatus === "draft"
-          ? "Guide price saved"
-          : nextStatus === "accepted"
-          ? "Guide price accepted"
-          : "Guide price sent"
-      );
-    } catch (e: any) {
-      setMsg(e?.message || "Something went wrong");
-    } finally {
-      setSaving(false);
+      savedEstimateId = data.id;
+      setEstimateId(data.id);
+      setEstimateStatus(data.status as EstimateStatus);
     }
+
+    if (nextStatus === "sent") {
+      const to = String(selectedQuote.customer_email || "").trim();
+      if (!to) throw new Error("Customer email is missing.");
+      if (!savedEstimateId) throw new Error("Estimate ID missing.");
+
+      const traderName =
+        trader?.business_name || trader?.display_name || "Your business";
+
+      const traderLogoUrl = trader?.logo_url || null;
+
+      const res = await fetch("/api/enquiries/send-estimate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          estimateId: savedEstimateId,
+          requestId: selectedQuote.id,
+          plumberId: user.id,
+          to,
+          customerName: selectedQuote.customer_name || "there",
+          traderName,
+          traderLogoUrl,
+          jobNumber: selectedQuote.job_number || "Estimate",
+          jobType: selectedQuote.job_type || "Job",
+          labourAmount: labour,
+          materialsAmount: materials,
+          otherAmount: other,
+          totalAmount: total,
+          notes,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || "Estimate email failed.");
+      }
+    }
+
+    setEstimateStatus(nextStatus);
+
+    if (nextStatus === "accepted") {
+      setAcceptedAt(new Date().toISOString());
+    }
+
+    if (nextStatus === "draft") {
+      setDraftSaved(true);
+      window.setTimeout(() => setDraftSaved(false), 2000);
+    }
+
+    if (nextStatus === "sent") {
+      setQuickPriceSent(true);
+      window.setTimeout(() => setQuickPriceSent(false), 2000);
+    }
+
+    setMsg(
+      nextStatus === "draft"
+        ? "Guide price saved"
+        : nextStatus === "accepted"
+        ? "Guide price accepted"
+        : "Guide price sent"
+    );
+  } catch (e: any) {
+    setMsg(e?.message || "Something went wrong");
+  } finally {
+    setSaving(false);
   }
+}
 
   function niceActivityDate(iso?: string | null) {
     if (!iso) return "—";
@@ -578,25 +602,29 @@ export default function QuickEstimateCard({
             onChange={(e) => setNotes(e.target.value)}
           />
 
-          <div className="ff-estimateActions">
-            <button
-              type="button"
-              className="ff-btn ff-btnGhost ff-btnSm"
-              onClick={() => saveEstimate("draft")}
-              disabled={saving || total <= 0}
-            >
-              {saving ? "Saving..." : "Save draft"}
-            </button>
+<div className="ff-estimateActions">
+  <button
+    type="button"
+    className={`ff-btn ff-btnSm ${
+      draftSaved ? "ff-btnSuccess" : "ff-btnGhost"
+    }`}
+    onClick={() => saveEstimate("draft")}
+    disabled={saving || total <= 0}
+  >
+    {saving ? "Saving..." : draftSaved ? "Saved ✓" : "Save draft"}
+  </button>
 
-            <button
-              type="button"
-              className="ff-btn ff-btnPrimary ff-btnSm"
-              onClick={() => saveEstimate("sent")}
-              disabled={saving || total <= 0}
-            >
-              {saving ? "Sending..." : "Send quick price"}
-            </button>
-          </div>
+  <button
+    type="button"
+    className={`ff-btn ff-btnSm ${
+      quickPriceSent ? "ff-btnSuccess" : "ff-btnPrimary"
+    }`}
+    onClick={() => saveEstimate("sent")}
+    disabled={saving || total <= 0}
+  >
+    {saving ? "Sending..." : quickPriceSent ? "Sent ✓" : "Send quick price"}
+  </button>
+</div>
 
           <div className="ff-estimateDivider" />
 

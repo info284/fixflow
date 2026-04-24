@@ -781,16 +781,33 @@ appearance: none;
 
 .ff-btnSuccess {
   background: #16a34a;
-  border-color: #16a34a;
   color: #fff;
+  border: 1px solid #16a34a;
+  box-shadow: 0 8px 20px rgba(22, 163, 74, 0.18);
 }
 
 .ff-btnSuccess:hover {
   background: #15803d;
+  border-color: #15803d;
 }
 
 .ff-btnFull {
   width: 100%;
+}
+
+.ff-followUpBanner {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 12px;
+margin: 0 0 16px;
+padding: 14px 16px;
+border-radius: 14px;
+background: #fff7ed;
+border: 1px solid #fed7aa;
+font-size: 14px;
+font-weight: 700;
+color: #9a3412;
 }
 
 .ff-btnPulse {
@@ -825,7 +842,84 @@ appearance: none;
       0 10px 24px rgba(36, 91, 255, 0.18);
   }
 }
+.ff-emptyState {
+  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  gap: 10px;
+}
 
+.ff-emptyIcon {
+  font-size: 28px;
+  line-height: 1;
+  opacity: 0.65;
+}
+
+.ff-emptyTitle {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.ff-emptyText {
+  max-width: 280px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.ff-aiRunStatus {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  animation: fadeIn 0.2s ease;
+}
+
+.ff-aiRunStatus {
+  margin-top: 14px;
+  max-width: 420px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #E6ECF5;
+  background: #F8FAFF;
+  color: #1F355C;
+}
+
+/* running (soft navy/blue) */
+.ff-aiRunStatus--running {
+  background: #F4F7FF;
+  color: #2A4365;
+  border-color: #D6E4FF;
+}
+
+/* sent (soft green, not neon) */
+.ff-aiRunStatus--sent {
+  background: #F0FDF4;
+  color: #166534;
+  border-color: #BBF7D0;
+}
+
+/* draft (neutral FixFlow grey) */
+.ff-aiRunStatus--draft {
+  background: #F8FAFC;
+  color: #334155;
+  border-color: #E2E8F0;
+}
+
+/* error (soft red, not harsh) */
+.ff-aiRunStatus--error {
+  background: #FEF2F2;
+  color: #991B1B;
+  border-color: #FECACA;
+}
 /* =========================
    INPUTS / LABELS / PILLS
 ========================== */

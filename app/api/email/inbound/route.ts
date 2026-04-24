@@ -217,11 +217,16 @@ export async function POST(req: Request) {
       We match trader by notify_email and either attach to an existing enquiry
       or create a new one.
     */
-    const { data: profile, error: profileError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, notify_email")
-      .ilike("notify_email", forwardedByEmail)
-      .maybeSingle();
+
+
+console.log("EMAIL LOOKUP:", forwardedByEmail);
+console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
+
+const { data: profile, error: profileError } = await supabaseAdmin
+  .from("profiles")
+  .select("id, notify_email")
+  .ilike("notify_email", forwardedByEmail)
+  .maybeSingle();
 
     if (profileError) {
       console.error("Profile lookup error:", profileError);

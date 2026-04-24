@@ -314,8 +314,9 @@ const existingEnquiry = await findExistingEnquiry({
         .from("quote_requests")
 .insert({
   plumber_id: profile.id,
-  customer_name: customerName,
+  customer_name: customerName || "Customer",
   customer_email: customerEmail,
+
   details,
 
   status: "new",
@@ -324,7 +325,9 @@ const existingEnquiry = await findExistingEnquiry({
   job_type: "General",
   urgency: "Flexible",
   postcode: "Unknown",
+  address: "Unknown",
   property_type: "Unknown",
+  problem_location: "Unknown",
 
   ai_thread_status: "customer_replied",
   ai_last_customer_message_at: new Date().toISOString(),

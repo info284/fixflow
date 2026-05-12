@@ -7,31 +7,31 @@ export default function PayPage({
 }: {
   params: Promise<{ invoiceId: string }>;
 }) {
-  useEffect(() => {
-    const run = async () => {
-      const p = await params;
+useEffect(() => {
+  const run = async () => {
+    const p = await params;
 
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          invoiceId: p.invoiceId,
-        }),
-      });
+    alert("Invoice ID: " + p.invoiceId);
 
-      const data = await res.json();
+    const res = await fetch("/api/stripe/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ invoiceId: p.invoiceId }),
+    });
 
-      if (data?.url) {
-        window.location.href = data.url;
-      } else {
-        console.error("No checkout URL returned", data);
-      }
-    };
+    const data = await res.json();
 
-    run();
-  }, [params]);
+    alert(JSON.stringify(data));
+
+    if (data?.url) {
+      window.location.href = data.url;
+    }
+  };
+
+  run();
+}, [params]);
 
   return (
     <div

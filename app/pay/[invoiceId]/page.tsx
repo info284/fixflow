@@ -1,13 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function PayPage({
   params,
 }: {
-  params: { invoiceId: string };
+  params: Promise<{ invoiceId: string }>;
 }) {
-  const invoiceId = params.invoiceId;
+  const [invoiceId, setInvoiceId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      const p = await params;
+      setInvoiceId(p.invoiceId);
+    };
+
+    load();
+  }, [params]);
 
   useEffect(() => {
     if (!invoiceId) return;

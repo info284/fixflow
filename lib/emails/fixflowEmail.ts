@@ -41,7 +41,7 @@ closingHtml = `
           <div style="font-size:32px; line-height:1.1; font-weight:800; color:#FFFFFF; margin-bottom:12px;">
             ${title}
           </div>
-          <div style="width:170px; height:4px; background:#245BFF; border-radius:999px;"></div>
+          <div style="width:170px; height:4px;  border-radius:999px;"></div>
         </div>
 
         <div style="padding:24px;">

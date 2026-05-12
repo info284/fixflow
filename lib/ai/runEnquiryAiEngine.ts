@@ -221,21 +221,27 @@ async function sendAiMessage({
   if (!sendRes.ok) {
     throw new Error(sendJson?.error || "Failed to send customer email");
   }
+const isFollowUpMessage = decision.message_type === "follow_up";
+const followUpsUsed = 0;
 
-  const { error } = await supabaseAdmin.from("enquiry_messages").insert({
-    request_id: enquiryId,
-    plumber_id: plumberId,
-    direction: "out",
-    channel: "email",
-    subject,
-    body_text: trimmedMessage,
-    to_email: customerEmail,
-    sent_by: "ai",
-    message_type: decision.message_type,
-    automation_reason: decision.automation_reason,
-    ai_confidence: decision.confidence,
-    requires_review: false,
-  });
+const { error } = await supabaseAdmin.from("enquiry_messages").insert({
+  request_id: enquiryId,
+  plumber_id: plumberId,
+  direction: "out",
+  channel: "email",
+  subject,
+  body_text: trimmedMessage,
+  to_email: customerEmail,
+  sent_by: "ai",
+  message_type: decision.message_type,
+  automation_reason: decision.automation_reason,
+  ai_confidence: decision.confidence,
+  requires_review: false,
+
+  // 👇 ADD THESE (use your existing logic)
+  is_follow_up: isFollowUpMessage,
+  follow_up_number: isFollowUpMessage ? followUpsUsed + 1 : null,
+});
 
   if (error) {
     throw new Error(error.message);

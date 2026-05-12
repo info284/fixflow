@@ -3,7 +3,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
-
+import "../enquiries/enquiries.css";
+import { isRealJob } from "@/lib/jobCounts";
 /* ================================
    TYPES
 ================================ */
@@ -20,6 +21,7 @@ type EnquiryMessageRow = {
   to_email: string | null;
   resend_id: string | null;
   created_at: string;
+  resolved_at?: string | null;
 };
 
 type QuoteRequestRow = {
@@ -35,13 +37,14 @@ type QuoteRequestRow = {
   urgency: string | null;
   details: string | null;
   status: string | null;
-
+stage: string | null;
   created_at: string;
   trader_notes: string | null;
   calendar_html_link: string | null;
   site_visit_start: string | null;
   job_booked_at: string | null;
   job_calendar_html_link: string | null;
+  photo_count: number | null;
 };
 
 type QuoteRow = {
@@ -67,6 +70,8 @@ type QuoteRow = {
   status: string | null;
   sent_at?: string | null;
   created_at: string;
+  last_chased_at?: string | null;
+chase_count?: number | null;
 };
 
 type SiteVisitRow = {
@@ -96,14 +101,19 @@ type JobTab =
   | "notes"
   | "documents";
 
-type ToastState = {
-  text: string;
-  type?: "success" | "error";
-} | null;
+
+type JobStatus =
+  | "approved"
+  | "booked"
+  | "in_progress"
+  | "complete"
+  | "invoiced"
+  | "paid";
 
 /* ================================
    DESIGN CONSTS
 ================================ */
+
 
 const FF = {
   pageBg: "#F6F8FC",
@@ -149,7 +159,87 @@ const DOCUMENT_LABELS = [
 /* ================================
    HELPERS
 ================================ */
+function getJobTimeHint(
+  request?: QuoteRequestRow | null,
+  visit?: SiteVisitRow | null,
+  quote?: QuoteRow | null
+) {
+  const status = normalizeJobStatus(quote, request, visit);
 
+  const now = new Date();
+
+  const jobDate =
+    request?.job_booked_at || visit?.starts_at || null;
+
+  if (status === "approved") {
+    return {
+      text: "Needs booking",
+      cls: "ff-leftHintAmber",
+    };
+  }
+
+  if (status === "booked" && jobDate) {
+    const d = new Date(jobDate);
+    const diff = d.getTime() - now.getTime();
+    const hours = diff / (1000 * 60 * 60);
+
+    if (hours < 0) {
+      return {
+        text: "Job overdue",
+        cls: "ff-leftHintRed",
+      };
+    }
+
+    if (hours < 6) {
+      return {
+        text: "Job soon",
+        cls: "ff-leftHintRed",
+      };
+    }
+
+    if (hours < 24) {
+      return {
+        text: "Job today",
+        cls: "ff-leftHintAmber",
+      };
+    }
+
+    if (hours < 48) {
+      return {
+        text: "Job tomorrow",
+        cls: "ff-leftHintBlue",
+      };
+    }
+
+    return {
+      text: "Upcoming job",
+      cls: "ff-leftHintBlue",
+    };
+  }
+
+  if (status === "complete") {
+    return {
+      text: "Send invoice",
+      cls: "ff-leftHintAmber",
+    };
+  }
+
+  if (status === "invoiced") {
+    return {
+      text: "Awaiting payment",
+      cls: "ff-leftHintBlue",
+    };
+  }
+
+  if (status === "paid") {
+    return {
+      text: "Complete",
+      cls: "ff-leftHintGreen",
+    };
+  }
+
+  return null;
+}
 function cleanId(v?: string | null) {
   const s = String(v || "").trim();
   if (!s || s === "null" || s === "undefined") return "";
@@ -197,6 +287,22 @@ function niceDateOnly(iso?: string | null) {
   }
 }
 
+function timeAgo(iso?: string | null) {
+  if (!iso) return "";
+
+  const now = Date.now();
+  const then = new Date(iso).getTime();
+
+  const diff = now - then;
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(hours / 24);
+
+  if (hours < 1) return "just now";
+  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  return `${days} day${days > 1 ? "s" : ""} ago`;
+}
+
 function telHref(phone?: string | null) {
   if (!phone) return "#";
   return `tel:${String(phone).replace(/[^\d+]/g, "")}`;
@@ -223,23 +329,18 @@ function formatPostcode(pc?: string | null) {
   if (clean.length <= 3) return clean;
   return clean.slice(0, -3) + " " + clean.slice(-3);
 }
-
 function urgencyChip(u?: string | null) {
-  const v = String(u || "").toLowerCase();
+const v = String(u || "").toLowerCase();
 
-  if (v.includes("asap") || v.includes("urgent") || v.includes("today")) {
-    return { text: "ASAP", cls: "ff-chip ff-chipRed" };
-  }
+if (v.includes("asap") || v.includes("urgent") || v.includes("today")) {
+return { text: "ASAP", cls: "ff-chip ff-chip--asap" };
+}
 
-  if (v.includes("this week") || v.includes("this-week")) {
-    return { text: "This week", cls: "ff-chip ff-chipAmber" };
-  }
+if (v.includes("this week") || v.includes("this-week") || v.includes("soon")) {
+return { text: "This week", cls: "ff-chip ff-chip--soon" };
+}
 
-  if (v.includes("next week") || v.includes("next-week")) {
-    return { text: "Next week", cls: "ff-chip ff-chipGreen" };
-  }
-
-  return { text: "Flexible", cls: "ff-chip ff-chipBlue" };
+return { text: "Flexible", cls: "ff-chip ff-chip--flexible" };
 }
 
 function getUrgencyGlowClass(urgency?: string | null) {
@@ -313,14 +414,83 @@ function hasIncomingReply(messages: EnquiryMessageRow[]) {
 }
 
 function getJobAlert(messages: EnquiryMessageRow[]) {
-  if (hasIncomingReply(messages)) {
+if (hasIncomingReply(messages)) {
+return {
+text: "Customer replied",
+cls: "ff-chip ff-chip--replied",
+};
+}
+
+return null;
+}
+
+function getJobNextAction(
+  quote?: QuoteRow | null,
+  request?: QuoteRequestRow | null,
+  visit?: SiteVisitRow | null
+) {
+  const status = normalizeJobStatus(quote, request, visit);
+
+  if (status === "approved") {
     return {
-      text: "Customer replied",
-      cls: "ff-chip ff-chipBlue",
+      title: "Book this job in",
+      description: "The customer has said yes — lock in a date before they go elsewhere.",
+      button: "Create booking",
+      action: "booking",
     };
   }
 
-  return null;
+  if (status === "booked") {
+    return {
+      title: "Keep the customer warm",
+      description: "Send a quick update before the job so they feel confident and ready.",
+      button: "Send update",
+      action: "message",
+    };
+  }
+
+  if (status === "in_progress") {
+    return {
+      title: "Finish strong",
+      description: "Complete the work and keep notes, photos and updates in one place.",
+      button: "Mark complete",
+      action: "complete",
+    };
+  }
+
+  if (status === "complete") {
+    return {
+      title: "Send the invoice",
+      description: "Don’t delay — send the invoice while the job is fresh.",
+      button: "Create invoice",
+      action: "invoice",
+    };
+  }
+
+  if (status === "invoiced") {
+    return {
+      title: "Get paid",
+      description: "Follow up if needed — this is where cash flow matters.",
+      button: "Mark as paid",
+      action: "paid",
+    };
+  }
+
+  if (status === "paid") {
+    return {
+      title: "Lock in future work",
+      description: "Ask if they’re happy and turn this into repeat business or referrals.",
+      button: "Ask if happy",
+      action: "happy",
+    };
+  }
+
+  return {
+    title: "Move job forward",
+    description: "Take the next step to keep this job progressing.",
+    button: null,
+    action: null,
+  };
 }
 
 function labelText(value?: string | null) {
@@ -381,79 +551,17 @@ function jobStatusChip(
 ) {
   const s = normalizeJobStatus(quote, request, visit);
 
-  if (s === "paid") return { text: "Paid", cls: "ff-chip ff-chipGreen" };
-  if (s === "invoiced") return { text: "Invoiced", cls: "ff-chip ff-chipBlue" };
-  if (s === "complete") return { text: "Complete", cls: "ff-chip ff-chipGreen" };
-  if (s === "in_progress") {
-    return { text: "In progress", cls: "ff-chip ff-chipBlue" };
-  }
-  if (s === "booked") return { text: "Booked", cls: "ff-chip ff-chipGreen" };
+  if (s === "paid") return { text: "Paid", cls: "ff-jobChip ff-jobChipGreen" };
+  if (s === "invoiced") return { text: "Invoiced", cls: "ff-jobChip ff-jobChipBlue" };
+  if (s === "complete") return { text: "Complete", cls: "ff-jobChip ff-jobChipGreen" };
+  if (s === "in_progress") return { text: "In_progress", cls: "ff-jobChip ff-jobChipBlue" };
+  if (s === "booked") return { text: "Booked", cls: "ff-jobChip ff-jobChipGreen" };
 
-  return { text: "Approved", cls: "ff-chip ff-chipAmber" };
+  return { text: "Approved", cls: "ff-jobChip ff-jobChipAmber" };
 }
 
-function getStageIndex(
-  quote?: QuoteRow | null,
-  request?: QuoteRequestRow | null,
-  visit?: SiteVisitRow | null
-) {
-  const s = normalizeJobStatus(quote, request, visit);
 
-  if (s === "paid") return 5;
-  if (s === "invoiced") return 4;
-  if (s === "complete") return 3;
-  if (s === "in_progress") return 2;
-  if (s === "booked") return 1;
-  return 0;
-}
 
-function getNextAction(
-  quote?: QuoteRow | null,
-  request?: QuoteRequestRow | null,
-  visit?: SiteVisitRow | null
-) {
-  const s = normalizeJobStatus(quote, request, visit);
-
-  if (s === "paid") {
-    return {
-      title: "Job closed",
-      text: "This job is complete and paid. Keep documents, notes and files here for future reference.",
-    };
-  }
-
-  if (s === "invoiced") {
-    return {
-      title: "Await payment",
-      text: "The invoice has gone out. The next step is payment and then the job can be fully closed.",
-    };
-  }
-
-  if (s === "complete") {
-    return {
-      title: "Mark invoiced",
-      text: "The work is complete. Upload any final documents and move this job to invoiced.",
-    };
-  }
-
-  if (s === "in_progress") {
-    return {
-      title: "Mark complete",
-      text: "The job is underway. Keep notes, files and customer updates here until the work is finished.",
-    };
-  }
-
-  if (s === "booked") {
-    return {
-      title: "Start job",
-      text: "This job is booked in. Use this page to manage the visit, files, notes and customer communication.",
-    };
-  }
-
-  return {
-    title: "Create booking",
-    text: "This work has been approved but not booked in yet. Add a confirmed date so it moves properly into the live workflow.",
-  };
-}
 
 function getHealthItems(args: {
   quote: QuoteRow | null;
@@ -545,16 +653,7 @@ function getMissingItems(args: {
   return out;
 }
 
-function stageItemsForJobs() {
-  return [
-    "Approved",
-    "Booked",
-    "In progress",
-    "Complete",
-    "Invoiced",
-    "Paid",
-  ];
-}
+
 
 async function listFolderFiles(folder: string): Promise<FileItem[]> {
   const { data, error } = await supabase.storage.from(BUCKET).list(folder, {
@@ -616,7 +715,14 @@ const [quoteMap, setQuoteMap] = useState<Record<string, QuoteRow | null>>({});
   );
   const [visitMap, setVisitMap] = useState<Record<string, SiteVisitRow | null>>({});
   const [threadMap, setThreadMap] = useState<Record<string, EnquiryMessageRow[]>>({});
-
+const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+useEffect(() => {
+  return () => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+  };
+}, []);
 const [selectedRequestIdState, setSelectedRequestIdState] = useState<string | null>(
   requestIdParam || null
 );
@@ -628,11 +734,21 @@ const selectedRequestId = requestIdParam || selectedRequestIdState;
   const [postcodeFilter, setPostcodeFilter] = useState("");
 
   const [rightTab, setRightTab] = useState<JobTab>("overview");
-
+const [issueOnly, setIssueOnly] = useState(false);
   const [thread, setThread] = useState<EnquiryMessageRow[]>([]);
   const [threadLoading, setThreadLoading] = useState(false);
   const [expandedMsg, setExpandedMsg] = useState<EnquiryMessageRow | null>(null);
+const [confirmModal, setConfirmModal] = useState<{
+  title: string;
+  message: string;
+  confirmText: string;
+  danger?: boolean;
+  onConfirm: () => void | Promise<void>;
+} | null>(null);
 
+const [callModalOpen, setCallModalOpen] = useState(false);
+const [callOutcome, setCallOutcome] = useState("Confirmed job");
+const [callNote, setCallNote] = useState("");
   const [replyTo, setReplyTo] = useState("");
   const [replySubject, setReplySubject] = useState("Re:");
   const [replyBody, setReplyBody] = useState("");
@@ -652,7 +768,8 @@ const selectedRequestId = requestIdParam || selectedRequestIdState;
   const [custFiles, setCustFiles] = useState<FileItem[]>([]);
   const [traderFiles, setTraderFiles] = useState<FileItem[]>([]);
   const [jobDocs, setJobDocs] = useState<FileItem[]>([]);
-
+const [reviewSending, setReviewSending] = useState(false);
+const [reviewSent, setReviewSent] = useState(false);
   const [filesLoading, setFilesLoading] = useState(false);
   const [docsLoading, setDocsLoading] = useState(false);
   const [fileMsg, setFileMsg] = useState<string | null>(null);
@@ -687,34 +804,34 @@ const selectedQuote = useMemo(() => {
     ? jobStatusChip(selectedQuote, selectedRequest, selectedVisit)
     : null;
 
-  const currentStage = selectedRequest
-    ? getStageIndex(selectedQuote, selectedRequest, selectedVisit)
-    : 0;
+ 
 
-  const nextAction = selectedRequest
-    ? getNextAction(selectedQuote, selectedRequest, selectedVisit)
-    : { title: "", text: "" };
 
-  const stageItems = useMemo(() => stageItemsForJobs(), []);
 
-  function pushToast(text: string, type: "success" | "error" = "success") {
-    setToast({ text, type });
-    window.clearTimeout((pushToast as any)._t);
-    (pushToast as any)._t = window.setTimeout(() => setToast(null), 2400);
+
+
+function pushToast(text: string, type: "success" | "error" = "success") {
+  setToast({ text, type });
+
+  if (toastTimerRef.current) {
+    clearTimeout(toastTimerRef.current);
   }
+
+  toastTimerRef.current = setTimeout(() => {
+    setToast(null);
+  }, 3000);
+}
 
 async function loadJobsForTrader(plumberId: string) {
   const { data, error } = await supabase
     .from("quote_requests")
-    .select(
-      "id,job_number,plumber_id,customer_name,customer_email,customer_phone,postcode,address,job_type,urgency,details,status,created_at,trader_notes,calendar_html_link,site_visit_start,job_booked_at,job_calendar_html_link"
-    )
+.select(
+  "id,job_number,plumber_id,customer_name,customer_email,customer_phone,postcode,address,job_type,urgency,details,status,stage,created_at,trader_notes,calendar_html_link,site_visit_start,job_booked_at,job_calendar_html_link"
+)
     .eq("plumber_id", plumberId)
     .order("created_at", { ascending: false });
 
-  console.log("Jobs query user:", plumberId);
-  console.log("Jobs query data:", data);
-  console.log("Jobs query error:", error);
+
 
   if (error) {
     pushToast(`Load failed: ${error.message}`, "error");
@@ -753,16 +870,14 @@ async function loadQuoteMap(plumberId: string, requestIds: string[]) {
 
   const { data, error } = await supabase
     .from("quotes")
-    .select(
-      "id,plumber_id,request_id,customer_name,customer_email,customer_phone,postcode,address,job_type,urgency,vat_rate,subtotal,note,job_details,trader_ref,status,sent_at,created_at"
-    )
+   .select(
+  "id,plumber_id,request_id,customer_name,customer_email,customer_phone,postcode,address,job_type,urgency,vat_rate,subtotal,note,job_details,trader_ref,status,sent_at,created_at,last_chased_at,chase_count"
+)
     .eq("plumber_id", plumberId)
     .in("request_id", requestIds)
     .order("created_at", { ascending: false });
 
-  console.log("loadQuoteMap requestIds:", requestIds);
-  console.log("loadQuoteMap data:", data);
-  console.log("loadQuoteMap error:", error);
+
 
   if (error) {
     console.error("loadQuoteMap error:", error);
@@ -772,47 +887,17 @@ async function loadQuoteMap(plumberId: string, requestIds: string[]) {
 
   const map = { ...emptyMap };
 
-  for (const row of (data || []) as QuoteRow[]) {
-    if (!row.request_id) continue;
-    if (!map[row.request_id]) {
-      map[row.request_id] = row;
-    }
+for (const row of (data || []) as QuoteRow[]) {
+  if (!row.request_id) continue;
+  if (!map[row.request_id]) {
+    map[row.request_id] = row;
   }
+}
 
   setQuoteMap(map);
 }
 
-  async function loadRequests(plumberId: string, requestIds: string[]) {
-    if (!requestIds.length) {
-      setRequestMap({});
-      return;
-    }
 
-    const { data, error } = await supabase
-      .from("quote_requests")
-      .select(
-        "id,job_number,plumber_id,customer_name,customer_email,customer_phone,postcode,address,job_type,urgency,details,status,created_at,trader_notes,calendar_html_link,site_visit_start,job_booked_at,job_calendar_html_link"
-      )
-      .eq("plumber_id", plumberId)
-      .in("id", requestIds);
-
-    if (error) {
-      console.error(error);
-      return;
-    }
-
-    const map: Record<string, QuoteRequestRow | null> = {};
-    requestIds.forEach((id) => {
-      map[id] = null;
-    });
-
-    (data || []).forEach((row) => {
-      const r = row as QuoteRequestRow;
-      map[r.id] = r;
-    });
-
-    setRequestMap(map);
-  }
 
   async function loadSiteVisitMap(plumberId: string, requestIds: string[]) {
     if (!requestIds.length) {
@@ -834,9 +919,12 @@ async function loadQuoteMap(plumberId: string, requestIds: string[]) {
       map[id] = null;
     });
 
-    (data || []).forEach((v: any) => {
-      if (!map[v.request_id]) map[v.request_id] = v as SiteVisitRow;
-    });
+ (data || []).forEach((v) => {
+  const visit = v as SiteVisitRow;
+  if (!map[visit.request_id]) {
+    map[visit.request_id] = visit;
+  }
+});
 
     setVisitMap(map);
   }
@@ -1013,7 +1101,7 @@ if (selectedRequest) {
     setNotesSaving(false);
   }
 
- async function updateJobStatus(nextStatus: string, okText: string) {
+async function updateJobStatus(nextStatus: JobStatus, okText: string){
   if (!uid || !selectedRequest) return;
 
   if (selectedQuote) {
@@ -1065,9 +1153,9 @@ if (selectedRequest) {
   pushToast(okText);
 }
 
-  async function markInProgress() {
-    await updateJobStatus("in progress", "Job marked in progress");
-  }
+async function markInProgress() {
+  await updateJobStatus("in_progress", "Job marked in progress");
+}
 
   async function markComplete() {
     await updateJobStatus("complete", "Job marked complete");
@@ -1085,10 +1173,46 @@ if (selectedRequest) {
     router.push(`/dashboard/invoices?requestId=${encodeURIComponent(requestId)}`);
   }
 
-  function goToCreateBooking(requestId: string) {
-    router.push(`/dashboard/bookings?requestId=${encodeURIComponent(requestId)}`);
+function goToCreateBooking(requestId: string) {
+  setRightTab("schedule");
+}
+
+async function handleJobAction(action: string | null) {
+  if (!action || !selectedRequest) return;
+if (action === "message") {
+  setRightTab("messages");
+  return;
+}
+
+if (action === "happy") {
+  await sendHappyCheckMessage();
+  return;
+}
+  if (action === "booking") {
+    goToCreateBooking(selectedRequest.id);
+    return;
   }
 
+  if (action === "start") {
+    await markInProgress();
+    return;
+  }
+
+  if (action === "complete") {
+    await markComplete();
+    return;
+  }
+
+  if (action === "invoice") {
+    goToCreateInvoice(selectedRequest.id);
+    return;
+  }
+
+  if (action === "paid") {
+    await markPaid();
+  }
+
+}
   async function saveJobBookingDate() {
     if (!uid || !selectedRequest) return;
 
@@ -1213,42 +1337,321 @@ if (selectedRequest) {
     e.target.value = "";
   }
 
-  async function deleteTraderFile(path: string) {
-    if (!selectedRequest) return;
+async function deleteTraderFile(path: string) {
+  if (!selectedRequest) return;
 
-    const ok = window.confirm("Delete this file?");
-    if (!ok) return;
+  const requestId = selectedRequest.id;
 
-    const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  setConfirmModal({
+    title: "Delete file",
+    message: "Are you sure you want to delete this file?",
+    confirmText: "Delete",
+    danger: true,
+    onConfirm: async () => {
+      setConfirmModal(null);
 
-    if (error) {
-      console.error(error);
-      pushToast("Couldn’t delete file", "error");
-      return;
-    }
+      const { error } = await supabase.storage.from(BUCKET).remove([path]);
 
-    await loadFiles(selectedRequest.id);
-    pushToast("File deleted");
+      if (error) {
+        console.error(error);
+        pushToast("Couldn’t delete file", "error");
+        return;
+      }
+
+      await loadFiles(requestId);
+      pushToast("File deleted");
+    },
+  });
+}
+async function deleteFolderFiles(folder: string) {
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .list(folder);
+
+  if (error || !data) return;
+
+  const paths = data.map((file) => `${folder}/${file.name}`);
+
+  if (paths.length) {
+    await supabase.storage.from(BUCKET).remove(paths);
   }
+}
 
   async function deleteJobDoc(path: string) {
-    if (!selectedRequest) return;
+  if (!selectedRequest) return;
 
-    const ok = window.confirm("Delete this document?");
-    if (!ok) return;
+  const requestId = selectedRequest.id;
 
-    const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  setConfirmModal({
+    title: "Delete document",
+    message: "Are you sure you want to delete this document?",
+    confirmText: "Delete",
+    danger: true,
+    onConfirm: async () => {
+      setConfirmModal(null);
 
-    if (error) {
-      console.error(error);
-      pushToast("Couldn’t delete document", "error");
-      return;
-    }
+      const { error } = await supabase.storage.from(BUCKET).remove([path]);
 
-    await loadDocuments(selectedRequest.id);
-    pushToast("Document deleted");
+      if (error) {
+        console.error(error);
+        pushToast("Couldn’t delete document", "error");
+        return;
+      }
+
+      await loadDocuments(requestId);
+      pushToast("Document deleted");
+    },
+  });
+}
+
+
+
+function logCallOnCurrentJob() {
+  setCallModalOpen(true);
+}
+async function submitCallLog() {
+  if (!selectedRequest || !uid || !callNote.trim()) return;
+
+  const requestId = selectedRequest.id;
+
+  const { error } = await supabase.from("enquiry_messages").insert({
+    request_id: requestId,
+    plumber_id: uid,
+    direction: "in",
+    channel: "phone",
+   subject: `Phone call — ${callOutcome}`,
+    body_text: callNote.trim(),
+    from_email: selectedRequest.customer_phone || "Phone call",
+    to_email: null,
+  });
+
+  if (error) {
+    pushToast("Couldn’t log phone call", "error");
+    return;
   }
 
+  await loadThread(requestId, uid);
+  await loadThreadMapForRows([requestId], uid);
+
+  setCallModalOpen(false);
+  setCallNote("");
+  setCallOutcome("General");
+
+  pushToast("Phone call logged");
+}
+async function sendOnMyWayMessage() {
+  if (!selectedRequest || !uid) return;
+
+  const customerName = selectedRequest.customer_name
+    ? titleCase(selectedRequest.customer_name)
+    : "there";
+
+  const message = `Hi ${customerName}, I’m on my way and should be with you shortly.`;
+
+  setReplySubject(`Re: ${selectedRequest.job_type || "Your job"}`);
+  setReplyBody(message);
+
+  try {
+    const res = await fetch("/api/enquiries/send-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requestId: selectedRequest.id,
+        plumberId: uid,
+        to: selectedRequest.customer_email,
+        subject: `Re: ${selectedRequest.job_type || "Your job"}`,
+        body: message,
+        customerName: selectedRequest.customer_name,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Couldn’t send");
+
+    setReplyBody("");
+    await loadThread(selectedRequest.id, uid);
+    await loadThreadMapForRows([selectedRequest.id], uid);
+
+    pushToast("Customer notified — on your way");
+  } catch (err) {
+    console.error(err);
+    pushToast("Couldn’t send on my way message", "error");
+  }
+}
+async function sendRunningLateMessage() {
+  if (!selectedRequest || !uid) return;
+
+  const customerName = selectedRequest.customer_name
+    ? titleCase(selectedRequest.customer_name)
+    : "there";
+
+  const message = `Hi ${customerName}, just to let you know I’m running a little behind, but I’m still coming today. I’ll keep you updated.`;
+
+  try {
+    const res = await fetch("/api/enquiries/send-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requestId: selectedRequest.id,
+        plumberId: uid,
+        to: selectedRequest.customer_email,
+        subject: `Re: ${selectedRequest.job_type || "Your job"}`,
+        body: message,
+        customerName: selectedRequest.customer_name,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Couldn’t send");
+
+    await loadThread(selectedRequest.id, uid);
+    await loadThreadMapForRows([selectedRequest.id], uid);
+
+    pushToast("Customer notified — running late");
+  } catch (err) {
+    console.error(err);
+    pushToast("Couldn’t send running late message", "error");
+  }
+}
+async function sendHappyCheckMessage() {
+  if (!selectedRequest || !uid) return;
+
+  const customerName = selectedRequest.customer_name
+    ? titleCase(selectedRequest.customer_name)
+    : "there";
+
+  const message = `Hi ${customerName}, just checking you’re happy with everything from the job. If there’s anything you need, just let me know.`;
+
+  try {
+    const res = await fetch("/api/enquiries/send-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requestId: selectedRequest.id,
+        plumberId: uid,
+        to: selectedRequest.customer_email,
+        subject: `Re: ${selectedRequest.job_type || "Your job"}`,
+        body: message,
+        customerName: selectedRequest.customer_name,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Couldn’t send");
+
+    await loadThread(selectedRequest.id, uid);
+    await loadThreadMapForRows([selectedRequest.id], uid);
+
+    pushToast("Customer check-in sent");
+  } catch (err) {
+    console.error(err);
+    pushToast("Couldn’t send check-in", "error");
+  }
+}
+async function sendReviewRequest() {
+  if (!selectedRequest) return;
+
+  setReviewSending(true);
+  setReviewSent(false);
+
+  try {
+    const res = await fetch("/api/reviews/request", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ requestId: selectedRequest.id }),
+    });
+
+    const json = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(json?.error || "Couldn’t send review request");
+    }
+
+    setReviewSent(true);
+    pushToast("Review request sent", "success");
+  } catch (err: any) {
+    pushToast(err?.message || "Couldn’t send review request", "error");
+  } finally {
+    setReviewSending(false);
+  }
+}
+
+async function resolveIssue() {
+  if (!selectedRequest || !uid) return;
+
+  const requestId = selectedRequest.id;
+
+  const issueMessages = (threadMap[requestId] || []).filter(
+    (m) =>
+      m.channel === "phone" &&
+      !m.resolved_at &&
+      (m.subject || "").toLowerCase().includes("issue")
+  );
+
+  if (!issueMessages.length) return;
+
+  const ids = issueMessages.map((m) => m.id);
+
+  const { error } = await supabase
+    .from("enquiry_messages")
+    .update({ resolved_at: new Date().toISOString() })
+    .in("id", ids)
+    .eq("plumber_id", uid);
+
+  if (error) {
+    pushToast("Couldn’t resolve issue", "error");
+    return;
+  }
+
+  await loadThread(requestId, uid);
+  await loadThreadMapForRows([requestId], uid);
+
+  pushToast("Issue resolved");
+}
+
+
+
+async function sendIssueFollowUp() {
+  if (!selectedRequest || !uid) return;
+
+  const customerName = selectedRequest.customer_name
+    ? titleCase(selectedRequest.customer_name)
+    : "there";
+
+  const message = `Hi ${customerName}, just following up on the issue mentioned. I’ll get this sorted for you — I’ll keep you updated shortly.`;
+
+  try {
+    const res = await fetch("/api/enquiries/send-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requestId: selectedRequest.id,
+        plumberId: uid,
+        to: selectedRequest.customer_email,
+        subject: `Re: ${selectedRequest.job_type || "Your job"}`,
+        body: message,
+        customerName: selectedRequest.customer_name,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Couldn’t send");
+
+    await loadThread(selectedRequest.id, uid);
+    await loadThreadMapForRows([selectedRequest.id], uid);
+
+    pushToast("Customer updated — issue handled");
+  } catch (err) {
+    console.error(err);
+    pushToast("Couldn’t send message", "error");
+  }
+}
   async function sendReply() {
     if (!selectedRequest || !uid) return;
     if (!replyTo.trim() || !replyBody.trim()) return;
@@ -1259,14 +1662,15 @@ if (selectedRequest) {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          requestId: selectedRequest.id,
-          plumberId: uid,
-          to: replyTo.trim(),
-          subject: replySubject.trim() || `Re: ${selectedQuote?.job_type || "Your job"}`,
-          body: replyBody.trim(),
-          customerName: selectedRequest.customer_name,
-        }),
+body: JSON.stringify({
+  requestId: selectedRequest.id,
+  plumberId: uid,
+  to: replyTo.trim(),
+  subject:
+    replySubject.trim() || `Re: ${selectedRequest.job_type || "Your job"}`,
+  body: replyBody.trim(),
+  customerName: selectedRequest.customer_name,
+}),
       });
 
       const json = await res.json().catch(() => null);
@@ -1288,8 +1692,14 @@ if (selectedRequest) {
 async function deleteJob() {
   if (!uid || !selectedRequest) return;
 
-  const ok = window.confirm("Delete this job?");
-  if (!ok) return;
+setConfirmModal({
+  title: "Delete job",
+  message: "Are you sure you want to delete this job? This cannot be undone.",
+  confirmText: "Delete",
+  danger: true,
+  onConfirm: async () => {
+    setConfirmModal(null);
+
 
   try {
     // 1. Delete messages
@@ -1330,11 +1740,11 @@ async function deleteJob() {
 
     // 5. Delete storage files (best effort)
     try {
-      await Promise.all([
-        supabase.storage.from(BUCKET).remove([customerFolder(selectedRequest.id)]),
-        supabase.storage.from(BUCKET).remove([traderFolder(selectedRequest.id)]),
-        supabase.storage.from(BUCKET).remove([docsFolder(selectedRequest.id)]),
-      ]);
+await Promise.all([
+  deleteFolderFiles(customerFolder(selectedRequest.id)),
+  deleteFolderFiles(traderFolder(selectedRequest.id)),
+  deleteFolderFiles(docsFolder(selectedRequest.id)),
+]);
     } catch (e) {
       console.warn("Storage cleanup failed (non-blocking)", e);
     }
@@ -1368,11 +1778,14 @@ async function deleteJob() {
 
     backToListMobile();
     pushToast("Job deleted");
-  } catch (err: any) {
-    pushToast(`Delete failed: ${err.message}`, "error");
-  }
-}
+      } catch (err: any) {
+        pushToast(`Delete failed: ${err.message}`, "error");
+      }
+    },
+  });
 
+  return;
+}
   useEffect(() => {
     setSelectedRequestIdState(requestIdParam || null);
   }, [requestIdParam]);
@@ -1385,13 +1798,12 @@ async function deleteJob() {
     (async () => {
       setLoading(true);
 
-      console.log("USE EFFECT RUNNING");
+    
 
 const {
   data: { session },
 } = await supabase.auth.getSession();
 
-console.log("SESSION:", session);
 
 const userId = session?.user?.id ?? null;
 
@@ -1491,27 +1903,7 @@ const userId = session?.user?.id ?? null;
 const visibleJobs = useMemo(() => {
   let list = [...jobs].filter((request) => {
     const quote = quoteMap[request.id] || null;
-    const visit = visitMap[request.id] || null;
-
-    const requestStatus = String(request.status || "").toLowerCase().trim();
-    const quoteStatus = String(quote?.status || "").toLowerCase().trim();
-
-    const isRealJob =
-      Boolean(request.job_booked_at) ||
-      requestStatus === "booked" ||
-      requestStatus === "in progress" ||
-      requestStatus === "complete" ||
-      requestStatus === "completed" ||
-      requestStatus === "invoiced" ||
-      requestStatus === "paid" ||
-      quoteStatus === "booked" ||
-      quoteStatus === "in progress" ||
-      quoteStatus === "complete" ||
-      quoteStatus === "completed" ||
-      quoteStatus === "invoiced" ||
-      quoteStatus === "paid";
-
-    return isRealJob;
+    return isRealJob(request, quote);
   });
 
   if (statusFilter) {
@@ -1530,17 +1922,84 @@ const visibleJobs = useMemo(() => {
         .includes(needle)
     );
   }
+if (issueOnly) {
+  list = list.filter((request) =>
+    (threadMap[request.id] || []).some((m) => {
+      const text = `${m.subject || ""} ${m.body_text || ""}`.toLowerCase();
 
+      return (
+        (m.channel === "phone" && !m.resolved_at && text.includes("issue")) ||
+        text.includes("not happy")
+      );
+    })
+  );
+}
   return list;
-}, [jobs, statusFilter, postcodeFilter, quoteMap, visitMap]);
+}, [jobs, statusFilter, postcodeFilter, quoteMap, visitMap, issueOnly, threadMap]);
 
 const sortedJobs = useMemo(() => {
   return [...visibleJobs].sort((a, b) => {
+
     const aSelected = a.id === selectedRequestId;
     const bSelected = b.id === selectedRequestId;
+    const hasIssueA = (threadMap[a.id] || []).some(
+  (m) =>
+    m.channel === "phone" &&
+    (m.subject || "").toLowerCase().includes("issue")
+);
 
+const hasIssueB = (threadMap[b.id] || []).some(
+  (m) =>
+    m.channel === "phone" &&
+    (m.subject || "").toLowerCase().includes("issue")
+);
+const atRiskA =
+  hasIssueA ||
+  (threadMap[a.id] || []).some((m) =>
+    (m.body_text || "").toLowerCase().includes("not happy")
+  );
+
+const atRiskB =
+  hasIssueB ||
+  (threadMap[b.id] || []).some((m) =>
+    (m.body_text || "").toLowerCase().includes("not happy")
+  );
+
+if (atRiskA !== atRiskB) return atRiskA ? -1 : 1;
+if (hasIssueA !== hasIssueB) return hasIssueA ? -1 : 1;
+
+    // ✅ keep selected job pinned at top
     if (aSelected !== bSelected) return aSelected ? -1 : 1;
 
+    const qa = quoteMap[a.id] || null;
+    const qb = quoteMap[b.id] || null;
+
+    const va = visitMap[a.id] || null;
+    const vb = visitMap[b.id] || null;
+
+    const hintA = getJobTimeHint(a, va, qa);
+    const hintB = getJobTimeHint(b, vb, qb);
+
+    const score = (hint?: { text: string } | null) => {
+      if (!hint) return 0;
+
+      if (hint.text.includes("overdue")) return 100;
+      if (hint.text.includes("soon")) return 90;
+      if (hint.text.includes("today")) return 80;
+      if (hint.text.includes("tomorrow")) return 70;
+      if (hint.text.includes("Needs booking")) return 60;
+      if (hint.text.includes("Send invoice")) return 50;
+      if (hint.text.includes("Awaiting payment")) return 40;
+      if (hint.text.includes("Upcoming")) return 30;
+      if (hint.text.includes("Complete")) return 10;
+
+      return 0;
+    };
+
+    const diff = score(hintB) - score(hintA);
+    if (diff !== 0) return diff;
+
+    // fallback to newest
     const da = new Date(a.created_at).getTime();
     const db = new Date(b.created_at).getTime();
 
@@ -1550,8 +2009,7 @@ const sortedJobs = useMemo(() => {
 
     return db - da;
   });
-}, [visibleJobs, selectedRequestId]);
-
+}, [visibleJobs, selectedRequestId, quoteMap, visitMap, threadMap]);
 const counts = useMemo(() => {
   const all = visibleJobs.length;
 
@@ -1583,18 +2041,130 @@ const counts = useMemo(() => {
   return { all, approved, booked, live, paid };
 }, [visibleJobs, quoteMap, visitMap]);
 
-  const quickReplies = useMemo(() => {
-    const customerName = selectedRequest?.customer_name
-      ? titleCase(selectedRequest.customer_name)
-      : "there";
+const revenue = useMemo(() => {
+  if (!jobs.length) {
+    return {
+      invoiced: 0,
+      paid: 0,
+      outstanding: 0,
+      overdue: 0,
+      overdueCount: 0,
+    };
+  }
 
-    return [
-      `Hi ${customerName}, just confirming everything is still okay for the job.`,
-      `Hi ${customerName}, I’m on the way and should be with you shortly.`,
-      `Hi ${customerName}, the work is complete now. I’ll send the invoice over shortly.`,
-      `Hi ${customerName}, just checking you’re happy with everything.`,
-    ];
-  }, [selectedRequest]);
+  const now = new Date();
+
+  const startOfMonth = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    1
+  );
+
+  let invoiced = 0;
+  let paid = 0;
+  let outstanding = 0;
+  let overdue = 0;
+  let overdueCount = 0;
+
+  for (const request of jobs) {
+    const quote = quoteMap[request.id];
+    if (!quote) continue;
+
+    const value = Number(quote.subtotal || 0);
+
+    // ✅ use SENT date if available
+    const baseDate = quote.sent_at || quote.created_at;
+    const created = new Date(baseDate);
+
+    const isThisMonth = created >= startOfMonth;
+
+    if (!isThisMonth) continue;
+
+    const status = String(quote.status || "").toLowerCase();
+
+    if (status === "invoiced" || status === "paid") {
+      invoiced += value;
+    }
+
+    if (status === "paid") {
+      paid += value;
+    }
+
+    if (status === "invoiced") {
+      outstanding += value;
+
+      // ⏰ OVERDUE LOGIC (simple version)
+      const ageHours =
+        (now.getTime() - created.getTime()) /
+        (1000 * 60 * 60);
+
+      if (ageHours > 72) {
+        overdue += value;
+        overdueCount++;
+      }
+    }
+  }
+
+  return {
+    invoiced,
+    paid,
+    outstanding,
+    overdue,
+    overdueCount,
+  };
+}, [jobs, quoteMap]);
+
+const paymentInsights = useMemo(() => {
+  const now = new Date();
+
+  let needsChasing: string[] = [];
+  let urgentChasing: string[] = [];
+
+  for (const request of jobs) {
+    const quote = quoteMap[request.id];
+    if (!quote) continue;
+
+    const status = String(quote.status || "").toLowerCase();
+    if (status !== "invoiced") continue;
+
+    const sentDate = new Date(quote.sent_at || quote.created_at);
+
+    const hours =
+      (now.getTime() - sentDate.getTime()) /
+      (1000 * 60 * 60);
+
+    // ⏰ 3 days → soft chase
+    if (hours > 72 && hours <= 120) {
+      needsChasing.push(request.id);
+    }
+
+    // 🚨 5 days → urgent
+    if (hours > 120) {
+      urgentChasing.push(request.id);
+    }
+  }
+
+  return {
+    needsChasing,
+    urgentChasing,
+    total:
+      needsChasing.length + urgentChasing.length,
+  };
+}, [jobs, quoteMap]);
+
+const quickReplies = useMemo(() => {
+  const customerName = selectedRequest?.customer_name
+    ? titleCase(selectedRequest.customer_name)
+    : "there";
+
+  return [
+    `Hi ${customerName}, just confirming everything is still okay for the job.`,
+    `Hi ${customerName}, I’m on the way and should be with you shortly.`,
+    `Hi ${customerName}, the work is complete now. I’ll send the invoice over shortly.`,
+    `Hi ${customerName}, just checking you’re happy with everything.`,
+  ];
+}, [selectedRequest]);
+
 
   const jobHealth = useMemo(() => {
     return getHealthItems({
@@ -1605,6 +2175,157 @@ const counts = useMemo(() => {
       jobDocs,
     });
   }, [selectedQuote, selectedRequest, selectedVisit, traderFiles, jobDocs]);
+
+  const hasIssueCall = useMemo(() => {
+  if (!selectedRequest) return false;
+
+  const messages = threadMap[selectedRequest.id] || [];
+
+return messages.some(
+  (m) =>
+    m.channel === "phone" &&
+    !m.resolved_at &&
+    (m.subject || "").toLowerCase().includes("issue")
+);
+}, [selectedRequest, threadMap]);
+
+const isSelectedAtRisk = useMemo(() => {
+  if (!selectedRequest) return false;
+
+  const messages = threadMap[selectedRequest.id] || [];
+
+  return messages.some((m) =>
+    (m.body_text || "").toLowerCase().includes("not happy")
+  );
+}, [selectedRequest, threadMap]);
+
+const autoAction = useMemo(() => {
+  if (!selectedRequest) return null;
+
+  const messages = threadMap?.[selectedRequest.id] || [];
+  const customerName = selectedRequest.customer_name
+    ? selectedRequest.customer_name.split(" ")[0]
+    : "there";
+
+  const status = normalizeJobStatus(
+    selectedQuote,
+    selectedRequest,
+    selectedVisit
+  );
+
+  if (status === "invoiced") {
+const baseDate =
+  selectedQuote?.sent_at || selectedQuote?.created_at;
+
+if (!baseDate) return null;
+
+const sentDate = new Date(baseDate);
+
+const hours =
+  (Date.now() - sentDate.getTime()) /
+  (1000 * 60 * 60);
+
+  // 🚨 URGENT CHASE
+  if (hours > 120) {
+    return {
+      title: "Chase overdue payment",
+      text: "Invoice is overdue — follow up now to get paid.",
+      message: `Hi ${customerName}, just a quick reminder about the invoice — please let me know if you need anything from me.`,
+    };
+  }
+
+  // ⏰ SOFT CHASE
+  if (hours > 72) {
+    return {
+      title: "Follow up on invoice",
+      text: "Customer hasn’t paid yet — a quick nudge helps.",
+      message: `Hi ${customerName}, just checking if you’ve had a chance to look at the invoice.`,
+    };
+  }
+}
+
+  // ✅ PRIORITY: JOB STATUS FIRST
+
+  if (status === "approved") {
+    return {
+      title: "Book this job in",
+      text: "Customer has said yes — lock in a date before they go elsewhere.",
+      message: `Hi ${customerName}, great news — when would you like me to book this in?`,
+    };
+  }
+
+  if (status === "booked") {
+    return {
+      title: "Keep customer warm",
+      text: "Send a quick update so they feel confident before the job.",
+      message: `Hi ${customerName}, just confirming everything is booked in — looking forward to getting this sorted for you.`,
+    };
+  }
+
+  if (status === "in_progress") {
+    return {
+      title: "Keep them updated",
+      text: "A quick update builds trust while work is ongoing.",
+      message: `Hi ${customerName}, just a quick update — everything is going well so far.`,
+    };
+  }
+
+  if (status === "complete") {
+    return {
+      title: "Send invoice",
+      text: "Don’t delay — sending now increases chance of fast payment.",
+      message: `Hi ${customerName}, the job is complete — I’ll send the invoice over now.`,
+    };
+  }
+
+
+if (status === "invoiced") {
+  return {
+    title: "Invoice sent",
+    text: "Give the customer a little time before following up.",
+    message: "",
+  };
+}
+  // 🧠 FALLBACK → MESSAGE LOGIC
+
+  const lastMessage = messages[messages.length - 1];
+
+  if (!messages.length) {
+    return {
+      title: "Send first reply",
+      text: "Customer is waiting — replying quickly increases your chance of winning.",
+      message: `Hi ${customerName}, thanks for your enquiry — I’ll get back to you shortly.`,
+    };
+  }
+
+  if (lastMessage && lastMessage.direction !== "out") {
+    return {
+      title: "Reply now",
+      text: "Customer has replied — jump back in while they’re engaged.",
+      message: `Hi ${customerName}, thanks for your message — I’ll get this sorted.`,
+    };
+  }
+
+  const lastOut = messages
+    .filter((m) => m.direction === "out")
+    .slice(-1)[0];
+
+  if (lastOut) {
+    const hours =
+      (Date.now() - new Date(lastOut.created_at).getTime()) /
+      (1000 * 60 * 60);
+
+    if (hours > 24) {
+      return {
+        title: "Follow up",
+        text: "No response — a quick follow-up can win this job.",
+        message: `Hi ${customerName}, just checking if you'd like me to go ahead.`,
+      };
+    }
+  }
+
+  return null;
+}, [selectedRequest, selectedQuote, selectedVisit, threadMap]);
 
   const missingItems = useMemo(() => {
     return getMissingItems({
@@ -1617,10 +2338,23 @@ const counts = useMemo(() => {
   }, [selectedQuote, selectedRequest, selectedVisit, traderFiles, jobDocs]);
 
   const isMobileDetail = !!selectedRequest;
+const currentStatus = selectedRequest
+  ? normalizeJobStatus(selectedQuote, selectedRequest, selectedVisit)
+  : "approved";
 
-  return (
-    <>
-      <div className="ff-page" data-mobile-detail={isMobileDetail ? "1" : "0"}>
+const jobNext = getJobNextAction(
+  selectedQuote,
+  selectedRequest,
+  selectedVisit
+);
+return (
+  <>
+  
+
+    <div
+  className="ff-page ff-jobsPage"
+  data-mobile-detail={isMobileDetail ? "1" : "0"}
+>
         <div className="ff-wrap">
           <div className="ff-top">
             <div className="ff-hero">
@@ -1634,6 +2368,53 @@ const counts = useMemo(() => {
                     completion documents and invoicing in one place.
                   </div>
                 </div>
+                
+<div className="ff-revenueBar">
+  <div className="ff-revenueItem">
+    <div className="ff-revenueValue">{money(revenue.invoiced)}</div>
+    <div className="ff-revenueLabel">This month</div>
+  </div>
+
+{paymentInsights.total > 0 && (
+  <div className="ff-alertBar">
+    <div>
+      ⚠️ {paymentInsights.total} payment
+      {paymentInsights.total > 1 ? "s" : ""} need attention
+    </div>
+
+    <button
+      className="ff-btn ff-btnGhost ff-btnSm"
+      onClick={() => setStatusFilter("invoiced")}
+    >
+      View invoices
+    </button>
+  </div>
+)}
+
+  <div className="ff-revenueItem">
+    <div className="ff-revenueValue">{money(revenue.paid)}</div>
+    <div className="ff-revenueLabel">Received</div>
+  </div>
+
+  <div className="ff-revenueItem ff-revenueItemWarning">
+    <div className="ff-revenueValue">{money(revenue.outstanding)}</div>
+    <div className="ff-revenueLabel">Outstanding</div>
+  </div>
+
+  {revenue.overdue > 0 && (
+    <div
+      className="ff-revenueItem ff-revenueItemDanger"
+      onClick={() => setStatusFilter("invoiced")}
+    >
+      <div className="ff-revenueValue">
+        {money(revenue.overdue)}
+      </div>
+      <div className="ff-revenueLabel">
+        Overdue ({revenue.overdueCount})
+      </div>
+    </div>
+  )}
+</div>
 
                 <div className="ff-heroStats">
                   <div className="ff-statCard">
@@ -1733,123 +2514,231 @@ const counts = useMemo(() => {
             </div>
           ) : null}
 
-          <div className="ff-grid">
-            <div className="ff-card ff-leftPane">
-              <div className="ff-leftHeadRow">
-                <div className="ff-leftTitle">All jobs</div>
-                <div className="ff-leftCount">
-                  {loading ? "…" : sortedJobs.length}
-                </div>
-              </div>
 
-              <div className="ff-leftList">
-                {loading ? (
-                  <div className="ff-loadingWrap">
-                    <div className="ff-loadingText">Loading jobs…</div>
-                  </div>
-                ) : sortedJobs.length ? (
-  sortedJobs.map((request) => {
-                    const active = request.id === selectedRequestId;
-const quote = quoteMap[request.id] || null;
-const visit = visitMap[request.id] || null;
-const status = jobStatusChip(quote, request, visit);
-const urgency = urgencyChip(request.urgency);
-const messages = threadMap[request.id] || [];
-const hasUnread = hasIncomingReply(messages);
+
+<div className={`ff-mainShell ${selectedRequest ? "hasSelection" : ""}`}>
+  {/* LEFT */}
+  <div className="ff-leftPane">
+    <div className="ff-leftTop">
+      <div className="ff-leftTitle">All jobs</div>
+
+      <div className="ff-leftFilters">
+<div className="ff-segmented">
+  <button
+    type="button"
+    className={`ff-segBtn ${statusFilter === "" ? "isActive" : ""}`}
+    onClick={() => {
+      setIssueOnly(false);
+      setStatusFilter("");
+    }}
+  >
+    All
+  </button>
+
+  <button
+    type="button"
+    className={`ff-segBtn ${issueOnly ? "isActive ff-segBtnDanger" : ""}`}
+    onClick={() => {
+      setStatusFilter("");
+      setIssueOnly((v) => !v);
+    }}
+  >
+    ⚠️ Issues
+  </button>
+
+  <button
+    type="button"
+    className={`ff-segBtn ${statusFilter === "approved" ? "isActive" : ""}`}
+    onClick={() => {
+      setIssueOnly(false);
+      setStatusFilter("approved");
+    }}
+  >
+    Approved
+  </button>
+
+  <button
+    type="button"
+    className={`ff-segBtn ${statusFilter === "booked" ? "isActive" : ""}`}
+    onClick={() => {
+      setIssueOnly(false);
+      setStatusFilter("booked");
+    }}
+  >
+    Booked
+  </button>
+
+  <button
+    type="button"
+    className={`ff-segBtn ${statusFilter === "in_progress" ? "isActive" : ""}`}
+    onClick={() => {
+      setIssueOnly(false);
+      setStatusFilter("in_progress");
+    }}
+  >
+    In progress
+  </button>
+
+  <button
+    type="button"
+    className={`ff-segBtn ${statusFilter === "complete" ? "isActive" : ""}`}
+    onClick={() => {
+      setIssueOnly(false);
+      setStatusFilter("complete");
+    }}
+  >
+    Complete
+  </button>
+</div>
+{issueOnly && (
+  <div className="ff-filterHint">
+    Showing jobs with issues
+  </div>
+)}
+      </div>
+    </div>
+
+    <div className="ff-leftList">
+      {loading ? (
+        <div className="ff-loadingWrap">
+          <div className="ff-loadingText">Loading jobs…</div>
+        </div>
+      ) : sortedJobs.length ? (
+        sortedJobs.map((request) => {
+          const active = request.id === selectedRequestId;
+          const quote = quoteMap[request.id] || null;
+          const visit = visitMap[request.id] || null;
+          const urgency = urgencyChip(request.urgency);
+          const messages = threadMap[request.id] || [];
+          const hasUnread = hasIncomingReply(messages);
 const alert = getJobAlert(messages);
+const hasIssue = messages.some(
+  (m) =>
+    m.channel === "phone" &&
+    !m.resolved_at &&
+    (m.subject || "").toLowerCase().includes("issue")
+);
+
+const isAtRisk =
+  hasIssue ||
+  messages.some((m) =>
+    (m.body_text || "").toLowerCase().includes("not happy")
+  );
 const state = normalizeJobStatus(quote, request, visit);
+const timeHint = getJobTimeHint(request, visit, quote);
 
-                    return (
-                      <button
-                        key={request.id}
-                        ref={active ? activeRowRef : null}
-                        className={`ff-leftItem ${getUrgencyGlowClass(
-                          request.urgency || request?.urgency
-                        )}`}
-                        data-active={active ? "1" : "0"}
-                        type="button"
-                        onClick={() => openJob(request.id)}
-                      >
-                        <div className="ff-leftItemInner">
-                          <div className="ff-leftItemTop">
-                            <div className="ff-jobNumber">
-                              {request?.job_number ||
-                                `FF-${request.id.slice(0, 4).toUpperCase()}`}
-                              {hasUnread ? <span className="ff-unreadDot" /> : null}
-                            </div>
-
-                            <div className="ff-leftDate">
-                              {niceDateOnly(request.created_at)}
-                            </div>
-                          </div>
-
-                          <div className="ff-leftJobTitle">
-                            {titleCase(request.job_type || request?.job_type || "Job")}
-                          </div>
-
-                          <div className="ff-leftCustomer">
-                            {titleCase(
-                              request.customer_name || request?.customer_name || "Customer"
-                            )}
-                          </div>
-
-                          <div className="ff-leftAddress">
-                            {request.address ||
-                              request?.address ||
-                              formatPostcode(request.postcode || request?.postcode) ||
-                              "No address"}
-                          </div>
-
-                          <div className="ff-leftMetaRow">
-                           <div className="ff-leftMetaText">{money(quote?.subtotal)}</div>
-
-                            <div className="ff-leftMetaText">
-                              {visit?.starts_at
-                                ? niceDate(visit.starts_at)
-                                : request?.job_booked_at
-                                ? niceDate(request.job_booked_at)
-                                : "Not booked yet"}
-                            </div>
-                          </div>
-
-                          <div className="ff-leftChipRow">
-                            <span className={urgency.cls}>{urgency.text}</span>
-                            <span className={status.cls}>{status.text}</span>
-                            {alert ? (
-                              <span className={alert.cls}>{alert.text}</span>
-                            ) : null}
-                          </div>
-
-                          <div className="ff-leftHint">
-                            {state === "paid"
-                              ? "Job paid"
-                              : state === "invoiced"
-                              ? "Awaiting payment"
-                              : state === "complete"
-                              ? "Ready for invoice"
-                              : state === "in_progress"
-                              ? "Job in progress"
-                              : state === "booked"
-                              ? "Booked and ready"
-                              : "Needs booking"}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="ff-emptyWrap">
-                    <EmptyState
-                      title="No jobs found"
-                      sub="Approved and active jobs will appear here."
-                    />
+return (
+  
+  <button
+              key={request.id}
+              ref={active ? activeRowRef : null}
+className={`ff-leftItem 
+  ${active ? "isActive" : ""} 
+  ${getUrgencyGlowClass(request.urgency)} 
+  ${hasIssue ? "ff-leftItemRisk" : ""}
+`}
+              type="button"
+              onClick={() => openJob(request.id)}
+            >
+              <div className="ff-leftItemInner">
+                <div className="ff-leftItemTop">
+                  <div className="ff-jobNumber">
+                    {request.job_number ||
+                      `FF-${request.id.slice(0, 4).toUpperCase()}`}
+                    {hasUnread && <span className="ff-unreadDot" />}
                   </div>
-                )}
-              </div>
-            </div>
 
-            <div className="ff-card ff-rightPane">
-              <div className="ff-rightBody">
+                  <div className="ff-leftDate">
+                    {niceDateOnly(request.created_at)}
+                  </div>
+                </div>
+
+                <div className="ff-leftJobTitle">
+                  {titleCase(request.job_type || "Job")}
+                </div>
+
+                <div className="ff-leftCustomer">
+                  {titleCase(request.customer_name || "Customer")}
+                </div>
+
+                <div className="ff-leftAddress">
+                  {request.address ||
+                    formatPostcode(request.postcode) ||
+                    "No address"}
+                </div>
+
+                <div className="ff-leftMetaRow">
+                  <div className="ff-leftMetaText ff-leftPrice">
+                    {quote?.subtotal && quote.subtotal > 0
+                      ? money(quote.subtotal)
+                      : "Estimate needed"}
+                  </div>
+
+                  <span className="ff-leftMetaDot">•</span>
+
+                  <div className="ff-leftMetaText">
+                    {visit?.starts_at
+                      ? niceDate(visit.starts_at)
+                      : request.job_booked_at
+                      ? niceDate(request.job_booked_at)
+                      : "Not booked yet"}
+                  </div>
+                </div>
+                
+
+<div className="ff-leftChipRow ff-leftChipRowSplit">
+  <span className={urgency.cls}>{urgency.text}</span>
+
+  {alert && <span className={alert.cls}>{alert.text}</span>}
+
+  {messages.some((m) => m.channel === "phone") && (
+    <span className="ff-chip ff-chipBlue">📞 Call logged</span>
+  )}
+
+{hasIssue && (
+  <button
+    type="button"
+    className="ff-chip ff-chip--overdue ff-chipButton"
+    onClick={(e) => {
+      e.stopPropagation();
+      openJob(request.id);
+      setRightTab("overview");
+    }}
+  >
+    ⚠️ Issue
+  </button>
+)}
+  {isAtRisk && !hasIssue && (
+  <span className="ff-chip ff-chip--overdue">🔥 At risk</span>
+)}
+</div>
+
+
+
+{timeHint && (
+  <div className={`ff-leftHint ${timeHint.cls}`}>
+    {timeHint.text}
+  </div>
+  
+)}
+            </div>  
+            </button>
+          );
+        })
+      ) : (
+        <div className="ff-emptyWrap">
+          <EmptyState
+            title="No jobs found"
+            sub="Approved and active jobs will appear here."
+          />
+        </div>
+      )}
+    </div>
+  </div>
+
+  {/* RIGHT */}
+  <div className="ff-card ff-rightPane">
+    <div className="ff-rightInner">
                 {!selectedRequest ? (
   <div className="ff-emptyWrap">
     <EmptyState
@@ -1860,174 +2749,68 @@ const state = normalizeJobStatus(quote, request, visit);
 ) : (
                   <>
                     <button
-                      type="button"
-                      className="ff-backMobile"
+  type="button"
+  className="ff-backBtn ff-backBtnMobile"
                       onClick={backToListMobile}
                     >
                       ← Back to jobs
                     </button>
 
-                    <div className="ff-rightTop">
-                      <div className="ff-rightTopLeft">
-                        <div className="ff-rightJobNo">
-                          {selectedRequest?.job_number || "No job number"}
-                        </div>
+                   <div className="ff-rightTop">
+  <div className="ff-rightTopLeft">
+    <div className="ff-rightJobNo">
+      {selectedRequest?.job_number || "No job number"}
+    </div>
 
-                        <div className="ff-rightTitle">
-                          {titleCase(
-                            selectedQuote?.job_type ||
-                              selectedRequest?.job_type ||
-                              "Job"
-                          )}
-                        </div>
+    <div className="ff-rightTitle">
+      {titleCase(selectedQuote?.job_type || selectedRequest?.job_type || "Job")}
+    </div>
 
-                        <div className="ff-rightSub">
-                          {titleCase(
-                            selectedQuote?.customer_name ||
-                              selectedRequest?.customer_name ||
-                              "Customer"
-                          )}{" "}
-                          •{" "}
-                          {formatPostcode(
-                            selectedQuote?.postcode || selectedRequest?.postcode || ""
-                          ) || "—"}
-                        </div>
+    <div className="ff-rightSub">
+      {titleCase(selectedQuote?.customer_name || selectedRequest?.customer_name || "Customer")} •{" "}
+      {formatPostcode(selectedQuote?.postcode || selectedRequest?.postcode || "") || "—"}
+    </div>
+  </div>
 
-                        <div className="ff-rightStatusRow">
-                          <span className={selectedStatusChip?.cls}>
-                            {selectedStatusChip?.text}
-                          </span>
+  <div className="ff-rightTopActions">
+    {(selectedQuote?.customer_phone || selectedRequest?.customer_phone) ? (
+      <a
+        href={telHref(selectedQuote?.customer_phone || selectedRequest?.customer_phone)}
+        className="ff-btn ff-btnGhost ff-btnSm"
+        style={{ textDecoration: "none" }}
+      >
+        Call customer
+      </a>
+    ) : null}
 
-                          <span className="ff-chip ff-chipBlue">
-                            {nextAction.title}
-                          </span>
-                        </div>
-                      </div>
+    <button type="button" className="ff-btn ff-btnGhost ff-btnSm" onClick={saveJobCore} disabled={saving}>
+      {saving ? "Saving…" : "Save"}
+    </button>
 
-                      <div className="ff-rightTopActions">
-                        {(selectedQuote?.customer_phone ||
-                          selectedRequest?.customer_phone) && (
-                          <a
-                            href={telHref(
-                              selectedQuote?.customer_phone ||
-                                selectedRequest?.customer_phone
-                            )}
-                            className="ff-btn ff-btnGhost ff-btnSm"
-                            style={{ textDecoration: "none" }}
-                          >
-                            Call customer
-                          </a>
-                        )}
+    <button
+      type="button"
+      className="ff-btn ff-btnPrimary ff-btnSm"
+      onClick={() => selectedRequest && goToCreateInvoice(selectedRequest.id)}
+      disabled={!selectedRequest}
+    >
+      Create invoice
+    </button>
+<button
+  type="button"
+  className="ff-btn ff-btnGhost ff-btnSm"
+  onClick={sendReviewRequest}
+  disabled={!selectedRequest?.customer_email || reviewSending}
+>
+  {reviewSending ? "Sending…" : reviewSent ? "Sent ✓" : "Ask for review"}
+</button>
 
-                        <button
-                          type="button"
-                          className="ff-btn ff-btnGhost ff-btnSm"
-                          onClick={saveJobCore}
-                          disabled={saving}
-                        >
-                          {saving ? "Saving…" : "Save"}
-                        </button>
 
-                        <button
-                          type="button"
-                          className="ff-btn ff-btnPrimary ff-btnSm"
-                          onClick={() =>
-                            selectedRequest && goToCreateInvoice(selectedRequest.id)
-                          }
-                          disabled={!selectedRequest}
-                        >
-                          Create invoice
-                        </button>
+    <button type="button" className="ff-btn ff-btnDanger ff-btnSm" onClick={deleteJob} disabled={saving}>
+      Delete
+    </button>
+  </div>
+</div>
 
-                        {normalizeJobStatus(
-                          selectedQuote,
-                          selectedRequest,
-                          selectedVisit
-                        ) === "booked" ? (
-                          <button
-                            type="button"
-                            className="ff-btn ff-btnGreen ff-btnSm"
-                            onClick={markInProgress}
-                            disabled={saving}
-                          >
-                            Start job
-                          </button>
-                        ) : null}
-
-                        {normalizeJobStatus(
-                          selectedQuote,
-                          selectedRequest,
-                          selectedVisit
-                        ) === "in_progress" ? (
-                          <button
-                            type="button"
-                            className="ff-btn ff-btnGreen ff-btnSm"
-                            onClick={markComplete}
-                            disabled={saving}
-                          >
-                            Mark complete
-                          </button>
-                        ) : null}
-
-                        {normalizeJobStatus(
-                          selectedQuote,
-                          selectedRequest,
-                          selectedVisit
-                        ) === "complete" ? (
-                          <button
-                            type="button"
-                            className="ff-btn ff-btnGreen ff-btnSm"
-                            onClick={markInvoiced}
-                            disabled={saving}
-                          >
-                            Mark invoiced
-                          </button>
-                        ) : null}
-
-                        {normalizeJobStatus(
-                          selectedQuote,
-                          selectedRequest,
-                          selectedVisit
-                        ) === "invoiced" ? (
-                          <button
-                            type="button"
-                            className="ff-btn ff-btnGreen ff-btnSm"
-                            onClick={markPaid}
-                            disabled={saving}
-                          >
-                            Mark paid
-                          </button>
-                        ) : null}
-
-                        <button
-                          type="button"
-                          className="ff-btn ff-btnDanger ff-btnSm"
-                          onClick={deleteJob}
-                          disabled={saving}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="ff-stageStrip">
-                      {stageItems.map((item, index) => {
-                        const done = currentStage >= index;
-                        const current = currentStage === index;
-
-                        return (
-                          <div
-                            key={item}
-                            className={`ff-stageItem ${done ? "isDone" : ""} ${
-                              current ? "isCurrent" : ""
-                            }`}
-                          >
-                            <span className="ff-stageDot" />
-                            <span className="ff-stageText">{item}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
 
                     <div className="ff-tabs">
                       {[
@@ -2051,254 +2834,402 @@ const state = normalizeJobStatus(quote, request, visit);
                       ))}
                     </div>
 
-                    {rightTab === "overview" ? (
-                      <>
-                        <div className="ff-overviewTopGrid">
-                          {jobHealth.map((item) => (
-                            <div className="ff-overviewMiniCard" key={item.label}>
-                              <div className="ff-overviewMiniLabel">{item.label}</div>
-                              <div className="ff-overviewMiniValue">
-                                {item.ok ? "Complete" : "Missing"}
-                              </div>
-                              <div className="ff-overviewMiniSub">
-                                {item.ok
-                                  ? "This part of the job is covered."
-                                  : "This still needs attention."}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+{rightTab === "overview" ? (
+  <>
 
-                        <div className="ff-detailGrid" style={{ marginTop: 20 }}>
-                          <div className="ff-detailCard ff-detailCardHero">
-                            <div className="ff-problemHead">
-                              <div>
-                                <div
-                                  className="ff-detailLabel"
-                                  style={{ marginBottom: 8 }}
-                                >
-                                  Best next action
-                                </div>
-                                <div className="ff-problemTitle">
-                                  {nextAction.title}
-                                </div>
-                              </div>
 
-                              <span className={selectedStatusChip?.cls}>
-                                {selectedStatusChip?.text}
-                              </span>
-                            </div>
+    {autoAction && (
 
-                            <div className="ff-problemText" style={{ marginTop: 14 }}>
-                              {nextAction.text}
-                            </div>
+      <div className="ff-detailCard ff-bestActionCard">
 
-                            <div className="ff-problemMetaRow">
-                              <span className="ff-problemMetaPill">
-                                {titleCase(
-                                  selectedQuote?.urgency ||
-                                    selectedRequest?.urgency ||
-                                    "Flexible"
-                                )}
-                              </span>
+        <div className="ff-bestActionEyebrow">Best next action</div>
 
-                              <span className="ff-problemMetaPill">
-                                {formatPostcode(
-                                  selectedQuote?.postcode ||
-                                    selectedRequest?.postcode ||
-                                    ""
-                                ) || "—"}
-                              </span>
+        <div className="ff-bestActionTitle">
 
-                              <span className="ff-problemMetaPill">
-                                Created {niceDate(selectedQuote?.created_at)}
-                              </span>
+          {autoAction.title}
 
-                              {selectedVisit?.starts_at ? (
-                                <span className="ff-problemMetaPill">
-                                  Visit {niceDate(selectedVisit.starts_at)}
-                                </span>
-                              ) : null}
-                            </div>
-                          </div>
+        </div>
 
-                          {missingItems.length ? (
-                            <div className="ff-detailCard">
-                              <div className="ff-detailSectionTitle">
-                                Missing items
-                              </div>
+        <div className="ff-bestActionText">
 
-                              <div className="ff-warningList">
-                                {missingItems.map((item) => (
-                                  <div key={item} className="ff-warningItem">
-                                    {item}
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="ff-detailCard">
-                              <div className="ff-detailSectionTitle">
-                                Job health
-                              </div>
+          {autoAction.text}
 
-                              <div className="ff-detailSub">
-                                Nothing important is missing. This job looks well
-                                organised and ready to move forward.
-                              </div>
-                            </div>
-                          )}
+        </div>
 
-                          <div className="ff-detailCard">
-                            <div className="ff-detailSectionTitle">Customer</div>
+        <div style={{ marginTop: 12 }}>
 
-                            <div className="ff-customerGrid">
-                              <div className="ff-customerItem">
-                                <span className="ff-customerLabel">Name</span>
-                                <strong>
-                                  {nice(
-                                    titleCase(
-                                      selectedQuote?.customer_name ||
-                                        selectedRequest?.customer_name
-                                    )
-                                  )}
-                                </strong>
-                              </div>
+          <button
 
-                              <div className="ff-customerItem">
-                                <span className="ff-customerLabel">Email</span>
-                                <strong>
-                                  {nice(
-                                    selectedQuote?.customer_email ||
-                                      selectedRequest?.customer_email
-                                  )}
-                                </strong>
-                              </div>
+            className="ff-btn ff-btnPrimary"
 
-                              <div className="ff-customerItem">
-                                <span className="ff-customerLabel">Phone</span>
-                                <strong>
-                                  {nice(
-                                    selectedQuote?.customer_phone ||
-                                      selectedRequest?.customer_phone
-                                  )}
-                                </strong>
-                              </div>
+            onClick={() => {
 
-                              <div className="ff-customerItem">
-                                <span className="ff-customerLabel">Address</span>
-                                <strong>
-                                  {nice(
-                                    selectedQuote?.address ||
-                                      selectedRequest?.address ||
-                                      selectedQuote?.postcode ||
-                                      selectedRequest?.postcode
-                                  )}
-                                </strong>
-                              </div>
-                            </div>
-                          </div>
+              setReplyBody(autoAction.message);
 
-                          <div className="ff-detailCard">
-                            <div className="ff-detailSectionTitle">Job details</div>
+              setRightTab("messages");
 
-                            <div className="ff-detailRow">
-                              <div className="ff-detailLabel">Work description</div>
-                              <div style={{ minWidth: 0 }}>
-                                <textarea
-                                  className="ff-textarea"
-                                  value={workDescription}
-                                  onChange={(e) =>
-                                    setWorkDescription(e.target.value)
-                                  }
-                                  placeholder="Describe the work being carried out…"
-                                />
-                              </div>
-                            </div>
+            }}
 
-                            <div className="ff-detailRow">
-                              <div className="ff-detailLabel">Trader reference</div>
-                              <div className="ff-detailValue">
-                                <input
-                                  className="ff-input"
-                                  value={traderRef}
-                                  onChange={(e) => setTraderRef(e.target.value)}
-                                  placeholder="Optional reference"
-                                  style={{ width: "100%", maxWidth: 320 }}
-                                />
-                              </div>
-                            </div>
+          >
 
-                            <div className="ff-detailRow">
-                              <div className="ff-detailLabel">Subtotal</div>
-                              <div className="ff-detailValue">
-                                <input
-                                  className="ff-input"
-                                  inputMode="decimal"
-                                  value={subtotal}
-                                  onChange={(e) =>
-                                    setSubtotal(
-                                      e.target.value.replace(/[^\d.]/g, "")
-                                    )
-                                  }
-                                  placeholder="0.00"
-                                  style={{ width: "100%", maxWidth: 220 }}
-                                />
-                              </div>
-                            </div>
+            ⚡ Use suggested message
 
-                            <div className="ff-detailRow">
-                              <div className="ff-detailLabel">VAT</div>
-                              <div className="ff-detailValue">
-                                <div className="ff-inlineActions">
-                                  <button
-                                    type="button"
-                                    className={`ff-pillSmall ${
-                                      vatRegistered
-                                        ? "ff-pillNeutralActive"
-                                        : ""
-                                    }`}
-                                    onClick={() => {
-                                      setVatRegistered(true);
-                                      setVatRate("20");
-                                    }}
-                                  >
-                                    VAT registered
-                                  </button>
+          </button>
 
-                                  <button
-                                    type="button"
-                                    className={`ff-pillSmall ${
-                                      !vatRegistered
-                                        ? "ff-pillNeutralActive"
-                                        : ""
-                                    }`}
-                                    onClick={() => {
-                                      setVatRegistered(false);
-                                      setVatRate("0");
-                                    }}
-                                  >
-                                    No VAT
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
+        </div>
 
-                            <div className="ff-detailRow">
-                              <div className="ff-detailLabel">Total</div>
-                              <div className="ff-detailValue">
-                                {(() => {
-                                  const s = Number(subtotal || 0) || 0;
-                                  const vr = vatRegistered ? Number(vatRate) : 0;
-                                  const total = s + s * (vr / 100);
-                                  return `£${total.toFixed(2)}`;
-                                })()}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    ) : null}
+      </div>
+
+    )}
+
+    <div className="ff-jobOverviewClean">
+      {hasIssueCall && (
+  <div className="ff-detailCard ff-warningCard">
+    <div className="ff-detailSectionTitle">⚠️ Issue reported</div>
+    <div className="ff-detailSub">
+      A problem was reported during a phone call. Check messages and resolve this before continuing the job.
+    </div>
+
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+  <button
+    className="ff-btn ff-btnGhost ff-btnSm"
+    onClick={() => setRightTab("messages")}
+  >
+    View call details
+  </button>
+
+  <button
+    className="ff-btn ff-btnGhost ff-btnSm"
+    onClick={resolveIssue}
+  >
+    Resolve issue
+  </button>
+
+  <button
+    className="ff-btn ff-btnPrimary ff-btnSm"
+    onClick={sendIssueFollowUp}
+  >
+    💬 Message customer
+  </button>
+</div>
+</div>
+  
+)}
+
+{isSelectedAtRisk && !hasIssueCall && (
+  <div className="ff-detailCard ff-warningCard">
+    <div className="ff-detailSectionTitle">🔥 Customer not happy</div>
+
+    <div className="ff-detailSub">
+      The customer sounds unhappy. Jump in quickly to protect this job and keep control.
+    </div>
+
+    <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+      <button
+        className="ff-btn ff-btnPrimary ff-btnSm"
+        onClick={() => setRightTab("messages")}
+      >
+        Open messages
+      </button>
+
+      <button
+        className="ff-btn ff-btnGhost ff-btnSm"
+        onClick={sendIssueFollowUp}
+      >
+        💬 Send reassurance
+      </button>
+    </div>
+  </div>
+)}
+</div>   
+
+
+
+     <div className="ff-jobSummary">
+  <div>
+    <div className="ff-summaryLabel">Status</div>
+    <div className="ff-summaryValue">{selectedStatusChip?.text}</div>
+  </div>
+
+  <div>
+    <div className="ff-summaryLabel">Booked</div>
+    <div className="ff-summaryValue">
+      {selectedRequest?.job_booked_at
+        ? niceDate(selectedRequest.job_booked_at)
+        : "Not booked"}
+    </div>
+  </div>
+
+<div>
+  <div className="ff-summaryLabel">Value</div>
+  <div className="ff-summaryValue">
+    {selectedQuote?.subtotal ? (
+      money(selectedQuote.subtotal)
+    ) : (
+      <button
+        type="button"
+        className="ff-linkAction"
+        onClick={() =>
+          selectedRequest && goToCreateInvoice(selectedRequest.id)
+        }
+      >
+        Create estimate
+      </button>
+    )}
+  </div>
+</div>
+
+  <div>
+    <div className="ff-summaryLabel">Invoice</div>
+    <div className="ff-summaryValue">
+      {currentStatus === "paid"
+        ? "Paid"
+        : currentStatus === "invoiced"
+        ? "Invoice sent"
+        : "Not invoiced"}
+    </div>
+{(selectedQuote?.chase_count ?? 0) > 0 && (
+  <div className="ff-subtleText">
+    ⚡ Auto-followed up {selectedQuote?.chase_count} time
+    {(selectedQuote?.chase_count ?? 0) > 1 ? "s" : ""}
+
+    {selectedQuote?.last_chased_at && (
+      <div style={{ opacity: 0.7, marginTop: 2 }}>
+       Last chased {timeAgo(selectedQuote.last_chased_at)}
+      </div>
+    )}
+  </div>
+)}
+  </div>
+</div>
+
+
+
+<div className="ff-detailCard">
+  <div className="ff-detailSectionTitle">Customer updates</div>
+  <div className="ff-detailSub">
+    Quick messages that keep the customer warm and protect the job.
+  </div>
+
+  <div className="ff-inlineActions" style={{ marginTop: 12 }}>
+    <button
+      className="ff-btn ff-btnPrimary ff-btnSm"
+      type="button"
+      onClick={sendOnMyWayMessage}
+    >
+      🚐 On my way
+    </button>
+
+    <button
+      className="ff-btn ff-btnGhost ff-btnSm"
+      type="button"
+      onClick={sendRunningLateMessage}
+    >
+      ⏰ Running late
+    </button>
+
+    <button
+      className="ff-btn ff-btnGhost ff-btnSm"
+      type="button"
+      onClick={sendHappyCheckMessage}
+    >
+      🙂 Ask if happy
+    </button>
+  </div>
+</div>
+
+      <div className="ff-jobChecklist">
+        {jobHealth.map((item) => (
+          <div
+            key={item.label}
+            className={`ff-checkItem ${item.ok ? "isDone" : "isMissing"}`}
+          >
+            <span className="ff-checkDot">{item.ok ? "✓" : "○"}</span>
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+{missingItems.length ? (
+  <div className="ff-detailCard ff-warningCard">
+    <div className="ff-detailSectionTitle">Needs attention</div>
+    <div className="ff-detailSub" style={{ marginBottom: 12 }}>
+      Fix these to move the job forward.
+    </div>
+
+    <div className="ff-warningList">
+      {missingItems.map((item) => (
+        <div key={item} className="ff-warningItem ff-warningItemRow">
+          <span>{item}</span>
+
+          {item.includes("Private notes") && (
+            <button
+              className="ff-btn ff-btnGhost ff-btnXs"
+              onClick={() => setRightTab("notes")}
+            >
+              Add now
+            </button>
+          )}
+
+          {item.includes("booking") && (
+            <button
+              className="ff-btn ff-btnGhost ff-btnXs"
+              onClick={() => setRightTab("schedule")}
+            >
+              Book now
+            </button>
+          )}
+
+          {item.includes("description") && (
+            <button
+              className="ff-btn ff-btnGhost ff-btnXs"
+              onClick={() => setRightTab("overview")}
+            >
+              Add details
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+) : (
+  
+        <div className="ff-detailCard">
+          <div className="ff-detailSectionTitle">Job health</div>
+          <div className="ff-detailSub">
+            Nothing important is missing. This job looks well organised and ready to move forward.
+          </div>
+        </div>
+      )}
+
+
+
+
+      <div className="ff-detailCard">
+        <div className="ff-detailSectionTitle">Customer</div>
+
+        <div className="ff-customerGrid">
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Name</span>
+            <strong>
+              {nice(titleCase(selectedQuote?.customer_name || selectedRequest?.customer_name))}
+            </strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Email</span>
+            <strong>
+              {nice(selectedQuote?.customer_email || selectedRequest?.customer_email)}
+            </strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Phone</span>
+            <strong>
+              {nice(selectedQuote?.customer_phone || selectedRequest?.customer_phone)}
+            </strong>
+          </div>
+
+          <div className="ff-customerItem">
+            <span className="ff-customerLabel">Address</span>
+            <strong>
+              {nice(
+                selectedQuote?.address ||
+                  selectedRequest?.address ||
+                  selectedQuote?.postcode ||
+                  selectedRequest?.postcode
+              )}
+            </strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="ff-detailCard">
+        <div className="ff-detailSectionTitle">Job details</div>
+
+        <div className="ff-detailRow">
+          <div className="ff-detailLabel">Work description</div>
+          <div style={{ minWidth: 0 }}>
+            <textarea
+              className="ff-textarea"
+              value={workDescription}
+              onChange={(e) => setWorkDescription(e.target.value)}
+              placeholder="Describe the work being carried out…"
+            />
+          </div>
+        </div>
+
+        <div className="ff-detailRow">
+          <div className="ff-detailLabel">Trader reference</div>
+          <div className="ff-detailValue">
+            <input
+              className="ff-input"
+              value={traderRef}
+              onChange={(e) => setTraderRef(e.target.value)}
+              placeholder="Optional reference"
+              style={{ width: "100%", maxWidth: 320 }}
+            />
+          </div>
+        </div>
+
+        <div className="ff-detailRow">
+          <div className="ff-detailLabel">Subtotal</div>
+          <div className="ff-detailValue">
+            <input
+              className="ff-input"
+              inputMode="decimal"
+              value={subtotal}
+              onChange={(e) => setSubtotal(e.target.value.replace(/[^\d.]/g, ""))}
+              placeholder="0.00"
+              style={{ width: "100%", maxWidth: 220 }}
+            />
+          </div>
+        </div>
+
+        <div className="ff-detailRow">
+          <div className="ff-detailLabel">VAT</div>
+          <div className="ff-detailValue">
+            <div className="ff-inlineActions">
+              <button
+                type="button"
+                className={`ff-pillSmall ${vatRegistered ? "ff-pillNeutralActive" : ""}`}
+                onClick={() => {
+                  setVatRegistered(true);
+                  setVatRate("20");
+                }}
+              >
+                VAT registered
+              </button>
+
+              <button
+                type="button"
+                className={`ff-pillSmall ${!vatRegistered ? "ff-pillNeutralActive" : ""}`}
+                onClick={() => {
+                  setVatRegistered(false);
+                  setVatRate("0");
+                }}
+              >
+                No VAT
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="ff-detailRow">
+          <div className="ff-detailLabel">Total</div>
+          <div className="ff-detailValue">
+            {(() => {
+              const s = Number(subtotal || 0) || 0;
+              const vr = vatRegistered ? Number(vatRate) : 0;
+              return `£${(s + s * (vr / 100)).toFixed(2)}`;
+            })()}
+          </div>
+        </div>
+      </div>
+   
+      </>
+) : null}
+
 
                     {rightTab === "schedule" ? (
                       <div className="ff-detailGrid">
@@ -2345,6 +3276,30 @@ const state = normalizeJobStatus(quote, request, visit);
                             </div>
                           </div>
 
+<div className="ff-detailRow">
+  <div className="ff-detailLabel">Confirm booking</div>
+  <div className="ff-detailValue">
+    <input
+      type="datetime-local"
+      className="ff-input"
+      value={bookingDateTime}
+      onChange={(e) => setBookingDateTime(e.target.value)}
+      style={{ maxWidth: 260 }}
+    />
+  </div>
+</div>
+
+<div className="ff-bookingActions" style={{ marginBottom: 14 }}>
+  <button
+    type="button"
+    className="ff-btn ff-btnPrimary"
+    onClick={saveJobBookingDate}
+    disabled={notesSaving || !bookingDateTime}
+  >
+    {notesSaving ? "Saving…" : "Confirm booking"}
+  </button>
+</div>
+
                           <div className="ff-bookingActions">
                             {normalizeJobStatus(
                               selectedQuote,
@@ -2363,20 +3318,20 @@ const state = normalizeJobStatus(quote, request, visit);
                               </button>
                             ) : null}
 
-                            {normalizeJobStatus(
-                              selectedQuote,
-                              selectedRequest,
-                              selectedVisit
-                            ) === "booked" ? (
-                              <button
-                                type="button"
-                                className="ff-btn ff-btnGreen"
-                                onClick={markInProgress}
-                                disabled={saving}
-                              >
-                                Start job
-                              </button>
-                            ) : null}
+                           {normalizeJobStatus(
+  selectedQuote,
+  selectedRequest,
+  selectedVisit
+) === "booked" ? (
+  <button
+    type="button"
+    className="ff-btn ff-btnGreen"
+    onClick={markInProgress}
+    disabled={saving}
+  >
+    Start job
+  </button>
+) : null}
 
                             {normalizeJobStatus(
                               selectedQuote,
@@ -2642,18 +3597,50 @@ const state = normalizeJobStatus(quote, request, visit);
                             </div>
                           </div>
 
-                          <button
-                            className="ff-btn ff-btnGhost ff-btnSm"
-                            type="button"
-                            onClick={() =>
-                              uid &&
-                              selectedRequest &&
-                              loadThread(selectedRequest.id, uid)
-                            }
-                            disabled={threadLoading}
-                          >
-                            {threadLoading ? "Loading…" : "Refresh"}
-                          </button>
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+  <button
+    className="ff-btn ff-btnPrimary ff-btnSm"
+    type="button"
+    onClick={sendOnMyWayMessage}
+  >
+    🚐 On my way
+  </button>
+<button
+  className="ff-btn ff-btnGhost ff-btnSm"
+  type="button"
+  onClick={sendRunningLateMessage}
+>
+  ⏰ Running late
+</button>
+<button
+  className="ff-btn ff-btnGhost ff-btnSm"
+  type="button"
+  onClick={sendHappyCheckMessage}
+>
+  🙂 Ask if happy
+</button>
+
+  <button
+    className="ff-btn ff-btnGhost ff-btnSm"
+    type="button"
+    onClick={logCallOnCurrentJob}
+  >
+    + Log call
+  </button>
+
+  <button
+    className="ff-btn ff-btnGhost ff-btnSm"
+    type="button"
+    onClick={() =>
+      uid &&
+      selectedRequest &&
+      loadThread(selectedRequest.id, uid)
+    }
+    disabled={threadLoading}
+  >
+    {threadLoading ? "Loading…" : "Refresh"}
+  </button>
+</div>
                         </div>
 
                         <div className="ff-chatBody">
@@ -2662,7 +3649,8 @@ const state = normalizeJobStatus(quote, request, visit);
                           ) : thread.length ? (
                             thread.map((m) => {
                               const outbound = isOutboundDirection(m.direction);
-                              const body = (m.body_text ?? "").trim();
+const isPhone = m.channel === "phone";
+const body = (m.body_text ?? "").trim();
 
                               return (
                                 <button
@@ -2674,21 +3662,27 @@ const state = normalizeJobStatus(quote, request, visit);
                                   onClick={() => setExpandedMsg(m)}
                                 >
                                   <div
-                                    className={`ff-chatBubble ${
-                                      outbound
-                                        ? "ff-chatBubbleOut"
-                                        : "ff-chatBubbleIn"
-                                    }`}
+                                   className={`ff-chatBubble ${
+  isPhone
+    ? "ff-chatBubblePhone"
+    : outbound
+    ? "ff-chatBubbleOut"
+    : "ff-chatBubbleIn"
+}`}
                                   >
                                     <div className="ff-chatMeta">
                                       <span className="ff-chatName">
-                                        {outbound ? "You" : "Customer"}
+                                        {isPhone ? "📞 Phone call" : outbound ? "You" : "Customer"}
                                       </span>
                                       <span className="ff-chatTime">
                                         {niceDate(m.created_at)}
                                       </span>
                                     </div>
-
+{isPhone && (
+  <div className="ff-chatEventTag">
+    📞 Call logged
+  </div>
+)}
                                     {m.subject ? (
                                       <div className="ff-chatSubject">
                                         {m.subject}
@@ -2973,7 +3967,44 @@ const state = normalizeJobStatus(quote, request, visit);
           </div>
         </div>
       </div>
+{confirmModal ? (
+  <div className="ff-modalOverlay" onMouseDown={() => setConfirmModal(null)}>
+    <div className="ff-modal ff-confirmModal" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="ff-modalHead">
+        <div className="ff-modalTitle">{confirmModal.title}</div>
+        <button
+          type="button"
+          className="ff-x"
+          onClick={() => setConfirmModal(null)}
+        >
+          ✕
+        </button>
+      </div>
 
+      <div className="ff-modalBody">
+        <p className="ff-confirmText">{confirmModal.message}</p>
+
+        <div className="ff-confirmActions">
+          <button
+            type="button"
+            className="ff-btn ff-btnGhost"
+            onClick={() => setConfirmModal(null)}
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            className={`ff-btn ${confirmModal.danger ? "ff-btnDanger" : "ff-btnPrimary"}`}
+            onClick={confirmModal.onConfirm}
+          >
+            {confirmModal.confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+) : null}
       {expandedMsg ? (
         <div className="ff-modalOverlay" onMouseDown={() => setExpandedMsg(null)}>
           <div className="ff-modal" onMouseDown={(e) => e.stopPropagation()}>
@@ -3009,1468 +4040,61 @@ const state = normalizeJobStatus(quote, request, visit);
           </div>
         </div>
       ) : null}
+{callModalOpen ? (
+  <div className="ff-modalOverlay" onMouseDown={() => setCallModalOpen(false)}>
+    <div className="ff-modal" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="ff-modalHead">
+        <div className="ff-modalTitle">Log phone call</div>
+        <button
+          type="button"
+          className="ff-x"
+          onClick={() => setCallModalOpen(false)}
+        >
+          ✕
+        </button>
+      </div>
 
-      <style jsx>{styles}</style>
+      <div className="ff-modalBody">
+        <select
+          className="ff-input"
+          value={callOutcome}
+          onChange={(e) => setCallOutcome(e.target.value)}
+          style={{ marginBottom: 12 }}
+        >
+          <option>Confirmed job</option>
+          <option>Running late</option>
+          <option>Issue</option>
+          <option>General</option>
+        </select>
+
+        <textarea
+          className="ff-textarea"
+          placeholder="Call notes…"
+          value={callNote}
+          onChange={(e) => setCallNote(e.target.value)}
+        />
+
+        <div className="ff-confirmActions">
+          <button
+            className="ff-btn ff-btnGhost"
+            onClick={() => setCallModalOpen(false)}
+          >
+            Cancel
+          </button>
+
+<button
+  className="ff-btn ff-btnPrimary ff-btnSm"
+  onClick={submitCallLog}
+  disabled={!callNote.trim()}
+>
+  Save call
+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+) : null}
+  
     </>
   );
 }
-const styles = `
-:global(body){
-  background: ${FF.pageBg};
-}
-
-/* PAGE */
-.ff-page{
-  flex:1;
-  min-height:0;
-  display:flex;
-  flex-direction:column;
-  overflow:hidden;
-  padding:0;
-}
-
-.ff-wrap{
-  flex:1;
-  min-height:0;
-  display:flex;
-  flex-direction:column;
-  gap:14px;
-}
-
-/* TOP */
-.ff-top{
-  min-width: 0;
-  min-height: 0;
-  border: 1px solid #e6ecf5;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 14px 32px rgba(15, 23, 42, 0.05);
-  overflow: hidden;
-}
-
-.ff-hero{
-  position: relative;
-  overflow: hidden;
-  padding: 20px 18px 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(143, 169, 214, 0.18),
-    rgba(255, 255, 255, 0.98)
-  );
-}
-
-.ff-heroGlow{
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at 14% 18%, rgba(143, 169, 214, 0.18), transparent 52%),
-    radial-gradient(circle at 84% 20%, rgba(31, 53, 92, 0.07), transparent 58%);
-  pointer-events: none;
-}
-
-.ff-heroRow{
-  position:relative;
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:16px;
-}
-
-.ff-heroLeft{
-  display:grid;
-  gap:8px;
-  max-width: 620px;
-}
-
-.ff-heroTitle{
-  font-size: 30px;
-  font-weight: 950;
-  color: ${FF.navySoft};
-  letter-spacing: -0.03em;
-  line-height:1.02;
-}
-
-.ff-heroRule{
-  height: 3px;
-  width: 240px;
-  border-radius: 999px;
-  background: ${FF.blueLine};
-  opacity: 0.95;
-}
-
-.ff-heroSub{
-  font-size: 13px;
-  color: ${FF.muted};
-  font-weight: 600;
-  line-height: 1.5;
-}
-
-.ff-heroStats{
-  display:grid;
-  grid-template-columns: repeat(4, minmax(110px, 1fr));
-  gap:10px;
-  min-width: min(100%, 460px);
-}
-
-.ff-statCard{
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid rgba(230, 236, 245, 0.96);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.92) inset,
-    0 8px 18px rgba(15, 23, 42, 0.04);
-  backdrop-filter: blur(6px);
-}
-
-.ff-statLabel{
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #7b8798;
-}
-
-.ff-statValue{
-  margin-top: 6px;
-  font-size: 22px;
-  line-height: 1;
-  font-weight: 950;
-  letter-spacing: -0.03em;
-  color: #0b1320;
-}
-
-/* CONTROLS */
-.ff-controls{
-  padding: 12px 14px;
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  justify-content:space-between;
-  border-top: 1px solid ${FF.border};
-  background: linear-gradient(180deg, rgba(36,91,255,0.06), rgba(255,255,255,0));
-}
-
-.ff-filterRow{
-  display:flex;
-  gap:8px;
-  align-items:center;
-  flex-wrap:wrap;
-}
-
-.ff-input{
-  height: 38px;
-  border-radius: 14px;
-  border: 1px solid ${FF.border};
-  background:#fff;
-  padding: 0 12px;
-  outline:none;
-  font-size: 13px;
-  color: ${FF.text};
-  box-sizing: border-box;
-  width: 100%;
-}
-
-.ff-pillSmall{
-  height: 32px;
-  border-radius: 999px;
-  border: 1px solid ${FF.border};
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 900;
-  background:#fff;
-  color: ${FF.muted};
-  cursor:pointer;
-}
-
-.ff-pillNeutralActive{
-  border-color: rgba(36,91,255,0.35);
-  background: rgba(36,91,255,0.12);
-  color: ${FF.navySoft};
-}
-
-/* TOAST */
-.ff-toast{
-  border: 1px solid ${FF.border};
-  background:#fff;
-  border-radius: 14px;
-  padding: 10px 12px;
-  font-size: 13px;
-  color: ${FF.text};
-  box-shadow: 0 10px 22px rgba(15,23,42,0.05);
-}
-
-.ff-toastSuccess{
-  border-color: #bbf7d0;
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.ff-toastError{
-  border-color: #fecaca;
-  background: #fef2f2;
-  color: #b91c1c;
-}
-
-/* GRID */
-.ff-grid{
-  display:grid;
-  gap:14px;
-  grid-template-columns: 360px minmax(0, 1fr);
-  flex:1;
-  min-height:0;
-}
-
-.ff-grid > *{
-  min-height:0;
-}
-
-.ff-card{
-  border: 1px solid ${FF.border};
-  border-radius: 18px;
-  background:#fff;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-  min-height:0;
-  box-shadow:
-    0 1px 0 rgba(15,23,42,0.03),
-    0 14px 30px rgba(15,23,42,0.08);
-}
-
-/* LEFT */
-.ff-leftHeadRow{
-  padding: 12px;
-  border-bottom: 1px solid ${FF.border};
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.ff-leftTitle{
-  font-weight: 900;
-  color:${FF.navySoft};
-}
-
-.ff-leftCount{
-  font-weight: 900;
-  color:${FF.muted};
-  border: 1px solid ${FF.border};
-  background:#F7F9FC;
-  border-radius:999px;
-  padding: 4px 10px;
-  font-size: 12px;
-}
-
-.ff-unreadDot{
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #ef4444;
-  margin-left: 6px;
-}
-
-.ff-leftList{
-  padding: 12px 12px 22px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  flex:1;
-  min-height:0;
-  overflow:auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.ff-leftGlowASAP {
-  box-shadow:
-    0 0 0 3px rgba(239, 68, 68, 0.24),
-    0 14px 30px rgba(15, 23, 42, 0.10) !important;
-}
-
-.ff-leftGlowWeek {
-  box-shadow:
-    0 0 0 3px rgba(245, 158, 11, 0.22),
-    0 14px 30px rgba(15, 23, 42, 0.10) !important;
-}
-
-.ff-leftGlowNext {
-  box-shadow:
-    0 0 0 3px rgba(34, 197, 94, 0.22),
-    0 12px 28px rgba(15, 23, 42, 0.08) !important;
-}
-
-.ff-leftGlowFlexible {
-  box-shadow:
-    0 0 0 3px rgba(96, 165, 250, 0.24),
-    0 14px 30px rgba(15, 23, 42, 0.10) !important;
-}
-
-.ff-leftItem{
-  width:100%;
-  text-align:left;
-  border-radius: 22px;
-  padding:0;
-  overflow:visible;
-  border: 1px solid #e6ecf5;
-  background:#ffffff;
-  cursor:pointer;
-  transition: all 0.18s ease;
-  display:block;
-  min-height: 188px;
-  position:relative;
-  box-shadow:
-    0 1px 0 rgba(15,23,42,0.03),
-    0 10px 22px rgba(15,23,42,0.06);
-}
-
-.ff-leftItem:hover{
-  transform: translateY(-3px);
-  border-color: rgba(36,91,255,0.25);
-  background: linear-gradient(
-    90deg,
-    rgba(36,91,255,0.08) 0%,
-    rgba(36,91,255,0.03) 40%,
-    #ffffff 85%
-  );
-  box-shadow:
-    0 6px 18px rgba(15,23,42,0.08),
-    0 20px 42px rgba(15,23,42,0.12);
-}
-
-.ff-leftItem[data-active="1"]{
-  border-color: rgba(36,91,255,0.35);
-  background: linear-gradient(
-    90deg,
-    rgba(36,91,255,0.18) 0%,
-    rgba(36,91,255,0.06) 45%,
-    #ffffff 100%
-  );
-  box-shadow:
-    0 0 0 2px rgba(36,91,255,0.18),
-    0 18px 40px rgba(15,23,42,0.12);
-}
-
-.ff-leftItem[data-active="1"]::before{
-  content:"";
-  position:absolute;
-  left:12px;
-  top:20px;
-  bottom:20px;
-  width:3px;
-  border-radius:999px;
-  background: linear-gradient(
-    180deg,
-    #1d4ed8 0%,
-    #2563eb 35%,
-    #60a5fa 72%,
-    rgba(96,165,250,0.18) 100%
-  );
-  box-shadow: 0 0 8px rgba(37,99,235,0.22);
-  z-index:3;
-  pointer-events:none;
-}
-
-.ff-leftItemInner{
-  position:relative;
-  z-index:2;
-  padding: 18px 18px 16px 30px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-
-.ff-leftItemTop{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.ff-jobNumber{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  color:#1f355c;
-  font-size: 20px;
-  line-height:1;
-  font-weight:950;
-  letter-spacing:-0.03em;
-}
-
-.ff-leftDate{
-  white-space:nowrap;
-  color:#94a3b8;
-  font-size:12px;
-  line-height:1;
-  font-weight:700;
-}
-
-.ff-leftJobTitle{
-  color:${FF.text};
-  font-size: 16px;
-  line-height:1.2;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-}
-
-.ff-leftCustomer{
-  color:${FF.navySoft};
-  font-size: 14px;
-  line-height:1.2;
-  font-weight: 800;
-}
-
-.ff-leftAddress{
-  color:#8a94a6;
-  font-size:13px;
-  line-height:1.3;
-  font-weight:700;
-}
-
-.ff-leftMetaRow{
-  display:flex;
-  align-items:center;
-  gap:10px 14px;
-  flex-wrap:wrap;
-  margin-top: 2px;
-}
-
-.ff-leftMetaText{
-  color:#9aa4b2;
-  font-size:13px;
-  line-height:1.15;
-  font-weight:700;
-}
-
-.ff-leftChipRow{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin-top: 2px;
-}
-
-.ff-leftHint{
-  margin-top: 2px;
-  color:#102a56;
-  font-size:13px;
-  line-height:1.2;
-  font-weight:900;
-}
-
-/* RIGHT */
-.ff-rightBody{
-  flex:1;
-  min-height:0;
-  overflow:auto;
-  padding: 24px 28px 28px;
-  box-sizing:border-box;
-}
-
-.ff-rightTop{
-  border: 1px solid rgba(36,91,255,0.30);
-  border-radius: 20px;
-  padding: 18px 18px;
-  background: linear-gradient(
-    90deg,
-    rgba(36,91,255,0.16) 0%,
-    rgba(36,91,255,0.08) 35%,
-    rgba(36,91,255,0.03) 60%,
-    #ffffff 100%
-  );
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:18px;
-  margin-bottom: 16px;
-}
-
-.ff-rightTopLeft{
-  display:grid;
-  gap:6px;
-}
-
-.ff-rightJobNo{
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: ${FF.muted};
-}
-
-.ff-rightTitle{
-  font-weight: 950;
-  color:${FF.navySoft};
-  font-size: 24px;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
-}
-
-.ff-rightSub{
-  color:${FF.muted};
-  font-size: 13px;
-  font-weight: 750;
-}
-
-.ff-rightStatusRow{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  align-items:center;
-}
-
-.ff-rightTopActions{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-}
-
-.ff-tabs{
-  margin: 8px 0 18px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-.ff-tabBtn{
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid ${FF.border};
-  background:#fff;
-  font-weight: 850;
-  font-size: 13px;
-  color:${FF.navySoft};
-  cursor:pointer;
-}
-
-.ff-tabBtn.isActive{
-  border-color: rgba(36,91,255,0.35);
-  background: rgba(36,91,255,0.10);
-}
-
-/* OVERVIEW */
-.ff-overviewTopGrid{
-  display:grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap:12px;
-}
-
-.ff-overviewMiniCard{
-  border: 1px solid rgba(36,91,255,0.16);
-  border-radius: 18px;
-  background: linear-gradient(
-    180deg,
-    rgba(36,91,255,0.08) 0%,
-    rgba(255,255,255,1) 100%
-  );
-  padding: 16px;
-  box-shadow:
-    0 1px 0 rgba(36,91,255,0.05),
-    0 10px 24px rgba(15,23,42,0.05);
-}
-
-.ff-overviewMiniLabel{
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: ${FF.muted};
-}
-
-.ff-overviewMiniValue{
-  margin-top: 8px;
-  font-size: 18px;
-  line-height: 1.15;
-  font-weight: 900;
-  color: ${FF.navySoft};
-  letter-spacing: -0.02em;
-}
-
-.ff-overviewMiniSub{
-  margin-top: 8px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: ${FF.muted};
-}
-
-/* EMPTY */
-.ff-emptyWrap{
-  min-height: 260px;
-  padding: 16px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.ff-empty{
-  border: 1px dashed rgba(36,91,255,0.28);
-  background: ${FF.blueSoft2};
-  border-radius: 18px;
-  padding: 24px;
-  text-align:center;
-  width:100%;
-  max-width: 520px;
-}
-
-.ff-emptyTitle{
-  font-weight: 900;
-  color:${FF.navySoft};
-  font-size: 18px;
-}
-
-.ff-emptySub{
-  margin-top: 6px;
-  font-size: 13px;
-  color:${FF.muted};
-  line-height: 1.5;
-}
-
-/* DETAIL CARDS */
-.ff-detailGrid{
-  display:grid;
-  gap:12px;
-}
-
-.ff-detailCard{
-  border: 1px solid rgba(36,91,255,0.18);
-  border-radius: 18px;
-  background: linear-gradient(
-    180deg,
-    rgba(36,91,255,0.08) 0%,
-    rgba(36,91,255,0.04) 40%,
-    #ffffff
-  );
-  box-shadow:
-    0 1px 0 rgba(36,91,255,0.06),
-    0 12px 28px rgba(15,23,42,0.06);
-  padding: 16px;
-}
-
-.ff-detailCardHero{
-  padding: 18px;
-}
-
-.ff-detailSectionTitle{
-  font-size: 16px;
-  font-weight: 900;
-  color: ${FF.navySoft};
-  letter-spacing: -0.02em;
-}
-
-.ff-detailRow{
-  display:grid;
-  grid-template-columns: 140px minmax(0,1fr);
-  gap: 10px;
-  align-items:start;
-  padding: 12px 0;
-}
-
-.ff-detailRow + .ff-detailRow{
-  border-top: 1px solid rgba(230,236,245,0.9);
-}
-
-.ff-detailLabel{
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color:${FF.muted};
-  opacity: 0.9;
-}
-
-.ff-detailValue{
-  font-size: 14px;
-  font-weight: 650;
-  color:${FF.text};
-  line-height: 1.45;
-  word-break: break-word;
-  overflow-wrap:anywhere;
-}
-
-.ff-detailSub{
-  margin-top: 4px;
-  font-size: 13px;
-  font-weight: 500;
-  color:${FF.muted};
-  white-space: pre-wrap;
-  overflow-wrap:anywhere;
-  word-break: break-word;
-}
-
-/* HERO CARD */
-.ff-problemHead{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  flex-wrap:wrap;
-}
-
-.ff-problemTitle{
-  font-size: 22px;
-  line-height: 1.08;
-  font-weight: 950;
-  color: ${FF.text};
-  letter-spacing: -0.03em;
-}
-
-.ff-problemText{
-  font-size: 15px;
-  line-height: 1.7;
-  color: #1f355c;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.ff-problemMetaRow{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin-top: 16px;
-}
-
-.ff-problemMetaPill{
-  display:inline-flex;
-  align-items:center;
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: #fff;
-  border: 1px solid ${FF.border};
-  color: ${FF.navySoft};
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.ff-warningList{
-  display:grid;
-  gap:8px;
-  margin-top: 14px;
-}
-
-.ff-warningItem{
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: #fff7ed;
-  border: 1px solid #fed7aa;
-  color: #9a3412;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-/* CUSTOMER GRID */
-.ff-customerGrid{
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap:12px;
-  margin-top: 14px;
-}
-
-.ff-customerItem{
-  border: 1px solid ${FF.border};
-  border-radius: 16px;
-  background: #fff;
-  padding: 14px;
-  display:grid;
-  gap:6px;
-}
-
-.ff-customerLabel{
-  font-size: 11px;
-  font-weight: 800;
-  color:${FF.muted};
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.ff-customerItem strong{
-  color:${FF.text};
-  font-size: 14px;
-  line-height: 1.45;
-  overflow-wrap:anywhere;
-}
-
-/* FILES */
-.ff-fileHeaderChips{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-}
-
-.ff-fileMsg{
-  margin-top: 12px;
-  font-size: 13px;
-  color: ${FF.muted};
-}
-
-.ff-fileSection{
-  margin-top: 20px;
-}
-
-.ff-fileGrid{
-  display:grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap:12px;
-}
-
-.ff-fileTile{
-  border: 1px solid ${FF.border};
-  background:#fff;
-  border-radius: 16px;
-  overflow:hidden;
-  text-decoration:none;
-  box-shadow: 0 10px 24px rgba(15,23,42,0.05);
-}
-
-.ff-fileThumb{
-  width:100%;
-  height:150px;
-  object-fit:cover;
-  display:block;
-  background:#eef3fb;
-}
-
-.ff-fileFallback{
-  width:100%;
-  height:150px;
-  display:grid;
-  place-items:center;
-  font-size: 13px;
-  font-weight: 800;
-  color:${FF.navySoft};
-  background: ${FF.blueSoft2};
-}
-
-.ff-fileTileBody{
-  padding: 10px;
-}
-
-.ff-fileName{
-  font-size: 13px;
-  font-weight: 800;
-  color:${FF.text};
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.ff-fileMeta{
-  margin-top: 4px;
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  font-size: 11px;
-  color:${FF.muted};
-}
-
-.ff-uploadedList{
-  display:grid;
-  gap:10px;
-}
-
-.ff-uploadedRow{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding:12px;
-  border: 1px solid ${FF.border};
-  border-radius: 14px;
-  background:#fff;
-}
-
-.ff-uploadedInfo{
-  min-width:0;
-  flex:1;
-}
-
-.ff-uploadedActions{
-  display:flex;
-  gap:8px;
-  flex-shrink:0;
-}
-
-/* CHAT */
-.ff-chatWrap{
-  display:grid;
-  gap:14px;
-}
-
-.ff-chatTop{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  padding:16px;
-  border: 1px solid rgba(36,91,255,0.18);
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(36,91,255,0.08) 0%, #fff 100%);
-}
-
-.ff-chatBody{
-  display: grid;
-  gap: 12px;
-  max-height: 420px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.ff-chatRow{
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-.ff-chatRowOut{
-  display:flex;
-  justify-content:flex-end;
-}
-
-.ff-chatRowIn{
-  display:flex;
-  justify-content:flex-start;
-}
-
-.ff-chatBubble{
-  width: fit-content;
-  max-width: min(78%, 640px);
-  padding: 12px 14px;
-  border-radius: 18px;
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.ff-chatBubbleOut{
-  background: #0b2a55;
-  border: 1px solid #0b2a55;
-  color: #fff;
-}
-
-.ff-chatBubbleIn{
-  background: #ffffff;
-  border: 1px solid #e6ecf5;
-  color: #0B1320;
-}
-
-.ff-chatMeta{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  margin-bottom: 8px;
-  font-size: 11px;
-  font-weight: 800;
-  opacity: 0.88;
-}
-
-.ff-chatName{
-  font-weight: 900;
-}
-
-.ff-chatTime{
-  font-weight: 700;
-}
-
-.ff-chatSubject{
-  font-size: 12px;
-  font-weight: 900;
-  margin-bottom: 8px;
-}
-
-.ff-chatText{
-  white-space: pre-wrap;
-  line-height: 1.55;
-  font-size: 13px;
-}
-
-.ff-chatComposer{
-  border: 1px solid rgba(36,91,255,0.18);
-  border-radius: 18px;
-  background: #fff;
-  padding: 16px;
-  box-shadow: 0 10px 24px rgba(15,23,42,0.05);
-}
-
-.ff-chatComposerTop{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:10px;
-}
-
-.ff-quickReplyRow{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin-top: 12px;
-}
-
-.ff-quickReplyBtn{
-  border: 1px solid ${FF.border};
-  background: #F7F9FC;
-  color:${FF.navySoft};
-  font-size: 12px;
-  font-weight: 800;
-  border-radius: 999px;
-  padding: 8px 12px;
-  cursor: pointer;
-}
-
-.ff-chatInput{
-  width:100%;
-  min-height: 130px;
-  margin-top: 12px;
-  border-radius: 16px;
-  border: 1px solid ${FF.border};
-  padding: 12px;
-  outline:none;
-  font-size: 13px;
-  line-height: 1.55;
-  color:${FF.text};
-  resize: vertical;
-  box-sizing: border-box;
-}
-
-.ff-chatActions{
-  margin-top: 12px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  flex-wrap:wrap;
-}
-
-.ff-chatHint{
-  font-size: 12px;
-  color:${FF.muted};
-  font-weight: 700;
-}
-
-.ff-chatActionButtons{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-/* NOTES */
-.ff-textarea{
-  width:100%;
-  min-height: 180px;
-  border-radius: 16px;
-  border: 1px solid ${FF.border};
-  padding: 12px;
-  outline:none;
-  font-size: 13px;
-  line-height: 1.55;
-  color:${FF.text};
-  resize: vertical;
-  box-sizing:border-box;
-}
-
-.ff-noteFoot{
-  margin-top: 12px;
-  display:flex;
-  justify-content:flex-end;
-  gap:10px;
-}
-
-.ff-inlineActions{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  align-items:center;
-}
-
-/* BOOKING ACTIONS */
-.ff-bookingActions{
-  margin-top: 16px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-}
-
-/* BUTTONS */
-.ff-btn{
-  height: 36px;
-  border-radius: 12px;
-  border: 1px solid ${FF.border};
-  background: #fff;
-  padding: 0 12px;
-  font-size: 13px;
-  font-weight: 800;
-  color: ${FF.navySoft};
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-.ff-btn:hover{
-  transform: translateY(-1px);
-}
-
-.ff-btnPrimary{
-  height: 38px;
-  border-radius: 999px;
-  border:none;
-  background: ${FF.navySoft};
-  color:#fff;
-  padding: 0 14px;
-  font-weight: 850;
-  font-size: 12px;
-}
-
-.ff-btnGhost{
-  border-radius: 999px;
-  font-weight: 850;
-  font-size: 12px;
-}
-
-.ff-btnSm{
-  height: 36px;
-  padding:0 14px;
-  font-size:12px;
-  border-radius:999px;
-}
-
-.ff-btnGreen{
-  height: 38px;
-  border-radius: 999px;
-  border: none;
-  background: #15803d;
-  color: #ffffff;
-  padding: 0 16px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.ff-btnGreen:hover{
-  background:#166534;
-}
-
-.ff-btnDanger{
-  height: 38px;
-  border-radius: 999px;
-  border: 1px solid #fecaca;
-  background: #fff;
-  color: #dc2626;
-  padding: 0 14px;
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-/* CHIP */
-.ff-chip{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  border-radius: 999px;
-  padding: 4px 10px;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-  border: 1px solid transparent;
-  white-space:nowrap;
-}
-
-.ff-chipBlue{
-  background:${FF.blueSoft};
-  border-color: rgba(36,91,255,0.32);
-  color:${FF.navySoft};
-}
-
-.ff-chipGray{
-  background:#F7F9FC;
-  border-color:${FF.border};
-  color:${FF.muted};
-}
-
-.ff-chipRed{
-  background:${FF.redSoft};
-  border-color:#FFC0C0;
-  color:#8A1F1F;
-}
-
-.ff-chipAmber{
-  background:${FF.amberSoft};
-  border-color:#FFD7A3;
-  color:#8A4B00;
-}
-
-.ff-chipGreen{
-  background:${FF.greenSoft};
-  border-color:#BFE9CF;
-  color:#116B3A;
-}
-
-/* STAGE STRIP */
-.ff-stageStrip{
-  display:grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap:8px;
-  margin-bottom:16px;
-}
-
-.ff-stageItem{
-  min-width:0;
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding:12px 10px;
-  border-radius:16px;
-  border:1px solid ${FF.border};
-  background:#fbfcff;
-}
-
-.ff-stageItem.isDone{
-  background: linear-gradient(180deg, #eef4ff 0%, #f8fbff 100%);
-  border-color: rgba(143,169,214,0.3);
-}
-
-.ff-stageItem.isCurrent{
-  box-shadow:
-    0 0 0 1px rgba(143,169,214,0.2),
-    0 8px 18px rgba(15,23,42,0.05);
-}
-
-.ff-stageDot{
-  width:10px;
-  height:10px;
-  border-radius:999px;
-  background:#d6deea;
-  flex:0 0 auto;
-}
-
-.ff-stageItem.isDone .ff-stageDot,
-.ff-stageItem.isCurrent .ff-stageDot{
-  background:${FF.blue};
-  box-shadow: 0 0 0 4px rgba(36,91,255,0.12);
-}
-
-.ff-stageText{
-  min-width:0;
-  font-size:12px;
-  line-height:1.25;
-  font-weight:800;
-  color:${FF.navySoft};
-}
-
-/* LOADING */
-.ff-loadingWrap{
-  padding: 18px;
-}
-
-.ff-loadingText{
-  font-size: 13px;
-  color: ${FF.muted};
-  font-weight: 700;
-}
-
-/* MODAL */
-.ff-modalOverlay{
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  background: rgba(11, 19, 32, 0.42);
-  backdrop-filter: blur(6px);
-}
-
-.ff-modal{
-  width: min(720px, 100%);
-  max-height: calc(100vh - 36px);
-  overflow: hidden;
-  border: 1px solid rgba(230, 236, 245, 0.96);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.18);
-}
-
-.ff-modalHead{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  padding: 16px 18px;
-  border-bottom: 1px solid ${FF.border};
-}
-
-.ff-modalTitle{
-  font-size: 16px;
-  font-weight: 900;
-  color:${FF.navySoft};
-}
-
-.ff-x{
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  border: 1px solid ${FF.border};
-  background:#fff;
-  cursor:pointer;
-  font-size: 14px;
-  font-weight: 900;
-  color:${FF.navySoft};
-}
-
-.ff-modalBody{
-  padding: 18px;
-  overflow:auto;
-  max-height: calc(100vh - 120px);
-}
-
-.ff-expandedMsgBody{
-  border: 1px solid ${FF.border};
-  background: ${FF.blueSoft2};
-  border-radius: 16px;
-  padding: 12px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-  font-size: 13px;
-  line-height: 1.55;
-  color: ${FF.text};
-}
-
-/* MOBILE */
-.ff-backMobile{
-  display:none;
-}
-
-@media (max-width: 1100px){
-  .ff-heroRow{
-    flex-direction: column;
-  }
-
-  .ff-heroStats{
-    width:100%;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    min-width: 0;
-  }
-
-  .ff-overviewTopGrid{
-    grid-template-columns: repeat(2, minmax(0,1fr));
-  }
-
-  .ff-fileGrid{
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .ff-stageStrip{
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 980px){
-  .ff-grid{
-    grid-template-columns: 1fr;
-  }
-
-  .ff-rightBody{
-    padding: 16px;
-  }
-
-  .ff-backMobile{
-    display:inline-flex;
-    background: rgba(31,53,92,0.06);
-    border: 1px solid rgba(31,53,92,0.12);
-    padding: 6px 12px;
-    border-radius: 999px;
-    margin: 0 0 16px 0;
-    font-weight: 700;
-    font-size: 13px;
-    color: #1f355c;
-    cursor:pointer;
-  }
-
-  .ff-page[data-mobile-detail="1"] .ff-leftPane{
-    display:none;
-  }
-
-  .ff-page[data-mobile-detail="0"] .ff-rightPane{
-    display:none;
-  }
-
-  .ff-leftItem[data-active="1"]::before{
-    content:none;
-  }
-
-  .ff-leftItem[data-active="1"]{
-    background:#fff;
-    border-color:${FF.border};
-    box-shadow: 0 10px 22px rgba(15,23,42,0.06);
-  }
-
-  .ff-rightTop{
-    flex-direction: column;
-  }
-
-  .ff-rightTopActions{
-    width:100%;
-    justify-content:flex-start;
-  }
-
-  .ff-chatComposerTop{
-    grid-template-columns: 1fr;
-  }
-
-  .ff-uploadedRow{
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .ff-uploadedActions{
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .ff-chatBubble{
-    max-width: 92%;
-  }
-}
-
-@media (max-width: 720px){
-  .ff-heroTitle{
-    font-size: 26px;
-  }
-
-  .ff-heroRule{
-    width: 180px;
-  }
-
-  .ff-overviewTopGrid{
-    grid-template-columns: 1fr;
-  }
-
-  .ff-customerGrid{
-    grid-template-columns: 1fr;
-  }
-
-  .ff-detailRow{
-    grid-template-columns: 1fr;
-  }
-
-  .ff-leftItem{
-    min-height: 178px;
-  }
-
-  .ff-fileGrid{
-    grid-template-columns: 1fr;
-  }
-
-  .ff-stageStrip{
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-`;

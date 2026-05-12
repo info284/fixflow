@@ -99,6 +99,10 @@ export async function POST(req: Request) {
 
     const body = await req.json().catch(() => ({}));
 
+    const isFollowUp = Boolean(body?.isFollowUp);
+const followUpNumber =
+  typeof body?.followUpNumber === "number" ? body.followUpNumber : null;
+
     const requestId = String(body.requestId || "").trim();
     const to = String(body.to || body.email || "").trim();
     const subjectRaw = String(

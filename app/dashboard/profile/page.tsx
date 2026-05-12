@@ -1,5 +1,5 @@
 "use client";
-
+import "@/app/dashboard/shared-flow.css";
 import {
   useEffect,
   useMemo,
@@ -17,6 +17,12 @@ type ProfileRow = {
   headline: string | null;
   notify_email: string | null;
   logo_url: string | null;
+  profile_photo_url: string | null;
+  business_phone: string | null;
+  business_description: string | null;
+  trading_address: string | null;
+  years_in_business: number | null;
+  insurance_cover: number | null;
   vat_number: string | null;
   bank_name: string | null;
   bank_account_name: string | null;
@@ -46,6 +52,20 @@ type Service = {
   trade_id: string | null;
   user_id: string | null;
   created_at?: string;
+};
+
+type TraderCertificate = {
+  id: string;
+  trader_id: string;
+  name: string;
+  certificate_number: string | null;
+  expiry_date: string | null;
+  file_url: string | null;
+  show_on_estimates: boolean;
+  show_on_invoices: boolean;
+  created_at: string;
+  updated_at: string;
+
 };
 
 function slugify(input: string) {
@@ -114,7 +134,53 @@ function guidePrice(from: number | null, to: number | null) {
   if (from !== null) return `From ${money(from)}`;
   return `Up to ${money(to)}`;
 }
+function getCertificateStatus(expiry: string | null) {
+  if (!expiry) return { label: "No expiry", tone: "neutral" };
 
+  const today = new Date();
+  const exp = new Date(expiry);
+
+  const diffMs = exp.getTime() - today.getTime();
+  const days = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+  if (days < 0) {
+    return { label: "Expired", tone: "red" };
+  }
+
+  if (days <= 7) {
+    return { label: `Expires in ${days} day${days === 1 ? "" : "s"}`, tone: "red" };
+  }
+
+  if (days <= 30) {
+    return { label: `Expires in ${days} days`, tone: "amber" };
+  }
+
+  return { label: `Valid (${days} days left)`, tone: "green" };
+}
+function getCertificateWarning(expiryDate?: string | null) {
+  if (!expiryDate) return null;
+
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+
+  const diffDays = Math.ceil(
+    (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (diffDays < 0) {
+    const days = Math.abs(diffDays);
+    return `Expired ${days} day${days === 1 ? "" : "s"} ago`;
+  }
+
+  if (diffDays <= 14) {
+    return `Expires in ${diffDays} day${diffDays === 1 ? "" : "s"}`;
+  }
+
+  if (diffDays <= 30) return "Expires within 1 month";
+  if (diffDays <= 60) return "Expires within 2 months";
+
+  return null;
+}
 export default function ProfilePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [profile, setProfile] = useState<ProfileRow | null>(null);
@@ -129,10 +195,16 @@ export default function ProfilePage() {
   const [serviceMsg, setServiceMsg] = useState<string | null>(null);
   const [calendarMsg, setCalendarMsg] = useState<string | null>(null);
 
+  const [certificateMsg, setCertificateMsg] = useState<string | null>(null);
+const [certificateBusy, setCertificateBusy] = useState(false);
+
+
   const [slug, setSlug] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [headline, setHeadline] = useState("");
+  const [businessDescription, setBusinessDescription] = useState("");
   const [notifyEmail, setNotifyEmail] = useState("");
+  const [businessPhone, setBusinessPhone] = useState("");
 
   const [vatNumber, setVatNumber] = useState("");
   const [bankName, setBankName] = useState("");
@@ -143,8 +215,11 @@ export default function ProfilePage() {
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoError, setLogoError] = useState<string | null>(null);
 
+  const [profilePhotoUploading, setProfilePhotoUploading] = useState(false);
+const [profilePhotoError, setProfilePhotoError] = useState<string | null>(null);
+const [yearsInBusiness, setYearsInBusiness] = useState("");
   const [calStatus, setCalStatus] = useState<string | null>(null);
-
+const [tradingAddress, setTradingAddress] = useState("");
   const [locations, setLocations] = useState<LocationRow[]>([]);
   const [locationsLoading, setLocationsLoading] = useState(false);
   const [locationBusy, setLocationBusy] = useState(false);
@@ -165,7 +240,24 @@ export default function ProfilePage() {
   const [tradeSlug, setTradeSlug] = useState("");
   const [editingTradeId, setEditingTradeId] = useState<string | null>(null);
   const [tradeSearch, setTradeSearch] = useState("");
-
+const [confirmState, setConfirmState] = useState<{
+  open: boolean;
+  message: string;
+  onConfirm: (() => void) | null;
+}>({
+  open: false,
+  message: "",
+  onConfirm: null,
+});
+const [editingCertId, setEditingCertId] = useState<string | null>(null);
+const [certificates, setCertificates] = useState<TraderCertificate[]>([]);
+const [certName, setCertName] = useState("");
+const [certNumber, setCertNumber] = useState("");
+const [certExpiry, setCertExpiry] = useState("");
+const [certShowEstimates, setCertShowEstimates] = useState(true);
+const [certShowInvoices, setCertShowInvoices] = useState(true);
+const [certFile, setCertFile] = useState<File | null>(null);
+const [insuranceCover, setInsuranceCover] = useState("");
   const [services, setServices] = useState<Service[]>([]);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [serviceBusy, setServiceBusy] = useState(false);
@@ -238,6 +330,41 @@ export default function ProfilePage() {
     });
   }, [services, serviceTradeFilter, serviceSearch, tradeMap]);
 
+const profileCompleteness = useMemo(() => {
+  const checks = [
+    displayName,
+    slug,
+    headline,
+    businessDescription,
+    businessPhone,
+    notifyEmail,
+    profile?.logo_url,
+    profile?.profile_photo_url,
+    locations.length > 0 ? "locations" : "",
+    services.length > 0 ? "services" : "",
+    certificates.length > 0 ? "certificates" : "",
+    yearsInBusiness,
+    insuranceCover,
+  ];
+
+  const done = checks.filter((x) => String(x || "").trim()).length;
+  return Math.round((done / checks.length) * 100);
+}, [
+  displayName,
+  slug,
+  headline,
+  businessDescription,
+  businessPhone,
+  notifyEmail,
+  profile?.logo_url,
+  profile?.profile_photo_url,
+  locations.length,
+  services.length,
+  certificates.length,
+  yearsInBusiness,
+  insuranceCover,
+]);
+
   const setupChips = useMemo(() => {
     return [
       {
@@ -252,8 +379,12 @@ export default function ProfilePage() {
         label: `${services.length} service${services.length === 1 ? "" : "s"} live`,
         ok: services.length > 0,
       },
+      {
+  label: `${profileCompleteness}% profile complete`,
+  ok: profileCompleteness >= 80,
+},
     ];
-  }, [publicQuoteLink, locations.length, services.length]);
+ }, [publicQuoteLink, locations.length, services.length, profileCompleteness]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -297,6 +428,18 @@ export default function ProfilePage() {
     setTradesLoading(false);
   };
 
+const loadCertificates = async (uid: string) => {
+  const { data, error } = await supabase
+    .from("trader_certificates")
+    .select("*")
+    .eq("trader_id", uid)
+    .order("expiry_date", { ascending: true });
+
+  if (!error) {
+    setCertificates((data || []) as TraderCertificate[]);
+  }
+};
+
   const loadServices = async (uid: string) => {
     setServicesLoading(true);
 
@@ -333,9 +476,9 @@ export default function ProfilePage() {
 
       const { data, error } = await supabase
         .from("profiles")
-        .select(
-          "id, slug, display_name, headline, notify_email, logo_url, vat_number, bank_name, bank_account_name, bank_sort_code, bank_account_number"
-        )
+.select(
+  "id, slug, display_name, headline, notify_email, logo_url, profile_photo_url, business_phone, business_description, years_in_business, trading_address, insurance_cover, vat_number, bank_name, bank_account_name, bank_sort_code, bank_account_number"
+)
         .eq("id", user.id)
         .maybeSingle();
 
@@ -351,7 +494,16 @@ export default function ProfilePage() {
       setSlug(p?.slug || "");
       setDisplayName(p?.display_name || "");
       setHeadline(p?.headline || "");
+      setBusinessDescription(p?.business_description || "");
+      setYearsInBusiness(
+  p?.years_in_business ? String(p.years_in_business) : ""
+);
+setInsuranceCover(
+  p?.insurance_cover ? String(p.insurance_cover) : ""
+);
+setTradingAddress(p?.trading_address || "");
       setNotifyEmail(p?.notify_email || user.email || "");
+      setBusinessPhone(p?.business_phone || "");
 
       setVatNumber(p?.vat_number || "");
       setBankName(p?.bank_name || "");
@@ -359,11 +511,12 @@ export default function ProfilePage() {
       setBankSortCode(p?.bank_sort_code || "");
       setBankAccountNumber(p?.bank_account_number || "");
 
-      await Promise.all([
-        loadLocations(user.id),
-        loadTrades(),
-        loadServices(user.id),
-      ]);
+await Promise.all([
+  loadLocations(user.id),
+  loadTrades(),
+  loadServices(user.id),
+  loadCertificates(user.id),
+]);
 
       setLoading(false);
     };
@@ -467,7 +620,16 @@ export default function ProfilePage() {
         slug: cleanSlug || null,
         display_name: displayName.trim() || null,
         headline: headline.trim() || null,
+        business_description: businessDescription.trim() || null,
+        years_in_business: yearsInBusiness
+  ? Number(yearsInBusiness)
+  : null,
+  insurance_cover: insuranceCover
+  ? Number(insuranceCover)
+  : null,
+  trading_address: tradingAddress.trim() || null,
         notify_email: notifyEmail.trim() || null,
+        business_phone: businessPhone.trim() || null,
         vat_number: vatNumber.trim() || null,
         bank_name: bankName.trim() || null,
         bank_account_name: bankAccountName.trim() || null,
@@ -489,12 +651,22 @@ export default function ProfilePage() {
       display_name: displayName.trim() || null,
       headline: headline.trim() || null,
       notify_email: notifyEmail.trim() || null,
+      business_description: businessDescription.trim() || null,
+      years_in_business: yearsInBusiness
+  ? Number(yearsInBusiness)
+  : null,
+  insurance_cover: insuranceCover
+  ? Number(insuranceCover)
+  : null,
+  trading_address: tradingAddress.trim() || null,
+  business_phone: businessPhone.trim() || null,
       vat_number: vatNumber.trim() || null,
       bank_name: bankName.trim() || null,
       bank_account_name: bankAccountName.trim() || null,
       bank_sort_code: sortDigits || null,
       bank_account_number: accDigits || null,
       logo_url: prev?.logo_url || null,
+      profile_photo_url: prev?.profile_photo_url || null,
     }));
 
     setProfileMsg("Business profile saved ✅");
@@ -549,6 +721,57 @@ export default function ProfilePage() {
     setLogoUploading(false);
     setProfileMsg("Logo updated ✅");
   };
+const onProfilePhotoPicked = async (e: ChangeEvent<HTMLInputElement>) => {
+  setProfilePhotoError(null);
+  setProfileMsg(null);
+  if (!userId) return;
+
+  const file = e.target.files?.[0] || null;
+  if (!file) return;
+
+  const maxBytes = 5 * 1024 * 1024;
+  if (file.size > maxBytes) {
+    setProfilePhotoError("Photo too large (max 5MB).");
+    return;
+  }
+
+  setProfilePhotoUploading(true);
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const fileName = `profile-${Date.now()}.${ext}`;
+  const path = `profile-photos/${userId}/${fileName}`;
+
+  const { error: upErr } = await supabase.storage
+    .from("logos")
+    .upload(path, file, { upsert: true });
+
+  if (upErr) {
+    setProfilePhotoError(upErr.message);
+    setProfilePhotoUploading(false);
+    return;
+  }
+
+  const { data } = supabase.storage.from("logos").getPublicUrl(path);
+  const url = data.publicUrl;
+
+  const { error: saveErr } = await supabase
+    .from("profiles")
+    .update({ profile_photo_url: url })
+    .eq("id", userId);
+
+  if (saveErr) {
+    setProfilePhotoError(saveErr.message);
+    setProfilePhotoUploading(false);
+    return;
+  }
+
+  setProfile((prev) =>
+    prev ? { ...prev, profile_photo_url: url } : prev
+  );
+
+  setProfilePhotoUploading(false);
+  setProfileMsg("Profile photo updated ✅");
+};
 
   const resetLocationForm = () => {
     setLocationInput("");
@@ -631,31 +854,39 @@ export default function ProfilePage() {
     setLocationBusy(false);
   };
 
-  const removeLocation = async (id: string) => {
-    if (!userId) return;
+const removeLocation = async (id: string) => {
+  if (!userId) return;
 
-    const ok = confirm("Delete this postcode prefix?");
-    if (!ok) return;
+  setConfirmState({
+    open: true,
+    message: "Delete this postcode prefix?",
+    onConfirm: async () => {
+      await deleteLocationConfirmed(id);
+    },
+  });
+};
+const deleteLocationConfirmed = async (id: string) => {
+  if (!userId) return;
 
-    setLocationBusy(true);
-    setLocationMsg(null);
+  setLocationBusy(true);
+  setLocationMsg(null);
 
-    const { error } = await supabase
-      .from("trade_locations")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
+  const { error } = await supabase
+    .from("trade_locations")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
 
-    if (error) {
-      setLocationMsg(`Delete error: ${error.message}`);
-      setLocationBusy(false);
-      return;
-    }
-
-    setLocations((prev) => prev.filter((r) => r.id !== id));
-    setLocationMsg("Location deleted ✅");
+  if (error) {
+    setLocationMsg(`Delete error: ${error.message}`);
     setLocationBusy(false);
-  };
+    return;
+  }
+
+  setLocations((prev) => prev.filter((r) => r.id !== id));
+  setLocationMsg("Location deleted ✅");
+  setLocationBusy(false);
+};
 
   const resetTradeForm = () => {
     setEditingTradeId(null);
@@ -745,29 +976,36 @@ export default function ProfilePage() {
     setTradeBusy(false);
   };
 
-  const removeTrade = async (id: string) => {
-    const ok = confirm(
-      "Delete this trade?\n\nAny services linked to it will need reassigning."
-    );
-    if (!ok) return;
+const removeTrade = async (id: string) => {
+  setConfirmState({
+    open: true,
+    message: "Delete this trade? Any services linked to it may need reassigning.",
+    onConfirm: async () => {
+      await deleteTradeConfirmed(id);
+    },
+  });
+};
 
-    setTradeBusy(true);
-    setTradeMsg(null);
+const deleteTradeConfirmed = async (id: string) => {
+  setTradeBusy(true);
+  setTradeMsg(null);
 
-    const { error } = await supabase.from("trades").delete().eq("id", id);
+  const { error } = await supabase.from("trades").delete().eq("id", id);
 
-    if (error) {
-      setTradeMsg(`Could not delete trade: ${error.message}`);
-      setTradeBusy(false);
-      return;
-    }
-
-    setTrades((prev) => prev.filter((t) => t.id !== id));
-    if (editingTradeId === id) resetTradeForm();
-
-    setTradeMsg("Trade deleted ✅");
+  if (error) {
+    setTradeMsg(`Could not delete trade: ${error.message}`);
     setTradeBusy(false);
-  };
+    return;
+  }
+
+  setTrades((prev) => prev.filter((t) => t.id !== id));
+  if (editingTradeId === id) resetTradeForm();
+
+  setTradeMsg("Trade deleted ✅");
+  setTradeBusy(false);
+};
+
+
 
   const resetServiceForm = () => {
     setEditingServiceId(null);
@@ -916,33 +1154,195 @@ export default function ProfilePage() {
     setServiceBusy(false);
   };
 
-  const removeService = async (id: string) => {
-    if (!userId) return;
+ const removeService = async (id: string) => {
+  if (!userId) return;
 
-    const ok = confirm("Delete this service?");
-    if (!ok) return;
+  setConfirmState({
+    open: true,
+    message: "Delete this service?",
+    onConfirm: async () => {
+      await deleteServiceConfirmed(id);
+    },
+  });
+};
+const deleteServiceConfirmed = async (id: string) => {
+  if (!userId) return;
 
-    setServiceBusy(true);
-    setServiceMsg(null);
+  setServiceBusy(true);
+  setServiceMsg(null);
 
-    const { error } = await supabase
-      .from("services")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
+  const { error } = await supabase
+    .from("services")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
 
-    if (error) {
-      setServiceMsg(`Could not delete service: ${error.message}`);
-      setServiceBusy(false);
-      return;
+  if (error) {
+    setServiceMsg(`Could not delete service: ${error.message}`);
+    setServiceBusy(false);
+    return;
+  }
+
+  setServices((prev) => prev.filter((s) => s.id !== id));
+  if (editingServiceId === id) resetServiceForm();
+
+  setServiceMsg("Service deleted ✅");
+  setServiceBusy(false);
+};
+
+const resetCertificateForm = () => {
+  setCertName("");
+  setCertNumber("");
+  setCertExpiry("");
+  setCertShowEstimates(true);
+  setCertShowInvoices(true);
+  setCertFile(null);
+};
+
+const addCertificate = async (e: FormEvent) => {
+  e.preventDefault();
+  if (!userId) return;
+
+  setCertificateMsg(null);
+
+  if (!certName.trim()) {
+    setCertificateMsg("Please enter a certificate name.");
+    return;
+  }
+
+setCertificateBusy(true);
+
+if (editingCertId) {
+  const { error } = await supabase
+    .from("trader_certificates")
+    .update({
+      name: certName.trim(),
+      certificate_number: certNumber.trim() || null,
+      expiry_date: certExpiry || null,
+      show_on_estimates: certShowEstimates,
+      show_on_invoices: certShowInvoices,
+    })
+    .eq("id", editingCertId)
+    .eq("trader_id", userId);
+
+  if (error) {
+    setCertificateMsg(error.message);
+    setCertificateBusy(false);
+    return;
+  }
+
+  setCertificates((prev) =>
+    prev.map((c) =>
+      c.id === editingCertId
+        ? {
+            ...c,
+            name: certName.trim(),
+            certificate_number: certNumber.trim() || null,
+            expiry_date: certExpiry || null,
+            show_on_estimates: certShowEstimates,
+            show_on_invoices: certShowInvoices,
+          }
+        : c
+    )
+  );
+
+  setEditingCertId(null);
+  resetCertificateForm();
+  setCertificateMsg("Certificate updated ✅");
+  setCertificateBusy(false);
+  return;
+}
+  let fileUrl: string | null = null;
+
+  try {
+    if (certFile) {
+      const ext = certFile.name.split(".").pop() || "pdf";
+      const fileName = `${Date.now()}-${certName
+        .trim()
+        .replace(/[^a-zA-Z0-9]/g, "-")}.${ext}`;
+
+      const path = `certificates/${userId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("quote-files")
+        .upload(path, certFile, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from("quote-files")
+        .getPublicUrl(path);
+
+      fileUrl = data.publicUrl;
     }
 
-    setServices((prev) => prev.filter((s) => s.id !== id));
-    if (editingServiceId === id) resetServiceForm();
+    const { data, error } = await supabase
+      .from("trader_certificates")
+      .insert({
+        trader_id: userId,
+        name: certName.trim(),
+        certificate_number: certNumber.trim() || null,
+        expiry_date: certExpiry || null,
+        file_url: fileUrl,
+        show_on_estimates: certShowEstimates,
+        show_on_invoices: certShowInvoices,
+      })
+      .select("*")
+      .maybeSingle();
 
-    setServiceMsg("Service deleted ✅");
-    setServiceBusy(false);
-  };
+    if (error) throw error;
+
+    if (data) {
+      setCertificates((prev) => [data as TraderCertificate, ...prev]);
+    }
+
+    resetCertificateForm();
+    setCertificateMsg("Certificate added ✅");
+  } catch (err: any) {
+    setCertificateMsg(err?.message || "Could not add certificate.");
+    setCertFile(null);
+  }
+
+  setCertificateBusy(false);
+};
+
+const removeCertificate = async (id: string) => {
+  if (!userId) return;
+
+  setConfirmState({
+    open: true,
+    message: "Delete this certificate?",
+    onConfirm: async () => {
+      await deleteCertificateConfirmed(id);
+    },
+  });
+};
+
+const deleteCertificateConfirmed = async (id: string) => {
+  if (!userId) return;
+
+  setCertificateBusy(true);
+  setCertificateMsg(null);
+
+  const { error } = await supabase
+    .from("trader_certificates")
+    .delete()
+    .eq("id", id)
+    .eq("trader_id", userId);
+
+  if (error) {
+    setCertificateMsg(error.message);
+    setCertificateBusy(false);
+    return;
+  }
+
+  setCertificates((prev) => prev.filter((c) => c.id !== id));
+  setCertificateMsg("Certificate deleted ✅");
+  setCertificateBusy(false);
+};
 
   const calBanner = (() => {
     if (!calStatus && !calendarMsg) return null;
@@ -978,49 +1378,113 @@ export default function ProfilePage() {
     return <p className="ff-help">Calendar status: {calStatus}</p>;
   })();
 
+const certificateWarnings = useMemo(() => {
+  let expiringSoon = 0;
+  let expired = 0;
+
+  const today = new Date();
+
+  for (const c of certificates) {
+    if (!c.expiry_date) continue;
+
+    const exp = new Date(c.expiry_date);
+    const diffDays = Math.ceil(
+      (exp.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    );
+
+    if (diffDays < 0) {
+      expired++;
+    } else if (diffDays <= 30) {
+      expiringSoon++;
+    }
+  }
+
+  return { expiringSoon, expired };
+}, [certificates]);
   return (
     <div className="ff-page">
       <div className="ff-wrap">
-        <div className="ff-hero">
-          <div className="ff-heroGlow" />
-          <div className="ff-heroRow">
-            <div className="ff-heroText">
-              <h1 className="ff-heroTitle">Business setup</h1>
-              <p className="ff-heroSub">
-                Manage your business profile, public link, locations, services and
-                estimate details.
-              </p>
-              <p className="ff-heroTip">
-                Keep everything up to date so your FixFlow profile feels polished,
-                ready to share, and ready to win work.
-              </p>
+<div className="ff-top">
+  <div className="ff-hero">
+    <div className="ff-heroGlow" />
 
-              <div className="ff-heroMeta">
-                {setupChips.map((chip) => (
-                  <div
-                    key={chip.label}
-                    className={`ff-heroChip ${chip.ok ? "ff-heroChipOk" : ""}`}
-                  >
-                    {chip.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="ff-heroActions">
-              <button
-                className="ff-btn ff-btnPrimary"
-                type="submit"
-                form="profileForm"
-                disabled={saving || loading}
-              >
-                {saving ? "Saving…" : "Save changes"}
-              </button>
-            </div>
-          </div>
+    <div className="ff-heroRow">
+      <div className="ff-heroLeft">
+        <div className="ff-heroTitle">Business setup</div>
+        <div className="ff-heroRule" />
+        <div className="ff-heroSub">
+          Manage your business profile, public link, certificates, locations and services.
         </div>
 
-        {pageMsg ? <div className="ff-msg">{pageMsg}</div> : null}
+<div className="ff-progressWrap">
+  <div className="ff-progressTop">
+    <div className="ff-progressLabel">Profile strength</div>
+    <div className="ff-progressValue">{profileCompleteness}%</div>
+  </div>
+
+  <div className="ff-progressBar">
+    <div
+      className="ff-progressFill"
+      style={{ width: `${profileCompleteness}%` }}
+    />
+  </div>
+
+  <div className="ff-progressHint">
+    Complete your profile to win more jobs and build trust with customers.
+  </div>
+</div>
+{profileCompleteness < 100 && (
+  <div className="ff-profileMissingBox">
+    <div className="ff-profileMissingTitle">To improve your profile</div>
+
+    <div className="ff-profileMissingList">
+      {!profile?.profile_photo_url && <span>Add a profile photo</span>}
+      {!businessPhone.trim() && <span>Add a business phone</span>}
+      {!businessDescription.trim() && <span>Add a business description</span>}
+      {locations.length === 0 && <span>Add locations</span>}
+      {services.length === 0 && <span>Add services</span>}
+      {certificates.length === 0 && <span>Add certificates</span>}
+    </div>
+  </div>
+)}
+
+{profileCompleteness >= 80 && (
+  <div className="ff-topProfileBadge">
+    🏆 Top profile — ready for marketplace discovery
+  </div>
+)}
+{tradingAddress.trim() && businessPhone.trim() && certificates.length > 0 && (
+  <div className="ff-verifiedBusinessBadge">
+    ✅ Verified business — address, phone and certificates added
+  </div>
+)}
+<div className="ff-heroStats">
+  {setupChips.map((chip) => (
+    <div key={chip.label} className="ff-statCard">
+      <div className="ff-statLabel">{chip.label}</div>
+      <div className="ff-statValue">
+        {chip.ok ? "✓" : "—"}
+      </div>
+    </div>
+  ))}
+</div>
+      </div>
+
+      <div className="ff-actions">
+        <button
+          className="ff-btn ff-btnPrimary"
+          type="submit"
+          form="profileForm"
+          disabled={saving || loading}
+        >
+          {saving ? "Saving…" : "Save changes"}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{pageMsg ? <div className="ff-msg">{pageMsg}</div> : null}
 
         <div className="ff-stack">
           <form id="profileForm" onSubmit={handleSave} className="ff-card">
@@ -1041,17 +1505,23 @@ export default function ProfilePage() {
 
               <div className="ff-profileTop">
                 <div className="ff-field">
-                  <label className="ff-label">Logo</label>
+                  <label className="ff-label">Business images</label>
 
                   <div className="ff-logoRow">
                     <div className="ff-logoBox">
-                      {profile?.logo_url ? (
-                        <img
-                          src={profile.logo_url}
-                          alt="Logo"
-                          className="ff-logoImg"
-                        />
-                      ) : (
+{profile?.profile_photo_url ? (
+  <img
+    src={profile.profile_photo_url}
+    alt="Profile"
+    className="ff-logoImg"
+  />
+) : profile?.logo_url ? (
+  <img
+    src={profile.logo_url}
+    alt="Logo"
+    className="ff-logoImg"
+  />
+) : (
                         <span className="ff-logoFallback">
                           {(displayName || slug || "F").charAt(0).toUpperCase()}
                         </span>
@@ -1070,6 +1540,24 @@ export default function ProfilePage() {
                       <div className="ff-help">
                         PNG or JPG up to 5MB. This shows on estimates and documents.
                       </div>
+<div style={{ marginTop: 14 }}>
+  <label className="ff-label">Profile photo</label>
+
+<input
+  type="file"
+  accept="image/*"
+  onChange={onProfilePhotoPicked}
+  className="ff-file"
+  disabled={profilePhotoUploading || loading}
+/>
+
+  <div className="ff-help">
+    A friendly face builds trust with customers.
+  </div>
+
+  {profilePhotoUploading ? <div className="ff-help">Uploading…</div> : null}
+  {profilePhotoError ? <div className="ff-helpBad">{profilePhotoError}</div> : null}
+</div>
                       {logoUploading ? <div className="ff-help">Uploading…</div> : null}
                       {logoError ? <div className="ff-helpBad">{logoError}</div> : null}
                     </div>
@@ -1087,7 +1575,20 @@ export default function ProfilePage() {
                       disabled={loading}
                     />
                   </div>
-
+<div className="ff-field">
+  <label className="ff-label">Trading address</label>
+  <textarea
+    className="ff-input"
+    value={tradingAddress}
+    onChange={(e) => setTradingAddress(e.target.value)}
+    placeholder="123 High Street, Staines, TW18 4AB"
+    disabled={loading}
+    style={{ minHeight: 90, paddingTop: 12 }}
+  />
+  <div className="ff-help">
+    This will appear on invoices and builds trust with customers.
+  </div>
+</div>
                   <div className="ff-field">
                     <label className="ff-label">Your link name</label>
                     <input
@@ -1105,7 +1606,51 @@ export default function ProfilePage() {
                     </div>
                   </div>
                 </div>
+<div className="ff-two">
+  <div className="ff-field">
+    <label className="ff-label">Business phone</label>
+    <input
+      className="ff-input"
+      value={businessPhone}
+      onChange={(e) => setBusinessPhone(e.target.value)}
+      placeholder="07700 900123"
+      disabled={loading}
+    />
+  </div>
 
+  <div className="ff-field">
+    <label className="ff-label">Years in business</label>
+    <input
+      className="ff-input"
+      value={yearsInBusiness}
+      onChange={(e) =>
+        setYearsInBusiness(e.target.value.replace(/[^\d]/g, ""))
+      }
+      placeholder="10"
+      inputMode="numeric"
+      disabled={loading}
+    />
+    <div className="ff-help">
+      This can appear later on your public marketplace profile.
+    </div>
+  </div>
+</div>
+<div className="ff-field">
+  <label className="ff-label">Insurance cover</label>
+  <input
+    className="ff-input"
+    value={insuranceCover}
+    onChange={(e) =>
+      setInsuranceCover(e.target.value.replace(/[^\d]/g, ""))
+    }
+    placeholder="e.g. 2000000"
+    inputMode="numeric"
+    disabled={loading}
+  />
+  <div className="ff-help">
+    This can later show as “£2m public liability cover” on your marketplace profile.
+  </div>
+</div>
                 <div className="ff-two">
                   <div className="ff-field">
                     <label className="ff-label">Headline</label>
@@ -1130,7 +1675,20 @@ export default function ProfilePage() {
                     />
                   </div>
                 </div>
-
+<div className="ff-field">
+  <label className="ff-label">Business description</label>
+  <textarea
+    className="ff-input"
+    value={businessDescription}
+    onChange={(e) => setBusinessDescription(e.target.value)}
+    placeholder="Tell customers what you do, the areas you cover, and why they should choose you."
+    disabled={loading}
+    style={{ minHeight: 110, paddingTop: 12, resize: "vertical" }}
+  />
+  <div className="ff-help">
+    This will be useful later for your public profile and marketplace listing.
+  </div>
+</div>
                 <div className="ff-divider" />
 
                 <div className="ff-sectionTitle">Estimate & invoice details</div>
@@ -1322,6 +1880,239 @@ export default function ProfilePage() {
     )}
   </div>
 </div>
+
+<form onSubmit={addCertificate} className="ff-card">
+  <div className="ff-cardHead">
+    <div className="ff-cardHeading">
+      <div className="ff-cardAccent" />
+      <div>
+        <div className="ff-cardTitle">CERTIFICATES & TRUST</div>
+        <div className="ff-cardSub">
+          Add certificates, insurance and memberships that can appear on estimates and invoices.
+        </div>
+      </div>
+    </div>
+  </div>
+
+<div className="ff-cardBody">
+  {certificateMsg ? <div className="ff-inlineMsg">{certificateMsg}</div> : null}
+
+  {(certificateWarnings.expired > 0 || certificateWarnings.expiringSoon > 0) && (
+    <div className="ff-certWarningBanner">
+      {certificateWarnings.expired > 0 && (
+        <div className="ff-certWarning ff-certWarning--red">
+          ⚠ {certificateWarnings.expired} expired certificate
+          {certificateWarnings.expired > 1 ? "s" : ""}
+        </div>
+      )}
+
+      {certificateWarnings.expiringSoon > 0 && (
+        <div className="ff-certWarning ff-certWarning--amber">
+          ⏳ {certificateWarnings.expiringSoon} expiring soon (within 30 days)
+        </div>
+      )}
+    </div>
+  )}
+
+  <div className="ff-two">
+      <div className="ff-field">
+        <label className="ff-label">Certificate name</label>
+        <input
+          className="ff-input"
+          value={certName}
+          onChange={(e) => setCertName(e.target.value)}
+          placeholder="Gas Safe / Public Liability / NICEIC"
+          disabled={certificateBusy || loading}
+        />
+      </div>
+
+      <div className="ff-field">
+        <label className="ff-label">Certificate number</label>
+        <input
+          className="ff-input"
+          value={certNumber}
+          onChange={(e) => setCertNumber(e.target.value)}
+          placeholder="Registration or policy number"
+          disabled={certificateBusy || loading}
+        />
+      </div>
+    </div>
+
+<div className="ff-two" style={{ marginTop: 14 }}>
+  <div className="ff-field">
+    <label className="ff-label">Expiry date</label>
+    <input
+      className="ff-input"
+      type="date"
+      value={certExpiry}
+      onChange={(e) => setCertExpiry(e.target.value)}
+      disabled={certificateBusy || loading}
+    />
+  </div>
+
+
+
+      <div className="ff-field">
+        <label className="ff-label">Show on documents</label>
+
+        <label className="ff-checkRow">
+          <input
+            type="checkbox"
+            checked={certShowEstimates}
+            onChange={(e) => setCertShowEstimates(e.target.checked)}
+          />
+          Show on estimates
+        </label>
+
+        <label className="ff-checkRow">
+          <input
+            type="checkbox"
+            checked={certShowInvoices}
+            onChange={(e) => setCertShowInvoices(e.target.checked)}
+          />
+          Show on invoices
+        </label>
+      </div>
+    </div>
+<div className="ff-field" style={{ marginTop: 14 }}>
+  <label className="ff-label">Certificate file</label>
+  <input
+    className="ff-input"
+    type="file"
+    accept=".pdf,image/*"
+    onChange={(e) => setCertFile(e.target.files?.[0] || null)}
+    disabled={certificateBusy || loading}
+  />
+  <div className="ff-help">
+    Upload the actual certificate PDF or image for your records.
+  </div>
+</div>
+
+<div className="ff-footerRow">
+  <button
+    className="ff-btn ff-btnSoftPrimary"
+    type="submit"
+    disabled={certificateBusy || loading}
+  >
+    {certificateBusy
+      ? "Saving…"
+      : editingCertId
+      ? "Save certificate"
+      : "Add certificate"}
+  </button>
+
+{editingCertId && (
+  <button
+    type="button"
+    className="ff-btn"
+    onClick={() => {
+      setEditingCertId(null);
+      resetCertificateForm();
+      setCertificateMsg(null); // 👈 ADD THIS LINE
+    }}
+  >
+    Cancel
+  </button>
+)}
+</div>
+
+    <div className="ff-divider" />
+
+    {certificates.length === 0 ? (
+      <div className="ff-help">No certificates added yet.</div>
+    ) : (
+      <div className="ff-tableWrap">
+        <table className="ff-table">
+          <thead>
+            <tr>
+              <th>Certificate</th>
+              <th>Number</th>
+              <th>Expiry</th>
+              <th>Shows on</th>
+              <th className="ff-thRight">Actions</th>
+            </tr>
+          </thead>
+
+<tbody>
+  {certificates.map((c) => {
+    const status = getCertificateStatus(c.expiry_date);
+
+    return (
+      <tr key={c.id}>
+        <td>
+          <div className="ff-tableMain">{c.name}</div>
+        </td>
+
+        <td>{c.certificate_number || "—"}</td>
+
+<td>
+  <div className={`ff-certStatus ff-certStatus--${status.tone}`}>
+    {c.expiry_date || "No expiry"}
+  </div>
+
+  <div className="ff-certSub">{status.label}</div>
+
+  {getCertificateWarning(c.expiry_date) ? (
+    <div className="ff-certSub">
+      {getCertificateWarning(c.expiry_date)}
+    </div>
+  ) : null}
+</td>
+
+<td>
+  {c.show_on_estimates ? "Estimates" : ""}
+  {c.show_on_estimates && c.show_on_invoices ? " + " : ""}
+  {c.show_on_invoices ? "Invoices" : ""}
+</td>
+
+<td className="ff-actionsCell">
+  {c.file_url ? (
+    <a
+      href={c.file_url}
+      target="_blank"
+      rel="noreferrer"
+      className="ff-btn ff-btnSm"
+    >
+      View certificate
+    </a>
+  ) : null}
+          <button
+            type="button"
+            className="ff-actionDanger"
+            onClick={() => removeCertificate(c.id)}
+            disabled={certificateBusy}
+          >
+            Delete
+          </button>
+          <button
+  type="button"
+  className="ff-btn ff-btnSm"
+  onClick={() => {
+    setEditingCertId(c.id);
+    setCertName(c.name);
+    setCertNumber(c.certificate_number || "");
+    setCertExpiry(c.expiry_date || "");
+    setCertShowEstimates(c.show_on_estimates);
+    setCertShowInvoices(c.show_on_invoices);
+  }}
+>
+  Edit
+</button>
+        </td>
+      </tr>
+    );
+  })}
+</tbody>
+        </table>
+      </div>
+    )}
+
+    <div className="ff-help" style={{ marginTop: 12 }}>
+      FixFlow will use these later to show trust badges on customer-facing estimates and invoices.
+    </div>
+  </div>
+</form>
+
           <form onSubmit={addLocation} className="ff-card">
             <div className="ff-cardHead">
               <div className="ff-cardHeading">
@@ -1743,201 +2534,309 @@ export default function ProfilePage() {
           </form>
         </div>
       </div>
+{confirmState.open && (
+  <div className="ff-modalOverlay">
+    <div className="ff-modal">
+      <div className="ff-modalTitle">Confirm action</div>
+      <div className="ff-modalText">{confirmState.message}</div>
 
+      <div className="ff-modalActions">
+        <button
+          className="ff-btn"
+          onClick={() =>
+            setConfirmState({ open: false, message: "", onConfirm: null })
+          }
+        >
+          Cancel
+        </button>
+
+        <button
+          className="ff-btn ff-btnPrimary"
+          onClick={() => {
+            confirmState.onConfirm?.();
+            setConfirmState({ open: false, message: "", onConfirm: null });
+          }}
+        >
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       <style jsx>{styles}</style>
     </div>
   );
 }
 
 const styles = `
-:global(body){ background:#f6f8fc; }
-
-
-.ff-page{
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  background: transparent;
-  padding: 0;
-}
-
-.ff-wrap{
-  width: 100%;
-  min-width: 0;
-  max-width: none;
-  margin: 0;
-  padding: 4px 0 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.ff-hero{
-  position:relative;
-  border:1px solid rgba(226,232,240,0.9);
-  border-radius:22px;
-  padding:24px;
-  background:linear-gradient(135deg, rgba(31,111,255,0.16), rgba(255,255,255,0.96) 55%);
-  overflow:hidden;
-  box-shadow:0 18px 42px rgba(15,23,42,0.07);
-}
-.ff-connectedCard{
-  display:flex;
-  align-items:flex-start;
-  gap:12px;
-  padding:14px;
+.ff-msg{
+  border:1px solid #e6ecf5;
+  background:#fff;
   border-radius:16px;
-  border:1px solid rgba(16,185,129,0.18);
-  background:linear-gradient(180deg,#f4fff9,#ecfdf5);
+  padding:12px 14px;
+  font-size:13px;
+  color:#1f355c;
+}
+.ff-progressWrap{
+  margin-top:16px;
+  padding:14px;
+  border:1px solid #e6ecf5;
+  border-radius:16px;
+  background:linear-gradient(180deg,#f8fbff,#ffffff);
 }
 
-.ff-connectedDot{
-  width:10px;
-  height:10px;
-  border-radius:999px;
-  background:#10b981;
-  margin-top:5px;
-  box-shadow:0 0 0 6px rgba(16,185,129,0.12);
-  flex-shrink:0;
+.ff-progressTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:8px;
 }
 
-.ff-connectedTitle{
-  font-size:14px;
+.ff-progressLabel{
+  font-size:12px;
   font-weight:900;
-  color:#065f46;
+  color:#1f355c;
+}
+  .ff-topProfileBadge{
+  margin-top:12px;
+  padding:12px 14px;
+  border-radius:16px;
+  border:1px solid #d9c27a;
+  background:#fff8dc;
+  color:#7a5a00;
+  font-size:13px;
+  font-weight:900;
+}
+.ff-trustScoreBox{
+  margin-top:12px;
+  padding:14px;
+  border:1px solid #bfe9cf;
+  border-radius:16px;
+  background:#ecfdf3;
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  align-items:center;
+}
+.ff-modalOverlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.4);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:999;
 }
 
-.ff-connectedSub{
+.ff-modal{
+  background:#fff;
+  border-radius:16px;
+  padding:20px;
+  width:90%;
+  max-width:380px;
+}
+
+.ff-modalTitle{
+  font-weight:900;
+  margin-bottom:8px;
+}
+
+.ff-modalText{
+  font-size:14px;
+  margin-bottom:16px;
+}
+
+.ff-modalActions{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+}
+.ff-trustScoreLabel{
+  font-size:12px;
+  font-weight:900;
+  color:#116b3a;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.ff-trustScoreText{
   margin-top:4px;
   font-size:12px;
-  color:#047857;
-}
-.ff-heroGlow{
-  position:absolute;
-  inset:0;
-  background:
-    radial-gradient(circle at 14% 18%, rgba(36,91,255,0.18), transparent 55%),
-    radial-gradient(circle at 88% 20%, rgba(11,42,85,0.08), transparent 60%);
-  pointer-events:none;
+  color:#116b3a;
+  line-height:1.4;
 }
 
-.ff-heroRow{
-  position:relative;
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:18px;
-}
-
-.ff-heroText{
-  max-width:760px;
-}
-
-.ff-heroTitle{
-  margin:0;
-  font-size:30px;
-  line-height:1.05;
+.ff-trustScoreValue{
+  font-size:26px;
   font-weight:950;
-  color:#10213f;
-  letter-spacing:-0.03em;
+  color:#116b3a;
 }
-
-.ff-heroSub{
-  margin:10px 0 0;
-  font-size:14px;
-  color:#576579;
-  max-width:620px;
+.ff-progressValue{
+  font-size:12px;
+  font-weight:900;
+  color:#1f355c;
 }
-
-.ff-heroTip{
-  margin:10px 0 0;
+.ff-verifiedBusinessBadge{
+  margin-top:12px;
+  padding:12px 14px;
+  border-radius:16px;
+  border:1px solid #bfe9cf;
+  background:#ecfdf3;
+  color:#116b3a;
   font-size:13px;
-  color:#5c6b84;
-  max-width:680px;
+  font-weight:900;
+}
+.ff-progressBar{
+  width:100%;
+  height:8px;
+  background:#eef2f8;
+  border-radius:999px;
+  overflow:hidden;
 }
 
-.ff-heroMeta{
+.ff-progressFill{
+  height:100%;
+  background:linear-gradient(90deg,#1f355c,#8fa9d6);
+  border-radius:999px;
+  transition:width 0.4s ease;
+}
+
+.ff-progressHint{
+  margin-top:8px;
+  font-size:12px;
+  color:#5c6b84;
+}
+  .ff-profileMissingBox{
+  margin-top:12px;
+  padding:14px;
+  border:1px solid #ffd6a8;
+  border-radius:16px;
+  background:#fff7ed;
+}
+
+.ff-profileMissingTitle{
+  font-size:12px;
+  font-weight:900;
+  color:#9a4d00;
+  margin-bottom:8px;
+}
+
+.ff-profileMissingList{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.ff-profileMissingList span{
+  padding:6px 10px;
+  border-radius:999px;
+  background:#fff;
+  border:1px solid #ffd6a8;
+  color:#9a4d00;
+  font-size:12px;
+  font-weight:800;
+}
+.ff-cardFeature{
+  border-color:rgba(143,169,214,0.28);
+  box-shadow:0 14px 32px rgba(31,53,92,0.06);
+}
+
+.ff-row{
   display:flex;
   flex-wrap:wrap;
   gap:10px;
-  margin-top:16px;
+  margin-top:14px;
 }
 
-.ff-heroChip{
-  border: 1px solid rgba(15,23,42,0.08);
-  background: rgba(255,255,255,0.72);
-  color: #1f355c;
-  border-radius: 999px;
-  padding: 8px 12px;
-  font-size: 13px;
-  font-weight: 800;
-  backdrop-filter: blur(8px);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+.ff-pillBtn{
+  border:1px solid #e6ecf5;
+  background:#fff;
+  color:#1f355c;
+  border-radius:999px;
+  padding:8px 12px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
 }
 
-.ff-heroChipOk{
-  border-color: rgba(36,91,255,0.14);
-  background: rgba(255,255,255,0.86);
+.ff-btnSoftPrimary{
+  border:1px solid rgba(143,169,214,0.3);
+  background:#eef4ff;
+  color:#1f355c;
 }
 
-.ff-heroActions{
-  flex-shrink:0;
+.ff-btnDark{
+  border:none;
+  background:linear-gradient(180deg,#1f355c,#182b49);
+  color:#fff;
+}
+
+.ff-inputReadOnly{
+  background:#f8fbff;
+}
+
+.ff-checkRow{
   display:flex;
-  gap:10px;
-}
-
-.ff-msg{
-  border:1px solid rgba(226,232,240,0.9);
-  background:rgba(255,255,255,0.82);
-  backdrop-filter:blur(6px);
-  border-radius:14px;
-  padding:12px 14px;
+  align-items:center;
+  gap:8px;
+  margin-top:8px;
   font-size:13px;
-}
-
-.ff-inlineMsg{
-  border:1px solid rgba(213,225,255,0.95);
-  background:linear-gradient(180deg, #f8fbff, #f2f7ff);
-  border-radius:14px;
-  padding:11px 13px;
-  font-size:13px;
-  margin-bottom:16px;
-  color:#1F355C;
+  font-weight:800;
+  color:#1f355c;
 }
 
 .ff-stack{
   display:flex;
   flex-direction:column;
-  gap:20px;
+  gap:16px;
+}
+.ff-certStatus {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
 }
 
-.ff-card{
-  background:#fff;
-  border:1px solid rgba(226,232,240,0.9);
-  border-radius:20px;
-  box-shadow:0 16px 40px rgba(15,23,42,0.055);
-  overflow:hidden;
+.ff-certStatus--green {
+  background: #ecfdf3;
+  color: #116b3a;
+  border: 1px solid #bfe9cf;
 }
 
-.ff-cardFeature{
-  border-color:rgba(210,223,255,0.95);
-  box-shadow:0 18px 44px rgba(31,91,255,0.08);
+.ff-certStatus--amber {
+  background: #fff7ed;
+  color: #9a4d00;
+  border: 1px solid #ffd6a8;
 }
 
+.ff-certStatus--red {
+  background: #fef2f2;
+  color: #a12828;
+  border: 1px solid #fecaca;
+}
+
+.ff-certStatus--neutral {
+  background: #f4f6fa;
+  color: #5c6b84;
+  border: 1px solid #e6ecf5;
+}
+
+.ff-certSub {
+  font-size: 11px;
+  margin-top: 4px;
+  color: #5c6b84;
+}
 .ff-cardHead{
   padding:18px 20px;
-  border-bottom:1px solid rgba(226,232,240,0.75);
+  border-bottom:1px solid #e6ecf5;
   display:flex;
   justify-content:space-between;
   gap:12px;
   align-items:flex-start;
-  background:linear-gradient(180deg, rgba(247,249,252,0.98), rgba(255,255,255,0.98));
+  background:
+    linear-gradient(180deg, rgba(143,169,214,0.08), rgba(255,255,255,0)),
+    #fff;
 }
 
 .ff-cardHeading{
@@ -1951,25 +2850,25 @@ const styles = `
   min-width:4px;
   height:34px;
   border-radius:999px;
-  background:linear-gradient(180deg, rgba(31,53,92,1), rgba(31,53,92,0.18));
+  background:linear-gradient(180deg, #1f355c, rgba(143,169,214,0.25));
 }
 
 .ff-cardTitle{
-  font-size:12px;
+  font-size:11px;
   font-weight:900;
-  letter-spacing:0.1em;
+  letter-spacing:0.12em;
   text-transform:uppercase;
-  color:#10213f;
+  color:#1f355c;
 }
 
 .ff-cardSub{
   margin-top:4px;
   font-size:13px;
-  color:#5b6472;
+  color:#5c6b84;
 }
 
 .ff-cardBody{
-  padding:22px 20px 20px;
+  padding:20px;
 }
 
 .ff-profileTop{
@@ -1983,17 +2882,41 @@ const styles = `
   gap:14px;
   align-items:center;
   padding:14px;
-  border:1px solid rgba(226,232,240,0.9);
-  background:linear-gradient(180deg, #fbfcff, #f7faff);
+  border:1px solid #e6ecf5;
+  background:linear-gradient(180deg, #ffffff, #fbfdff);
   border-radius:18px;
 }
+.ff-certWarningBanner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
 
+.ff-certWarning {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ff-certWarning--red {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #a12828;
+}
+
+.ff-certWarning--amber {
+  background: #fff7ed;
+  border: 1px solid #ffd6a8;
+  color: #9a4d00;
+}
 .ff-logoBox{
   width:64px;
   height:64px;
   border-radius:18px;
-  border:1px solid rgba(226,232,240,0.95);
-  background:linear-gradient(180deg, #ffffff, #f7f9fd);
+  border:1px solid #e6ecf5;
+  background:#fff;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -2010,220 +2933,14 @@ const styles = `
 .ff-logoFallback{
   font-size:22px;
   font-weight:900;
-  color:#1F355C;
-}
-
-.ff-logoPick{
-  min-width:0;
+  color:#1f355c;
 }
 
 .ff-logoMiniTitle{
   font-size:14px;
   font-weight:900;
-  color:#10213f;
+  color:#0b1320;
   margin-bottom:6px;
-}
-
-.ff-linkHero{
-  border:1px solid rgba(210,223,255,0.95);
-  background:linear-gradient(180deg, #f7faff, #edf4ff);
-  border-radius:18px;
-  padding:14px;
-}
-
-.ff-linkBadge{
-  display:inline-flex;
-  padding:6px 10px;
-  border-radius:999px;
-  background:#fff;
-  border:1px solid rgba(200,215,245,1);
-  color:#245BFF;
-  font-size:12px;
-  font-weight:900;
-  margin-bottom:10px;
-}
-
-.ff-linkUrl{
-  font-size:14px;
-  line-height:1.45;
-  color:#10213f;
-  font-weight:800;
-  word-break:break-all;
-}
-
-.ff-pillBtn{
-  border:1px solid rgba(226,232,240,1);
-  background:#f6f8fc;
-  color:#0b1320;
-  border-radius:999px;
-  padding:8px 12px;
-  font-size:12px;
-  font-weight:800;
-  cursor:pointer;
-  transition:all .15s ease;
-}
-
-.ff-pillBtn:hover{
-  background:#eef2f7;
-  border-color:#cbd5e1;
-  box-shadow:0 8px 16px rgba(15,23,42,0.08);
-}
-
-.ff-row{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-top:14px;
-}
-
-.ff-btn{
-  border:1px solid rgba(226,232,240,1);
-  background:#fff;
-  color:#0b1320;
-  border-radius:12px;
-  padding:10px 13px;
-  font-size:13px;
-  font-weight:800;
-  cursor:pointer;
-  transition:all .15s ease;
-}
-
-.ff-btnSm{
-  padding:8px 11px;
-  font-size:12px;
-}
-
-.ff-btn:hover{
-  background:#f3f6fb;
-  border-color:#cbd5e1;
-  box-shadow:0 8px 18px rgba(15,23,42,0.08);
-}
-
-.ff-btnPrimary{
-  background: linear-gradient(180deg, #0f2f66 0%, #0b234d 100%);
-  border: 1px solid rgba(11,35,77,0.95);
-  color: #fff;
-  box-shadow:
-    0 12px 26px rgba(11,35,77,0.22),
-    inset 0 1px 0 rgba(255,255,255,0.14);
-}
-
-.ff-btnPrimary:hover{
-  background:linear-gradient(180deg,#1F355C,#162A4A);
-  box-shadow:0 16px 30px rgba(31,53,92,0.20);
-  filter:brightness(1.05);
-}
-
-.ff-btnSoftPrimary{
-  border:1px solid rgba(205,218,238,1);
-  background:linear-gradient(180deg,#f8fbff,#eef3fb);
-  color:#1F355C;
-  box-shadow:none;
-}
-
-.ff-btnSoftPrimary:hover{
-  background:linear-gradient(180deg,#f6f9ff,#e9f0fb);
-}
-
-.ff-btnDark{
-  border:1px solid rgba(15,23,42,0.15);
-  background:#0b1320;
-  color:#fff;
-  box-shadow:0 12px 22px rgba(11,19,32,0.14);
-}
-
-.ff-btnDark:hover{
-  background:#0b1320;
-  filter:brightness(1.05);
-  box-shadow:0 14px 26px rgba(11,19,32,0.18);
-}
-
-.ff-actionDanger{
-  border:none;
-  background:transparent;
-  color:#b45353;
-  font-size:12px;
-  font-weight:800;
-  cursor:pointer;
-  padding:8px 6px;
-}
-
-.ff-actionDanger:hover{
-  color:#991b1b;
-}
-
-.ff-btn:disabled,
-.ff-pillBtn:disabled,
-.ff-input:disabled,
-.ff-actionDanger:disabled{
-  opacity:.6;
-  cursor:not-allowed;
-  box-shadow:none;
-}
-
-.ff-label{
-  display:block;
-  font-size:12px;
-  font-weight:900;
-  margin-bottom:6px;
-  color:#13233f;
-}
-
-.ff-input{
-  width:100%;
-  border-radius:14px;
-  border:1px solid rgba(226,232,240,0.95);
-  background:#fff;
-  padding:11px 12px;
-  font-size:14px;
-  box-sizing:border-box;
-  color:#0b1320;
-}
-
-.ff-input:focus{
-  outline:none;
-  border-color:rgba(31,111,255,0.45);
-  box-shadow:0 0 0 5px rgba(31,111,255,0.12);
-}
-
-.ff-inputReadOnly{
-  background:#f8fafc;
-}
-
-.ff-help{
-  margin-top:6px;
-  font-size:12px;
-  color:#5c6b84;
-}
-
-.ff-helpOk{
-  font-size:12px;
-  color:#0f766e;
-  font-weight:700;
-}
-
-.ff-helpBad{
-  font-size:12px;
-  color:#b91c1c;
-  font-weight:700;
-}
-
-.ff-inlineCode{
-  display:inline-block;
-  margin-top:4px;
-  padding:4px 8px;
-  border-radius:999px;
-  background:#f6f8fc;
-  border:1px solid rgba(226,232,240,0.9);
-  font-size:12px;
-  font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
-  color:#1F355C;
-}
-
-.ff-divider{
-  height:1px;
-  background:rgba(226,232,240,0.9);
-  margin:16px 0;
 }
 
 .ff-two{
@@ -2240,18 +2957,47 @@ const styles = `
   min-width:0;
 }
 
-.ff-fieldWide{
-  min-width:0;
+.ff-label{
+  display:block;
+  font-size:12px;
+  font-weight:900;
+  margin-bottom:6px;
+  color:#1f355c;
 }
 
-.ff-file{
+.ff-help{
+  margin-top:6px;
+  font-size:12px;
+  color:#5c6b84;
+}
+
+.ff-helpOk{
+  font-size:12px;
+  color:#116b3a;
+  font-weight:800;
+}
+
+.ff-helpBad{
+  font-size:12px;
+  color:#a12828;
+  font-weight:800;
+}
+
+.ff-inlineMsg{
+  border:1px solid #dbe7ff;
+  background:#f8fbff;
+  border-radius:14px;
+  padding:11px 13px;
   font-size:13px;
+  margin-bottom:16px;
+  color:#1f355c;
+  font-weight:700;
 }
 
 .ff-sectionTitle{
   font-size:14px;
   font-weight:900;
-  color:#10213f;
+  color:#0b1320;
   margin-bottom:4px;
 }
 
@@ -2264,7 +3010,7 @@ const styles = `
 
 .ff-tableWrap{
   overflow-x:auto;
-  border:1px solid rgba(226,232,240,0.85);
+  border:1px solid #e6ecf5;
   border-radius:16px;
   margin-top:6px;
 }
@@ -2280,52 +3026,51 @@ const styles = `
 }
 
 .ff-table thead th{
-  background:#f8fafc;
+  background:#f8fbff;
   color:#5c6b84;
   font-size:12px;
-  font-weight:800;
+  font-weight:900;
   text-align:left;
   padding:14px 16px;
-  border-bottom:1px solid rgba(226,232,240,0.9);
+  border-bottom:1px solid #e6ecf5;
 }
 
 .ff-table tbody td{
   padding:14px 16px;
-  border-top:1px solid rgba(226,232,240,0.75);
+  border-top:1px solid #e6ecf5;
   vertical-align:middle;
 }
 
-.ff-table tbody tr:hover{
-  background:#fbfdff;
+.ff-tableMain{
+  font-weight:900;
+  color:#0b1320;
 }
 
-.ff-rowEditing{
-  background:#f7faff;
+.ff-code,
+.ff-inlineCode{
+  display:inline-block;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#f8fbff;
+  border:1px solid #e6ecf5;
+  font-size:12px;
+  color:#1f355c;
 }
 
+.ff-actionsCell,
 .ff-thRight{
-  text-align:right !important;
-}
-
-.ff-actionsCell{
   text-align:right;
   white-space:nowrap;
 }
 
-.ff-tableMain{
-  font-weight:800;
-  color:#0B1320;
-}
-
-.ff-code{
-  display:inline-block;
-  padding:6px 10px;
-  border-radius:999px;
-  background:#f6f8fc;
-  border:1px solid rgba(226,232,240,0.9);
+.ff-actionDanger{
+  border:none;
+  background:transparent;
+  color:#a12828;
   font-size:12px;
-  font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
-  color:#1F355C;
+  font-weight:900;
+  cursor:pointer;
+  padding:8px 6px;
 }
 
 .ff-headControls{
@@ -2345,6 +3090,65 @@ const styles = `
   max-width:100%;
 }
 
+.ff-linkHero{
+  border:1px solid #e6ecf5;
+  background:linear-gradient(180deg, #f8fbff, #ffffff);
+  border-radius:18px;
+  padding:14px;
+}
+
+.ff-linkBadge{
+  display:inline-flex;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#eef4ff;
+  border:1px solid rgba(143,169,214,0.3);
+  color:#1f355c;
+  font-size:12px;
+  font-weight:900;
+  margin-bottom:10px;
+}
+
+.ff-linkUrl{
+  font-size:14px;
+  line-height:1.45;
+  color:#10213f;
+  font-weight:800;
+  word-break:break-all;
+}
+
+.ff-connectedCard{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  padding:14px;
+  border-radius:16px;
+  border:1px solid #bfe9cf;
+  background:#ecfdf3;
+}
+
+.ff-connectedDot{
+  width:10px;
+  height:10px;
+  border-radius:999px;
+  background:#16a34a;
+  margin-top:5px;
+  box-shadow:0 0 0 6px rgba(22,163,74,0.12);
+  flex-shrink:0;
+}
+
+.ff-connectedTitle{
+  font-size:14px;
+  font-weight:900;
+  color:#116b3a;
+}
+
+.ff-connectedSub{
+  margin-top:4px;
+  font-size:12px;
+  color:#116b3a;
+}
+
 @media(min-width:720px){
   .ff-two{
     grid-template-columns:1fr 1fr;
@@ -2358,19 +3162,10 @@ const styles = `
 }
 
 @media(max-width:720px){
-  .ff-heroRow,
   .ff-cardHead,
   .ff-logoRow{
     flex-direction:column;
     align-items:stretch;
-  }
-
-  .ff-heroActions{
-    width:100%;
-  }
-
-  .ff-heroActions .ff-btn{
-    width:100%;
   }
 
   .ff-footerRow{
@@ -2389,16 +3184,6 @@ const styles = `
   .ff-filterWrap,
   .ff-searchWrap{
     width:100%;
-  }
-
-  .ff-actionsCell{
-    white-space:normal;
-  }
-
-  .ff-actionsCell .ff-btn,
-  .ff-actionsCell .ff-actionDanger{
-    margin-top:8px;
-    margin-right:8px;
   }
 }
 `;

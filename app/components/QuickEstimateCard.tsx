@@ -144,9 +144,27 @@ const [quickPriceSent, setQuickPriceSent] = useState(false);
       ? "ff-leftGlowNext"
       : "ff-leftGlowFlexible";
 
-  const total = useMemo(() => {
-    return labour + materials + other;
-  }, [labour, materials, other]);
+const total = useMemo(() => {
+  return labour + materials + other;
+}, [labour, materials, other]);
+
+// 👇 assumptions (move to settings later)
+const LABOUR_COST_RATIO = 0.4;
+const OVERHEAD_RATIO = 0.1;
+
+// 👇 costs
+const labourCost = labour * LABOUR_COST_RATIO;
+const baseCost = materials + labourCost;
+const overhead = baseCost * OVERHEAD_RATIO;
+
+// 👇 final cost (ONLY defined once)
+const cost = baseCost + overhead;
+
+// 👇 profit + margin
+const profit = total - cost;
+
+const margin =
+  total > 0 ? Math.round((profit / total) * 100) : 0;
 
   const smartSuggestion = useMemo(() => {
     return getSmartSuggestion(selectedQuote?.job_type);
@@ -594,6 +612,27 @@ if (nextStatus === "sent") {
           </div>
 
           <div className="ff-estimateTotal">Guide total: £{total.toFixed(2)}</div>
+
+        
+{total > 0 && (
+  <div className="ff-profitPreview">
+
+    <div className="ff-profitMain">
+      Profit: £{Math.round(profit)}
+    </div>
+
+    <div className="ff-profitSub">
+      Margin: {margin}%
+    </div>
+
+    <div className="ff-profitHint">
+      {margin > 60 && "🔥 Strong profit job"}
+      {margin > 40 && margin <= 60 && "👍 Healthy margin"}
+      {margin <= 40 && "⚠️ Low margin — consider increasing price"}
+    </div>
+
+  </div>
+)}
 
           <textarea
             className="ff-estimateNotes"

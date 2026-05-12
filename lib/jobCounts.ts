@@ -1,6 +1,7 @@
 export type JobCountRequestRow = {
   id: string;
   status: string | null;
+  stage?: string | null; // 👈 ADD THIS
   job_booked_at: string | null;
 };
 
@@ -18,16 +19,21 @@ export function isRealJob(
   quote?: JobCountQuoteRow | null
 ) {
   const requestStatus = cleanStatus(request.status);
+  const requestStage = cleanStatus(request.stage); // 👈 ADD
   const quoteStatus = cleanStatus(quote?.status);
 
   return (
+    requestStage === "won" || // 👈 THIS FIXES EVERYTHING
+
     Boolean(request.job_booked_at) ||
+
     requestStatus === "booked" ||
     requestStatus === "in progress" ||
     requestStatus === "complete" ||
     requestStatus === "completed" ||
     requestStatus === "invoiced" ||
     requestStatus === "paid" ||
+
     quoteStatus === "booked" ||
     quoteStatus === "in progress" ||
     quoteStatus === "complete" ||

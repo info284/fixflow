@@ -24,6 +24,12 @@ type QuoteRequestLite = {
   created_at: string;
 };
 
+type CertificateReminder = {
+  id: string;
+  name: string;
+  certificate_number: string | null;
+  expiry_date: string | null;
+};
 
 type Stats = {
   enquiriesUnread: number;
@@ -33,7 +39,26 @@ type Stats = {
   wonJobs: number;
   invoices: number;
 };
+function getCertificateWarning(expiryDate?: string | null) {
+  if (!expiryDate) return null;
 
+  const expiry = new Date(expiryDate);
+  const today = new Date();
+
+  const diffDays = Math.ceil(
+    (expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  );
+
+  if (diffDays < 0) {
+    return `Expired ${Math.abs(diffDays)} day${Math.abs(diffDays) === 1 ? "" : "s"} ago`;
+  }
+
+  if (diffDays <= 14) return `Expires in ${diffDays} day${diffDays === 1 ? "" : "s"}`;
+  if (diffDays <= 30) return "Expires within 1 month";
+  if (diffDays <= 60) return "Expires within 2 months";
+
+  return null;
+}
 export default function DashboardPage() {
   const [profile, setProfile] = useState<ProfileLite | null>(null);
 const [stats, setStats] = useState<Stats>({
@@ -45,6 +70,7 @@ const [stats, setStats] = useState<Stats>({
   invoices: 0,
 });
   const [loading, setLoading] = useState(true);
+  const [certificateReminders, setCertificateReminders] = useState<CertificateReminder[]>([]);
 
 const hasNeedsAction = stats.needsAction > 0;
 
@@ -266,6 +292,21 @@ const {
 });
 
 
+const certRows = await safeLoad<CertificateReminder[]>(async () => {
+  const { data, error } = await supabase
+    .from("trader_certificates")
+    .select("id, name, certificate_number, expiry_date")
+    .eq("trader_id", user.id)
+    .not("expiry_date", "is", null)
+    .order("expiry_date", { ascending: true });
+
+  if (error) {
+    if (isMissing(error.message)) return [];
+    throw error;
+  }
+
+  return (data || []) as CertificateReminder[];
+}, []);
 
         const invoices = await safeCount(async () => {
           const { count, error } = await supabase
@@ -284,6 +325,9 @@ const {
         if (!mounted) return;
 
         setProfile((p as ProfileLite) || null);
+        setCertificateReminders(
+  certRows.filter((c) => getCertificateWarning(c.expiry_date))
+);
 setStats({
   enquiriesUnread,
   enquiriesOpen,
@@ -548,6 +592,44 @@ return () => {
 </Link>
           </div>
         </section>
+
+{certificateReminders.length > 0 && (
+  <section className="ffdash-card ffdash-cardPad ffdash-certPanel">
+    <div className="ffdash-sectionTop">
+      <div>
+        <div className="ffdash-eyebrow">CERTIFICATE REMINDERS</div>
+        <div className="ffdash-muted">
+          Keep trust badges valid on estimates and invoices.
+        </div>
+      </div>
+
+      <span className="ffdash-chip">
+        {certificateReminders.length} warning
+        {certificateReminders.length === 1 ? "" : "s"}
+      </span>
+    </div>
+
+    <div className="ffdash-certList">
+      {certificateReminders.map((c) => (
+        <Link
+          key={c.id}
+          href="/dashboard/profile"
+          className="ffdash-certReminder"
+        >
+          <div>
+            <strong>{c.name}</strong>
+            <div className="ffdash-mutedSmall">
+              {c.certificate_number ? `No. ${c.certificate_number} • ` : ""}
+              {c.expiry_date}
+            </div>
+          </div>
+
+          <span>{getCertificateWarning(c.expiry_date)}</span>
+        </Link>
+      ))}
+    </div>
+  </section>
+)}
 
         <section className="ffdash-card ffdash-cardPad">
           <div className="ffdash-sectionTop">
@@ -1068,7 +1150,47 @@ return () => {
           margin-bottom: 2px;
           min-height: 34px;
         }
+.ffdash-certPanel {
+  margin-bottom: 16px;
+  border-color: #fed7aa;
+  background: linear-gradient(180deg, #ffffff 0%, #fffaf5 100%);
+}
 
+.ffdash-certList {
+  display: grid;
+  gap: 10px;
+}
+
+.ffdash-certReminder {
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  transition: all 0.15s ease;
+}
+
+.ffdash-certReminder:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  border-color: #fdba74;
+}
+
+.ffdash-certReminder strong {
+  color: #0b1320;
+  font-weight: 900;
+}
+
+.ffdash-certReminder span {
+  color: #9a3412;
+  font-weight: 900;
+  white-space: nowrap;
+}
         .ffdash-aiText {
           margin-top: 4px;
           font-size: 13px;

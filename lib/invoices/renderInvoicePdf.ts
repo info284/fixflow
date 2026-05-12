@@ -44,9 +44,19 @@ export async function renderInvoicePdfBuffer(opts: {
   invoice: any;
   profile: any;
   fallbackEnquiryDetails?: string;
+  certificates?: {
+    name?: string | null;
+    certificate_number?: string | null;
+    expiry_date?: string | null;
+    show_on_invoices?: boolean | null;
+  }[];
 }) {
   const q = opts.invoice || {};
   const prof = opts.profile || {};
+
+  const certificates = Array.isArray(opts.certificates)
+  ? opts.certificates.filter((c) => c?.show_on_invoices !== false)
+  : [];
 
   const traderName =
     String(prof?.business_name || "").trim() ||
@@ -434,8 +444,57 @@ export async function renderInvoicePdfBuffer(opts: {
       });
   }
 
-  // Bank details
-  const bankY = sumY + 110;
+// Certificates & trust
+let bankY = sumY + 110;
+
+if (certificates.length > 0) {
+  const certRows = certificates.slice(0, 3);
+
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica-Bold")
+    .fontSize(9)
+    .text("CERTIFICATES & TRUST", left, bankY);
+
+  const certBoxY = bankY + 14;
+  const certBoxH = 48 + certRows.length * 18;
+
+  doc
+    .roundedRect(left, certBoxY, contentW, certBoxH, 16)
+    .fill("#FFFFFF")
+    .strokeColor(BORDER)
+    .stroke();
+
+  let certY = certBoxY + 14;
+
+  certRows.forEach((c) => {
+    const certName = String(c.name || "").trim();
+    const certNo = String(c.certificate_number || "").trim();
+    const expiry = formatDate(c.expiry_date);
+
+    const line = [
+      certName ? `✓ ${certName}` : "",
+      certNo ? `No. ${certNo}` : "",
+      expiry ? `Valid until ${expiry}` : "",
+    ]
+      .filter(Boolean)
+      .join(" • ");
+
+    doc
+      .fillColor(INK)
+      .font("Helvetica")
+      .fontSize(10)
+      .text(line, left + 14, certY, {
+        width: contentW - 28,
+      });
+
+    certY += 18;
+  });
+
+  bankY = certBoxY + certBoxH + 22;
+}
+
+// Bank details
 
   doc
     .fillColor(MUTED)

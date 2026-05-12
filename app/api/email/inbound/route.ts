@@ -93,6 +93,37 @@ function parseForwardedOriginal(text: string) {
   };
 }
 
+function detectJobType(text: string) {
+  const t = text.toLowerCase();
+
+  if (t.includes("boiler")) return "boiler";
+  if (t.includes("bathroom") || t.includes("shower") || t.includes("toilet")) return "bathroom";
+  if (t.includes("kitchen") || t.includes("tap") || t.includes("sink")) return "kitchen";
+  if (t.includes("leak") || t.includes("pipe")) return "leak";
+
+  return null;
+}
+
+function detectUrgency(text: string) {
+  const t = text.toLowerCase();
+
+  if (
+    t.includes("urgent") ||
+    t.includes("asap") ||
+    t.includes("emergency") ||
+    t.includes("no heating") ||
+    t.includes("no hot water") ||
+    t.includes("leak")
+  ) {
+    return "asap";
+  }
+
+  if (t.includes("this week")) return "this-week";
+  if (t.includes("next week")) return "next-week";
+
+  return "flexible";
+}
+
 async function findExistingEnquiry(params: {
   plumberId: string;
   customerEmail: string | null;
@@ -291,14 +322,25 @@ const { data: profile, error: profileError } = await supabaseAdmin
 
     const parsed = parseForwardedOriginal(rawText);
 
-const customerEmail = parsed.customerEmail || forwardedByEmail;
-const customerName = parsed.customerName || extractNameFromHeader(rawFrom);
+const isForwardedEmail = !!parsed.customerEmail;
+
+const customerEmail = isForwardedEmail
+  ? parsed.customerEmail
+  : forwardedByEmail;
+
+const customerName = isForwardedEmail
+  ? parsed.customerName
+  : extractNameFromHeader(rawFrom);
+
 const details = parsed.details || cleanBody(rawText);
     const finalSubject =
       parsed.originalSubject || inboundSubject || "Forwarded email";
 
     let enquiryId: string;
     let createdNewEnquiry = false;
+
+const detectedJobType = detectJobType(details);
+const detectedUrgency = detectUrgency(details);
 
 const existingEnquiry = await findExistingEnquiry({
   plumberId: profile.id,
@@ -322,12 +364,15 @@ const existingEnquiry = await findExistingEnquiry({
   status: "requested",   // ✅ FIXED
   stage: "requested",    // ✅ SAFE MATCH
 
-  job_type: "bathroom",
-  urgency: "flexible",
-  postcode: null,
-  address: null,
-  property_type: null,
-  problem_location: "bathroom",
+job_type: detectedJobType,
+urgency: detectedUrgency,
+postcode: null,
+address: null,
+property_type: null,
+problem_location:
+  detectedJobType === "bathroom" || detectedJobType === "kitchen"
+    ? detectedJobType
+    : null,
 
   ai_thread_status: "customer_replied",
   ai_last_customer_message_at: new Date().toISOString(),
@@ -356,7 +401,7 @@ return NextResponse.json(
         direction: "in",
         channel: "email",
         subject: finalSubject,
-        body_text: cleanBody(rawText),
+        body_text: details || cleanBody(rawText),
         from_email: customerEmail || forwardedByEmail,
         to_email: forwardedByEmail,
       });

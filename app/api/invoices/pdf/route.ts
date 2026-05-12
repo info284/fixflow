@@ -125,6 +125,20 @@ export async function GET(req: Request) {
       fallbackEnquiryDetails = String((rq as any)?.details || "").trim();
     }
 
+const { data: certificates, error: certificatesErr } = await admin
+  .from("trader_certificates")
+  .select("id, name, certificate_number, expiry_date, show_on_invoices")
+  .eq("trader_id", uid)
+  .eq("show_on_invoices", true)
+  .order("expiry_date", { ascending: true });
+
+if (certificatesErr) {
+  return NextResponse.json(
+    { error: certificatesErr.message },
+    { status: 500 }
+  );
+}
+
     const invoiceForPdf = {
       id: inv.id,
       invoice_number: inv.invoice_number,
@@ -147,11 +161,12 @@ export async function GET(req: Request) {
         fallbackEnquiryDetails || String(inv.notes || "").trim() || "—",
     };
 
-    const pdf = await renderInvoicePdfBuffer({
-      invoice: invoiceForPdf,
-      profile: prof,
-      fallbackEnquiryDetails,
-    });
+const pdf = await renderInvoicePdfBuffer({
+  invoice: invoiceForPdf,
+  profile: prof,
+  fallbackEnquiryDetails,
+  certificates: certificates || [],
+});
 
     const refDefault = String(inv.id).slice(0, 8);
     const displayRef = String(inv.invoice_number || refDefault).trim();

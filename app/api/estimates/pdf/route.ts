@@ -211,6 +211,20 @@ if (detailedEstimateErr) {
 const logoUrl = String(profile?.logo_url || "").trim();
 const logoBuf = logoUrl ? await fetchImageBuffer(logoUrl) : null;
 
+const { data: certificates, error: certificatesErr } = await admin
+  .from("trader_certificates")
+  .select("id, name, certificate_number, expiry_date, show_on_estimates")
+  .eq("trader_id", uid)
+  .eq("show_on_estimates", true)
+  .order("expiry_date", { ascending: true });
+
+if (certificatesErr) {
+  return NextResponse.json(
+    { error: certificatesErr.message },
+    { status: 500 }
+  );
+}
+
 const subtotal =
   detailedEstimate?.labour ||
   detailedEstimate?.materials ||
@@ -257,10 +271,11 @@ const pdf = await renderEstimatePdfBuffer({
     job_type: quote.job_type || requestData?.job_type || null,
     enquiry_details: requestData?.details || "",
   },
-  profile: {
-    ...profile,
-    logo_buffer: logoBuf,
-  },
+profile: {
+  ...profile,
+  logo_buffer: logoBuf,
+},
+certificates: certificates || [],
 });
 
 if (!pdf || pdf.length < 500) {

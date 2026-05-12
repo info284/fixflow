@@ -62,7 +62,8 @@ function getLatestMessage(messages: MessageLite[], direction: "in" | "out") {
       .filter((m) => m.direction === direction)
       .sort(
         (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime()
       )[0] || null
   );
 }
@@ -82,6 +83,29 @@ function getLatestTouchAt(
   return times.length ? Math.max(...times) : Date.now();
 }
 
+export function shouldGenerateFollowUp(
+  followUp: FollowUpResult | null | undefined,
+  row: any
+) {
+  if (!followUp) return false;
+
+  if (
+    followUp.status !== "follow_up_due" &&
+    followUp.status !== "estimate_follow_up_due"
+  ) {
+    return false;
+  }
+
+  if (row.ai_thread_status === "awaiting_trader_review") return false;
+  if (row.ai_thread_status === "cold_after_follow_up") return false;
+  if ((row.ai_follow_up_count || 0) >= 2) return false;
+
+  const snoozedUntil = toTime(row.snoozed_until || null);
+  if (snoozedUntil && snoozedUntil > Date.now()) return false;
+
+  return true;
+}
+
 export function getFollowUpState(args: {
   enquiry: EnquiryLite;
   messages: MessageLite[];
@@ -89,9 +113,13 @@ export function getFollowUpState(args: {
   now?: number;
 }): FollowUpResult {
   const { enquiry, estimate } = args;
+
   const messages = [...args.messages].sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    (a, b) =>
+      new Date(a.created_at).getTime() -
+      new Date(b.created_at).getTime()
   );
+
   const now = args.now ?? Date.now();
 
   const stage = (enquiry.stage || "").toLowerCase().trim();
@@ -104,7 +132,9 @@ export function getFollowUpState(args: {
   const latestInboundAt = toTime(latestInbound?.created_at);
   const latestOutboundAt = toTime(latestOutbound?.created_at);
 
-  const estimateSentAt = toTime(estimate?.sent_at || estimate?.created_at || null);
+  const estimateSentAt = toTime(
+    estimate?.sent_at || estimate?.created_at || null
+  );
   const estimateAcceptedAt = toTime(estimate?.accepted_at || null);
   const estimateStatus = (estimate?.status || "").toLowerCase().trim();
 
@@ -167,7 +197,7 @@ export function getFollowUpState(args: {
     };
   }
 
-  if (latestInboundAt && latestOutboundAt && latestInboundAt > latestOutboundAt) {
+  if (latestInboundAt && latestInboundAt > latestOutboundAt) {
     return {
       status: "customer_replied",
       label: "Customer replied",
@@ -185,34 +215,41 @@ export function getFollowUpState(args: {
     (!latestInboundAt || latestInboundAt < estimateSentAt)
   ) {
     const estimateHours = hoursBetween(estimateSentAt, now);
+    const firstViewedAt = toTime(estimate?.first_viewed_at || null);
+    const lastViewedAt = toTime(estimate?.last_viewed_at || null);
+    const viewedAt = lastViewedAt || firstViewedAt;
+
+    if (viewedAt) {
+      const viewedHours = hoursBetween(viewedAt, now);
+
+      if (viewedHours >= 24) {
+        return {
+          status: "estimate_follow_up_due",
+          label: "Estimate viewed — chase now",
+          reason: "Customer viewed the estimate but has not replied.",
+          priority: 92,
+          bucket: "followUp",
+          daysSinceLastTouch,
+        };
+      }
+    }
 
     if (estimateHours >= 24 * 7) {
       return {
         status: "estimate_follow_up_due",
         label: "Quote going cold",
         reason: "Estimate was sent 7+ days ago with no reply.",
-        priority: 92,
-        bucket: "followUp",
-        daysSinceLastTouch,
-      };
-    }
-
-    if (estimateHours >= 24 * 4) {
-      return {
-        status: "estimate_follow_up_due",
-        label: "Chase estimate",
-        reason: "Estimate was sent 4+ days ago with no reply.",
         priority: 88,
         bucket: "followUp",
         daysSinceLastTouch,
       };
     }
 
-    if (estimateHours >= 24 * 2) {
+    if (!viewedAt && estimateHours >= 48) {
       return {
         status: "estimate_follow_up_due",
-        label: "Check in on quote",
-        reason: "Estimate was sent 2+ days ago with no reply.",
+        label: "Check estimate received",
+        reason: "Estimate was sent 2+ days ago but has not been viewed.",
         priority: 82,
         bucket: "followUp",
         daysSinceLastTouch,

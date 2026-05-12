@@ -20,6 +20,7 @@ type QuoteRequestRow = {
   trader_notes: string | null;
   created_at: string;
   job_number?: string | null;
+  photo_count: number | null;
 };
 
 type QuoteRow = {
@@ -1764,41 +1765,67 @@ return (
                         </div>
                       </div>
 
-                      {missingItems.length ? (
-                        <div className="ff-detailCard ff-warningCard">
-                          <div className="ff-cardTitleRow">
-                            <div>
-                              <div className="ff-detailLabel">Attention</div>
-                              <div className="ff-cardTitle">Missing items</div>
-                            </div>
-                          </div>
+{missingItems.length ? (
+  <div className="ff-detailCard ff-warningCard">
+    <div className="ff-cardTitleRow">
+      <div>
+        <div className="ff-detailLabel">Needs attention</div>
+        <div className="ff-cardTitle">Fix these to move the job forward</div>
+      </div>
+    </div>
 
-                          <div className="ff-warningList">
-                            {missingItems.map((item) => (
-                              <div key={item} className="ff-warningItem">
-                                {item}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="ff-detailCard ff-successCard">
-                          <div className="ff-cardTitleRow">
-                            <div>
-                              <div className="ff-detailLabel">Status</div>
-                              <div className="ff-cardTitle">
-                                Nothing important missing
-                              </div>
-                            </div>
-                          </div>
+    <div className="ff-warningList">
+      {missingItems.map((item) => (
+        <div key={item} className="ff-warningItem ff-warningItemRow">
+          <span>{item}</span>
 
-                          <div className="ff-detailSub">
-                            This job is looking organised. Booking, notes, files
-                            and documents are on track.
-                          </div>
-                        </div>
-                      )}
+          {item.includes("Private notes") && (
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnXs"
+              onClick={() => setTab("notes")}
+            >
+              Add now
+            </button>
+          )}
 
+          {item.includes("booking") && (
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnXs"
+              onClick={() => setTab("visit")}
+            >
+              Book now
+            </button>
+          )}
+
+          {item.includes("description") && (
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnXs"
+              onClick={() => setTab("overview")}
+            >
+              Add details
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+) : (
+  <div className="ff-detailCard ff-successCard">
+    <div className="ff-cardTitleRow">
+      <div>
+        <div className="ff-detailLabel">Job health</div>
+        <div className="ff-cardTitle">Everything looks organised</div>
+      </div>
+    </div>
+
+    <div className="ff-detailSub">
+      Booking, notes, files and documents are on track.
+    </div>
+  </div>
+)}
                       <div className="ff-overviewTopGrid">
                         {jobHealth.map((item) => (
                           <div className="ff-overviewMiniCard" key={item.label}>
@@ -2882,7 +2909,7 @@ return (
         .ff-leftPane {
           display: flex;
           flex-direction: column;
-          height: 930px;
+        
         }
 
         .ff-leftTop {

@@ -124,16 +124,6 @@ body {
   100% { transform: scale(1); opacity: 1; }
 }
 
-.ff-unreadDot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #245BFF;
-  display: inline-block;
-  margin-right: 6px;
-  box-shadow: 0 0 0 2px #ffffff;
-  animation: ff-pulse 1.6s infinite;
-}
 
 .ff-acceptPage {
   position: relative;
@@ -241,7 +231,7 @@ body {
 .ff-acceptCard {
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid #e6ecf5;
-  border-radius: 28px;
+  border-radius: 20px;
   padding: 28px;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.95) inset,
@@ -587,4 +577,35 @@ body {
   .ff-acceptTop {
     align-items: flex-start;
   }
+
+  .ff-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Colors */
+.ff-chipBlue {
+  background: #eaf1ff;
+  color: #245bff;
+}
+
+.ff-chipGreen {
+  background: #ecfdf3;
+  color: #16a34a;
+}
+
+.ff-chipAmber {
+  background: #fff7ed;
+  color: #d97706;
+}
+
+.ff-chipRed {
+  background: #fff1f1;
+  color: #dc2626;
+}
 }

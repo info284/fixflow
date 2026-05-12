@@ -6,9 +6,17 @@ type PdfLineItem = {
   line_total?: number | null;
 };
 
+type PdfCertificate = {
+  name?: string | null;
+  certificate_number?: string | null;
+  expiry_date?: string | null;
+  show_on_estimates?: boolean | null;
+};
+
 type RenderEstimatePdfOpts = {
   estimate?: any;
   items?: PdfLineItem[];
+  certificates?: PdfCertificate[];
   profile?: {
     business_name?: string | null;
     display_name?: string | null;
@@ -152,6 +160,10 @@ export async function renderEstimatePdfBuffer(opts: RenderEstimatePdfOpts) {
   const estimate = opts.estimate || {};
   const items = Array.isArray(opts.items) ? opts.items : [];
   const profile = opts.profile || {};
+
+const certificates = Array.isArray(opts.certificates)
+  ? opts.certificates.filter((c) => c?.show_on_estimates !== false)
+  : [];
 
   const traderName =
     safeText(profile.business_name) ||
@@ -473,11 +485,46 @@ if (vat > 0) {
   drawLines(doc, money(total), x + 16, y + 58, w - 32, 1, 20, "right");
 }
 
-y += totalsH + 2;
+y += totalsH + 12;
 
-  // Optional notes — only include if there is room
-  const footerTop = PAGE_H - 62;
-  const remaining = footerTop - y;
+// Certificates & trust
+const footerTop = PAGE_H - 62;
+
+if (certificates.length > 0 && footerTop - y >= 84) {
+  const certRows = certificates.slice(0, 3);
+  const certH = 50 + certRows.length * 18;
+
+  roundedBox(x, y, w, certH, 18, SOFT_BOX, SOFT_BORDER);
+
+  label("Certificates & trust", x + 16, y + 16);
+
+  let certY = y + 38;
+
+  certRows.forEach((c) => {
+    const certName = safeText(c.name);
+    const certNo = safeText(c.certificate_number);
+    const expiry = shortDate(c.expiry_date);
+
+    const line = [
+      certName ? `✓ ${certName}` : "",
+      certNo ? `No. ${certNo}` : "",
+      expiry ? `Valid until ${expiry}` : "",
+    ]
+      .filter(Boolean)
+      .join(" • ");
+
+    doc.fillColor(INK).font("Helvetica").fontSize(10);
+    drawLines(doc, line, x + 16, certY, w - 32, 1, 12);
+
+    certY += 18;
+  });
+
+  y += certH + 12;
+}
+
+// Optional notes — only include if there is room
+const remaining = footerTop - y;
+
 
   if (includedNotes && remaining >= 74) {
     const incH = 62;

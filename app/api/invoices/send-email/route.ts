@@ -271,6 +271,8 @@ export async function POST(req: Request) {
 
     const pdfDownloadUrl = signedPdf.signedUrl;
 
+ const payUrl = `https://www.thefixflowapp.co.uk/pay/${inv.id}`;
+
     const customerName = String(linkedRequest?.customer_name || "there").trim();
     const invoiceNumber = String(inv.invoice_number || refDefault).trim();
     const dueDateText = formatDate(inv.due_at);
@@ -357,7 +359,11 @@ export async function POST(req: Request) {
           A PDF copy of your invoice is attached and also available using the button below.
         </div>
       `,
-      ctaHtml: buildFixFlowButton("Download invoice", pdfDownloadUrl),
+     ctaHtml: `
+  ${buildFixFlowButton("💳 Pay now", payUrl)}
+  <div style="height:12px;"></div>
+  ${buildFixFlowButton("Download invoice", pdfDownloadUrl)}
+`,
       closingHtml: `
         <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
           Thanks,<br />

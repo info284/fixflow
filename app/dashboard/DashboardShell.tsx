@@ -20,6 +20,7 @@ type Counts = {
   invoices: number;
   needsAction: number;
   followUp: number;
+  alerts: number;
 };
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
@@ -39,6 +40,7 @@ const [counts, setCounts] = useState<Counts>({
   invoices: 0,
   needsAction: 0,
   followUp: 0,
+  alerts: 0,
 });
 
   const logout = async () => {
@@ -241,9 +243,15 @@ const enquiries = enquiryCounts.needsAction;
 const { jobs } = getJobCounts({
   requests: allRequests,
   quoteMap,
+
 });
 const needsAction = enquiryCounts.needsAction;
 const followUp = enquiryCounts.followUp;
+
+// 🔔 SIMPLE ALERT ENGINE (v1)
+const alerts =
+  needsAction +
+  followUp;
 
 const invoices = await safeLoad(async () => {
   const { count, error } = await supabase
@@ -260,7 +268,14 @@ const invoices = await safeLoad(async () => {
 }, 0);
 
 if (!mounted) return;
-setCounts({ enquiries, jobs, invoices, needsAction, followUp });
+setCounts({
+  enquiries,
+  jobs,
+  invoices,
+  needsAction,
+  followUp,
+  alerts: 0, // temporary (we wire real data next)
+});
       } catch {
         // ignore
       }
@@ -404,6 +419,12 @@ return () => {
                     label="Invoices"
                     badge={counts.invoices}
                   />
+                  <NavItem
+  pathname={pathname}
+  href="/dashboard/alerts"
+  label="Alerts"
+  badge={counts.alerts}
+/>
                 </nav>
 
                 <div className="mt-6 pt-5 border-t border-[var(--border)]">
@@ -515,6 +536,12 @@ return () => {
                           label="Invoices"
                           badge={counts.invoices}
                         />
+                        <MobilePill
+  pathname={pathname}
+  href="/dashboard/alerts"
+  label="Alerts"
+  badge={counts.alerts}
+/>
                         <MobilePill
                           pathname={pathname}
                           href="/dashboard/profile"

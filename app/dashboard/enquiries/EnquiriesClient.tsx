@@ -29,7 +29,7 @@ type QuoteRequestRow = {
 
   status: string | null;
   stage: string | null;
-
+photo_count: number | null;
   job_booked_at: string | null;
   read_at: string | null;
   snoozed_until: string | null;
@@ -43,7 +43,7 @@ type QuoteRequestRow = {
   parking: string | null;
   property_type: string | null;
   problem_location: string | null;
-
+source: string | null;
   // 🔥 AI fields
   ai_urgency_score: number | null;
 
@@ -67,6 +67,12 @@ type QuoteRequestRow = {
   ai_suggested_reply: string | null;
 
   ai_last_processed_at: string | null;
+
+
+ai_next_action_due_at?: string | null;
+ai_thread_status?: string | null;
+ai_follow_up_count?: number | null;
+lost_reason?: string | null;
 };
 
 type EnquiryMessageRow = {
@@ -81,6 +87,8 @@ type EnquiryMessageRow = {
   to_email: string | null;
   resend_id: string | null;
   created_at: string;
+  is_follow_up?: boolean | null;
+follow_up_number?: number | null;
 };
 
 type FileItem = {
@@ -180,7 +188,8 @@ type ListTab =
   | "unread"
   | "needsAction"
   | "followUp"
-  | "waiting";
+  | "waiting"
+  | "cold";
 
 type BestAction = {
   title: string;
@@ -191,7 +200,15 @@ type BestAction = {
   };
 };
 
-
+type CustomerHistory = {
+  count: number;
+  jobs: {
+    id: string;
+    job_type: string | null;
+    created_at: string;
+    stage: string | null;
+  }[];
+};
 
 /* ================================
    CONSTS
@@ -269,18 +286,33 @@ const FF = {
 /* ================================
    HELPERS
 ================================ */
+
+function getJobCategory(text: string) {
+  const t = text.toLowerCase();
+
+  if (/(tap|leak|drip|faucet)/.test(t)) return "tap";
+  if (/(toilet|flush|cistern)/.test(t)) return "toilet";
+  if (/(boiler|heating|radiator)/.test(t)) return "boiler";
+  if (/(drain|blocked|clog)/.test(t)) return "drain";
+  if (/(shower|bath)/.test(t)) return "bathroom";
+  if (/(pipe|burst)/.test(t)) return "pipe";
+
+  return "other";
+}
+
 function getEnquiryPriority(args: {
   followUp?: FollowUpResult | null;
   replyStatus: string | null;
   estimate?: QuickEstimateLite | null;
 }) {
-  const { followUp, estimate } = args;
+  const { followUp, replyStatus, estimate } = args;
 
   if (followUp?.status === "customer_replied") return 100;
   if (followUp?.status === "needs_reply") return 90;
-  if (followUp?.status === "estimate_follow_up_due") return 80;
-  if (followUp?.status === "follow_up_due") return 70;
-
+  if (replyStatus === "Customer replied") return 85;
+  if (replyStatus === "Awaiting first reply") return 80;
+  if (followUp?.status === "estimate_follow_up_due") return 70;
+  if (followUp?.status === "follow_up_due") return 60;
   if (String(estimate?.status || "").toLowerCase() === "sent") return 50;
 
   return 10;
@@ -631,8 +663,9 @@ function enquiryScore(r: QuoteRequestRow, photos: number) {
   if (r.address || r.postcode) score += 10;
   if (r.details && r.details.trim().length >= 30) score += 20;
   if (r.urgency) score += 10;
-  if (photos > 0) score += 15;
-  if (photos >= 3) score += 5;
+if (photos === 0) score -= 10;     
+else if (photos >= 3) score += 15;  
+else score += 8;                    
   if (r.budget) score += 5;
   if (r.property_type) score += 5;
 
@@ -701,11 +734,15 @@ function quoteReadinessState(score: number) {
   };
 }
 
+
+
 function getFollowUpMessage(params: {
   customerName?: string | null;
   status?: string | null;
 }) {
-  const name = titleCase(params.customerName) || "there";
+const name = params.customerName
+  ? titleCase(params.customerName).split(" ")[0]
+  : "there";
   const status = String(params.status || "").toLowerCase();
 
   if (status === "estimate_follow_up_due") {
@@ -721,6 +758,67 @@ function getFollowUpMessage(params: {
   }
 
   return `Hi ${name}, just checking in to see if you'd still like to move forward with this job.`;
+}
+
+function getAiFollowUpDueState(row: QuoteRequestRow | null) {
+  if (!row?.ai_next_action_due_at) return null;
+  if (row.ai_thread_status === "customer_replied") return null;
+
+  const followUpCount = Number(row.ai_follow_up_count || 0);
+  if (followUpCount >= 2) return null;
+
+  const dueAt = new Date(row.ai_next_action_due_at).getTime();
+  if (Number.isNaN(dueAt)) return null;
+
+  if (dueAt > Date.now()) return null;
+
+  return {
+    due: true,
+    followUpCount,
+    label:
+      followUpCount === 0 ? "First follow-up due" : "Second follow-up due",
+    message:
+      followUpCount === 0
+        ? "It’s been 24 hours with no reply."
+        : "It’s been another 48 hours with no reply.",
+  };
+}
+
+function buildAiFollowUpReply(
+  row: QuoteRequestRow | null,
+  followUpCount: number
+) {
+  const name = titleCase(row?.customer_name) || "there";
+  const job = String(row?.job_type || "job").toLowerCase();
+
+  // 1️⃣ First follow-up (soft, friendly)
+  if (followUpCount === 0) {
+    return `Hi ${name},
+
+Just checking in to see if you’re still looking to go ahead with the ${job}?
+
+No rush — just let me know when you get a chance.
+
+Thanks`;
+  }
+
+  // 2️⃣ Second follow-up (more direct, introduces urgency)
+  if (followUpCount === 1) {
+    return `Hi ${name},
+
+Just following up again on the ${job}. I’ve got some availability coming up, so let me know if you’d like me to get this booked in.
+
+Happy to get this sorted for you.
+
+Thanks`;
+  }
+
+  // 3️⃣ Final follow-up (closing tone)
+  return `Hi ${name},
+
+Just a final check-in about the ${job}. I’ll assume this is no longer needed unless I hear back, but feel free to message me if you’d still like help.
+
+Thanks`;
 }
 
 function getLeftNextAction(params: {
@@ -744,8 +842,16 @@ function getLeftNextAction(params: {
 
   const status = String(estimateStatus || "").toLowerCase();
   const stageValue = String(stage || "").toLowerCase();
+  
   const estimateEngagement = getEstimateEngagementState(estimate);
   const reply = String(replyStatus || "");
+  if (stageValue === "lost") {
+  return {
+    text: "Closed",
+    cls: "ff-leftHint ff-leftHintGray",
+    type: "hint" as const,
+  };
+}
 
   if (stageValue === "won") {
     return {
@@ -940,9 +1046,35 @@ function Modal({
   );
 }
 
+
+function isAiFollowUpDue(row: QuoteRequestRow | null) {
+  if (!row?.ai_next_action_due_at) return false;
+  if (row.ai_thread_status === "customer_replied") return false;
+
+  const dueAt = new Date(row.ai_next_action_due_at).getTime();
+  if (Number.isNaN(dueAt)) return false;
+
+  return dueAt <= Date.now();
+}
+
 /* ================================
    COMPONENT
 ================================ */
+
+const followUps24h = (customerName: string, jobType: string) => [
+  `Hi ${customerName}, just checking you saw the estimate for the ${jobType} — let me know if you want me to go ahead 👍`,
+  `Hi ${customerName}, just making sure the ${jobType} estimate came through okay — happy to run through anything`,
+];
+
+const followUps48h = (customerName: string, jobType: string) => [
+  `Hi ${customerName}, just checking what you thought of the ${jobType} estimate — I’ve got space coming up if you’d like me to get this booked in 👍`,
+  `Hi ${customerName}, I’ve got availability for the ${jobType} this week — let me know if you want me to lock this in`,
+];
+
+const followUps5d = (customerName: string, jobType: string) => [
+  `Hi ${customerName}, just checking if you still want to go ahead with the ${jobType} — I can get this sorted this week 👍`,
+  `Hi ${customerName}, I’ll leave this with you, but if you want the ${jobType} booked in just let me know`,
+];
 
 export default function EnquiriesClient() {
   const router = useRouter();
@@ -956,7 +1088,10 @@ export default function EnquiriesClient() {
     if (!s || s === "null" || s === "undefined") return "";
     return s;
   };
-
+const getCustomerFirstName = (name?: string | null) => {
+  if (!name) return "there";
+  return titleCase(name).split(" ")[0];
+};
   const requestIdFromUrl = cleanId(requestIdParam);
   const urlTab = cleanId(tabParam);
 
@@ -975,12 +1110,15 @@ const [visitBooking, setVisitBooking] = useState(false);
   const [tab, setTab] = useState<ListTab>("all");
  const [searchFilter, setSearchFilter] = useState("");
   const [urgencyFilter, setUrgencyFilter] = useState("");
+  const [lostReasonFilter, setLostReasonFilter] = useState("");
 
   const [rows, setRows] = useState<QuoteRequestRow[]>([]);
 
   const [aiRunStatus, setAiRunStatus] = useState<
   "idle" | "running" | "sent" | "draft" | "error"
 >("idle");
+
+
 
 const [aiRunMessage, setAiRunMessage] = useState<string | null>(null);
   const [rightTab, setRightTab] = useState<RightTab>("details");
@@ -1001,18 +1139,21 @@ const [estimateDraftSaved, setEstimateDraftSaved] = useState(false);
   const [filesLoading, setFilesLoading] = useState(false);
   const [fileMsg, setFileMsg] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [photoCountMap, setPhotoCountMap] = useState<Record<string, number>>({});
+ 
 
   const [siteVisit, setSiteVisit] = useState<SiteVisitRow | null>(null);
   const [siteVisitLoading, setSiteVisitLoading] = useState(false);
   const [visitMap, setVisitMap] = useState<Record<string, SiteVisitRow | null>>({});
-
+const [customerHistory, setCustomerHistory] = useState<QuoteRequestRow[]>([]);
+const [historyLoading, setHistoryLoading] = useState(false);
+const [pricingHistory, setPricingHistory] = useState<any[]>([]);
   const [detailedEstimate, setDetailedEstimate] = useState<DetailedEstimateRow | null>(null);
   const [detailedEstimateItems, setDetailedEstimateItems] = useState<DetailedEstimateItemRow[]>([]);
   const [detailedEstimateLoading, setDetailedEstimateLoading] = useState(false);
   const [estimateMap, setEstimateMap] = useState<Record<string, QuickEstimateLite | null>>({});
 const [notesSaved, setNotesSaved] = useState(false);
 const [replySending, setReplySending] = useState(false);
+const [sendAndNextLoading, setSendAndNextLoading] = useState(false);
 const [replySent, setReplySent] = useState(false);
 const [quickEstimateSending, setQuickEstimateSending] = useState(false);
 const [quickEstimateSent, setQuickEstimateSent] = useState(false);
@@ -1026,9 +1167,10 @@ const [fileUploaded, setFileUploaded] = useState(false);
   const [siteVisitMsg, setSiteVisitMsg] = useState<string | null>(null);
 const [aiJustUpdatedId, setAiJustUpdatedId] = useState<string | null>(null);
 const autoAnalysingRef = useRef<string | null>(null);
-
+const runAutoFollowUpsRef = useRef<() => void>(() => {});
+const [autoFollowUpsEnabled, setAutoFollowUpsEnabled] = useState(false);
 const [snoozeSaving, setSnoozeSaving] = useState(false);
-
+const [limitCount, setLimitCount] = useState(100);
   const [traderNotes, setTraderNotes] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesMsg, setNotesMsg] = useState<string | null>(null);
@@ -1057,8 +1199,18 @@ const [snoozeSaving, setSnoozeSaving] = useState(false);
   });
 
   const threadBottomRef = useRef<HTMLDivElement | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
 
+const [showCallModal, setShowCallModal] = useState(false);
 
+const [callForm, setCallForm] = useState({
+  customer_name: "",
+  customer_phone: "",
+  job_type: "",
+  urgency: "Flexible",
+  details: "",
+  source: "manual", 
+});
 
   const lastMarkedRef = useRef<string | null>(null);
   const activeEnquiryRef = useRef<HTMLDivElement | null>(null);
@@ -1072,10 +1224,67 @@ const [scrollToEstimatePending, setScrollToEstimatePending] = useState(false);
 
 const visitSectionRef = useRef<HTMLDivElement | null>(null);
 const [scrollToVisitPending, setScrollToVisitPending] = useState(false);
+
+const [confirmModal, setConfirmModal] = useState<{
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  danger?: boolean;
+  onConfirm: () => void | Promise<void>;
+} | null>(null);
+
+const [inputModal, setInputModal] = useState<{
+  open: boolean;
+  title: string;
+  message?: string;
+  placeholder?: string;
+  submitLabel?: string;
+  onSubmit: (value: string) => void | Promise<void>;
+} | null>(null);
+
+const [inputModalValue, setInputModalValue] = useState("");
+
+function openConfirmModal(args: {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  danger?: boolean;
+  onConfirm: () => void | Promise<void>;
+}) {
+  setConfirmModal({
+    open: true,
+    title: args.title,
+    message: args.message,
+    confirmLabel: args.confirmLabel || "Confirm",
+    danger: args.danger ?? false,
+    onConfirm: args.onConfirm,
+  });
+}
+
+function openInputModal(args: {
+  title: string;
+  message?: string;
+  placeholder?: string;
+  submitLabel?: string;
+  onSubmit: (value: string) => void | Promise<void>;
+}) {
+  setInputModalValue("");
+
+  setInputModal({
+    open: true,
+    title: args.title,
+    message: args.message,
+    placeholder: args.placeholder,
+    submitLabel: args.submitLabel || "Save",
+    onSubmit: args.onSubmit,
+  });
+}
   const selectedRow = useMemo(() => {
     if (!selectedId) return null;
     return rows.find((r) => r.id === selectedId) ?? null;
   }, [rows, selectedId]);
+
 useEffect(() => {
   if (!selectedRow?.id) return;
   if (rightTab !== "details") return;
@@ -1118,9 +1327,9 @@ useEffect(() => {
   const estimateVat = estimateSubtotal * (num(estimateForm.vatPercent) / 100);
   const estimateTotal = estimateSubtotal + estimateVat;
 
-  const selectedPhotoCount = selectedRow
-    ? photoCountMap[selectedRow.id] || 0
-    : 0;
+const selectedPhotoCount = selectedRow
+  ? selectedRow.photo_count || 0
+  : 0;
 
 
  
@@ -1145,6 +1354,8 @@ const selectedEstimateStatus = selectedRow
     null
   : null;
 
+const selectedAiFollowUpDue = getAiFollowUpDueState(selectedRow);
+
 const estimateCardStatus = (() => {
   const status = String(selectedEstimateStatus || "").toLowerCase();
 
@@ -1167,6 +1378,8 @@ const selectedEstimateLabel = selectedEstimateStatus
   ? titleCase(selectedEstimateStatus)
   : "No estimate";
 
+
+  
 const selectedVisit = selectedRow ? visitMap[selectedRow.id] || null : null;
 
 const selectedVisitLabel = selectedVisit
@@ -1225,8 +1438,272 @@ const followUpMap = useMemo(() => {
     });
   }
 
+
   return map;
 }, [rows, estimateMap, threadMap]);
+
+function applySuggestedPrice() {
+  if (!pricingInsight) return;
+
+  const total = pricingInsight.suggested;
+
+  const labour = total * 0.6;
+  const materials = total * 0.4;
+
+  setEstimateForm((prev) => ({
+    ...prev,
+    labour: labour.toFixed(0),
+    materials: materials.toFixed(0),
+    callout: "0",
+    parts: "0",
+    other: "0",
+  }));
+
+  syncRightTab("estimate");
+  setScrollToEstimatePending(true);
+}
+
+function applySuggestedReply() {
+  if (!selectedRow || !pricingInsight) return;
+
+  const name = getCustomerFirstName(selectedRow.customer_name);
+  const job = titleCase(selectedRow.job_type || "job");
+
+  const text = `Hi ${name},
+
+Thanks for your enquiry about the ${job}.
+
+Based on the details, this would be around ${money(
+    pricingInsight.suggested
+  )}.
+
+Let me know if you’d like me to get this booked in 👍`;
+
+  setReplyBody(text);
+  setReplySubject(`Re: ${job}`);
+
+  syncRightTab("messages");
+  setScrollToComposerPending(true);
+}
+
+function createMessageWithPrice() {
+  if (!pricingInsight || !selectedRow) return;
+
+const price = pricingInsight?.suggested ?? 0;
+
+const name = titleCase(selectedRow?.customer_name) || "there";
+const job = selectedRow?.job_type || "job";
+
+// 💰 derive tone from value
+const profit = pricingInsight
+  ? Math.round(pricingInsight.suggested * 0.5)
+  : 0;
+
+const margin = pricingInsight && pricingInsight.suggested > 0
+  ? Math.round((profit / pricingInsight.suggested) * 100)
+  : 0;
+
+const band =
+  margin >= 60 ? "high" :
+  margin >= 40 ? "medium" :
+  "low";
+
+// 🧠 smart tone based on job quality
+const tone =
+  band === "high"
+    ? "I’ve got availability to get this sorted quickly 👍"
+    : band === "medium"
+    ? "Let me know if you'd like me to get this booked in 👍"
+    : "Happy to go through a couple of options with you 👍";
+
+// ✉️ final message
+const message = `Hi ${name},
+
+For the ${job}, you're looking at around ${money(price)}.
+
+${tone}`;
+
+// 🚀 push to UI
+syncRightTab("messages");
+setReplyBody(message);
+setScrollToComposerPending(true);
+}
+
+const customerStats = useMemo(() => {
+  const previous = customerHistory.filter(
+    (r) => r.id !== selectedRow?.id
+  );
+
+  const totalJobs = previous.length;
+
+  let totalValue = 0;
+
+  for (const job of previous) {
+    const value = estimateMap?.[job.id]?.total_amount || 0;
+    totalValue += value;
+  }
+
+  return {
+    totalJobs,
+    totalValue,
+  };
+}, [customerHistory, selectedRow?.id, estimateMap]);
+
+const customerInsight = useMemo(() => {
+  const previous = customerHistory.filter(
+    (r) => r.id !== selectedRow?.id
+  );
+
+  if (!previous.length) return null;
+
+  let totalReplyTime = 0;
+  let replyCount = 0;
+
+  for (const job of previous) {
+    const messages = threadMap?.[job.id] || [];
+
+    let lastOut: Date | null = null;
+
+    for (const m of messages) {
+      const isOut = m.direction === "out";
+
+      if (isOut) {
+        lastOut = new Date(m.created_at);
+      } else if (lastOut) {
+        const replyTime =
+          new Date(m.created_at).getTime() - lastOut.getTime();
+
+        if (replyTime > 0) {
+          totalReplyTime += replyTime;
+          replyCount++;
+        }
+
+        lastOut = null;
+      }
+    }
+  }
+
+  const avgReplyHours =
+    replyCount > 0
+      ? totalReplyTime / replyCount / (1000 * 60 * 60)
+      : null;
+
+  if (avgReplyHours !== null && avgReplyHours < 2) {
+    return {
+      text: "⚡ Customer replies quickly — high chance of engagement",
+      type: "good",
+    };
+  }
+
+  if (avgReplyHours !== null && avgReplyHours > 24) {
+    return {
+      text: "🕓 Slow responder — follow-ups may be needed",
+      type: "warn",
+    };
+  }
+
+  if (customerStats.totalJobs >= 2) {
+    return {
+      text: "⭐ Repeat customer — more likely to accept",
+      type: "good",
+    };
+  }
+
+  return {
+    text: "ℹ️ New or unknown customer behaviour",
+    type: "neutral",
+  };
+}, [customerHistory, selectedRow?.id, threadMap, customerStats]);
+
+const customerHistoryMap = useMemo(() => {
+  const map: Record<string, CustomerHistory> = {};
+
+  for (const row of rows) {
+    const email = row.customer_email?.toLowerCase().trim();
+    if (!email) continue;
+
+    if (!map[email]) {
+      map[email] = {
+        count: 0,
+        jobs: [],
+      };
+    }
+
+    map[email].count += 1;
+
+    map[email].jobs.push({
+      id: row.id,
+      job_type: row.job_type,
+      created_at: row.created_at,
+      stage: row.stage,
+    });
+  }
+
+ 
+  Object.keys(map).forEach((email) => {
+    map[email].jobs = map[email].jobs
+      .sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime()
+      )
+      .slice(0, 3);
+  });
+
+  return map;
+}, [rows]);
+
+const autoAction = useMemo(() => {
+  if (!selectedRow) return null;
+
+  const messages = threadMap?.[selectedRow.id] || [];
+
+  const lastMessage = messages[messages.length - 1];
+  const customerName = selectedRow.customer_name
+    ? selectedRow.customer_name.split(" ")[0]
+    : "there";
+
+  // 🧠 Rules
+  if (!messages.length) {
+    return {
+      title: "Send first reply",
+      text: "Customer is waiting — replying quickly increases your chance of winning.",
+      message: `Hi ${customerName}, thanks for your enquiry — I’ll take a look and get back to you shortly.`,
+    };
+  }
+
+  if (lastMessage && lastMessage.direction !== "out") {
+    return {
+      title: "Reply now",
+      text: "Customer has replied — jump back in while they’re engaged.",
+      message: `Hi ${customerName}, thanks for your message — I’ll get this sorted for you.`,
+    };
+  }
+
+  const lastOut = messages
+    .filter((m) => m.direction === "out")
+    .slice(-1)[0];
+
+  if (lastOut) {
+    const hours =
+      (Date.now() - new Date(lastOut.created_at).getTime()) /
+      (1000 * 60 * 60);
+
+    if (hours > 24) {
+      return {
+        title: "Follow up",
+        text: "No response — a quick follow-up can win this job.",
+        message: `Hi ${customerName}, just checking if you’d like me to go ahead with this — happy to help.`,
+      };
+    }
+  }
+
+  return {
+    title: "Keep moving",
+    text: "Keep the conversation active to secure the job.",
+    message: `Hi ${customerName}, just keeping you updated — let me know if you have any questions.`,
+  };
+}, [selectedRow, threadMap]);
 
 const selectedFollowUp = selectedRow
   ? followUpMap[selectedRow.id]
@@ -1254,6 +1731,362 @@ const selectedReplyStatus = useMemo(() => {
   if (hasOutbound) return "Awaiting reply";
   return "Awaiting first reply";
 }, [selectedRow, threadMap]);
+
+async function moveToJobs() {
+  if (!selectedRow) return;
+
+  const nowIso = new Date().toISOString();
+
+  const { data: existingQuote, error: existingQuoteError } = await supabase
+    .from("quotes")
+    .select("id")
+    .eq("request_id", selectedRow.id)
+    .maybeSingle();
+
+  if (existingQuoteError) {
+    console.error("Quote lookup failed:", existingQuoteError);
+    pushToast("Couldn’t check quote record", "error");
+    return;
+  }
+
+  if (existingQuote?.id) {
+    const { error: quoteUpdateError } = await supabase
+      .from("quotes")
+      .update({
+        status: "booked",
+      })
+      .eq("id", existingQuote.id);
+
+    if (quoteUpdateError) {
+      console.error("Quote update failed:", quoteUpdateError);
+      pushToast("Couldn’t update quote record", "error");
+      return;
+    }
+  } else {
+    const { error: quoteInsertError } = await supabase
+      .from("quotes")
+      .insert({
+        plumber_id: selectedRow.plumber_id,
+        request_id: selectedRow.id,
+        customer_name: selectedRow.customer_name,
+        customer_email: selectedRow.customer_email,
+        customer_phone: selectedRow.customer_phone,
+        postcode: selectedRow.postcode,
+        address: selectedRow.address,
+        job_type: selectedRow.job_type,
+        urgency: selectedRow.urgency,
+        job_details: selectedRow.details,
+        status: "booked",
+        created_at: nowIso,
+      });
+
+    if (quoteInsertError) {
+      console.error("Quote insert failed:", quoteInsertError);
+      pushToast("Couldn’t create job record", "error");
+      return;
+    }
+  }
+
+
+  setRows((prev) =>
+    prev.map((r) =>
+      r.id === selectedRow.id
+        ? {
+            ...r,
+            stage: "won",
+            status: "booked",
+            job_booked_at: nowIso,
+          }
+        : r
+    )
+  );
+
+  pushToast("Moved to jobs");
+  router.push(`/dashboard/bookings?requestId=${selectedRow.id}`);
+}
+
+async function getCustomerHistoryMap(
+  plumberId: string,
+  enquiries: QuoteRequestRow[]
+) {
+  const emails = Array.from(
+    new Set(
+      enquiries
+        .map((e) => e.customer_email?.toLowerCase().trim())
+        .filter(Boolean)
+    )
+  );
+
+  if (!emails.length) return {};
+
+  const { data, error } = await supabase
+    .from("quote_requests")
+    .select("id, customer_email, created_at")
+    .eq("plumber_id", plumberId)
+    .in("customer_email", emails);
+
+  if (error || !data) return {};
+
+  const map: Record<string, { count: number }> = {};
+
+  for (const row of data) {
+    const email = row.customer_email?.toLowerCase().trim();
+    if (!email) continue;
+
+    if (!map[email]) {
+      map[email] = { count: 0 };
+    }
+
+    map[email].count += 1;
+  }
+
+  return map;
+}
+
+async function markAsLost(reason: string) {
+  if (!selectedRow) return;
+
+  const rowId = selectedRow.id;
+
+  const { error } = await supabase
+    .from("quote_requests")
+    .update({
+      stage: "lost",
+      lost_reason: reason,
+    })
+    .eq("id", rowId);
+
+  if (error) {
+    pushToast("Couldn’t mark as lost", "error");
+    return;
+  }
+
+  setRows((prev) =>
+    prev.map((r) =>
+      r.id === rowId
+        ? { ...r, stage: "lost", lost_reason: reason }
+        : r
+    )
+  );
+
+  pushToast("Marked as lost");
+}
+
+const customerValueInsight = useMemo(() => {
+  const previous = customerHistory.filter(
+    (r) => r.id !== selectedRow?.id
+  );
+
+  if (!previous.length) return null;
+
+  let total = 0;
+  let count = 0;
+
+  for (const job of previous) {
+    const est = estimateMap?.[job.id];
+
+    if (est?.total_amount) {
+      total += est.total_amount;
+      count++;
+    }
+  }
+
+  if (!count) return null;
+
+  const avg = total / count;
+
+  let band: "low" | "medium" | "high" = "low";
+
+  if (avg > 1000) band = "high";
+  else if (avg > 300) band = "medium";
+
+  return {
+    avg,
+    band,
+    count,
+  };
+}, [customerHistory, selectedRow?.id, estimateMap]);
+
+
+const pricingInsight = useMemo(() => {
+  if (!customerValueInsight || !selectedRow) return null;
+
+  // 🧠 1. Detect job category
+  const category = getJobCategory(
+    `${selectedRow.job_type || ""} ${selectedRow.details || ""}`
+  );
+
+  // 💰 2. ONLY use WON jobs
+  const relevantJobs = pricingHistory.filter((j) => {
+    const jobType =
+      j.quote_requests?.job_type ||
+      j.job_type ||
+      "";
+
+    return (
+      j.status === "accepted" &&
+      getJobCategory(jobType) === category
+    );
+  });
+
+  const prices = relevantJobs
+  .map((j) => j.total || 0)
+  .filter(Boolean)
+  .sort((a, b) => a - b);
+
+const rangeLow =
+  prices.length > 0
+    ? prices[Math.floor(prices.length * 0.25)]
+    : null;
+
+const rangeHigh =
+  prices.length > 0
+    ? prices[Math.floor(prices.length * 0.75)]
+    : null;
+
+const confidence =
+  relevantJobs.length >= 5
+    ? "high"
+    : relevantJobs.length >= 2
+    ? "medium"
+    : "low";
+
+  // 📊 3. Average from REAL wins
+  const avgFromHistory =
+    relevantJobs.length > 0
+      ? Math.round(
+          relevantJobs.reduce(
+            (sum, j) => sum + (j.total || 0),
+            0
+          ) / relevantJobs.length
+        )
+      : null;
+
+  // 🎯 4. Base price
+  const base = avgFromHistory || customerValueInsight.avg;
+
+  let multiplier = 1;
+
+  const urgency = String(selectedRow.urgency || "").toLowerCase();
+  const photos = selectedRow.photo_count || 0;
+  const budget = selectedRow.budget;
+  const repeatCustomer = customerStats.totalJobs > 0;
+
+  // 🔥 URGENCY
+  if (urgency.includes("asap") || urgency.includes("urgent")) {
+    multiplier += 0.15;
+  }
+
+  // 📸 LOW DETAIL
+  if (photos === 0) {
+    multiplier -= 0.1;
+  }
+
+  // 💰 BUDGET SIGNAL
+  if (budget && budget !== "not-sure") {
+    const num = parseInt(budget.replace(/\D/g, ""));
+    if (!isNaN(num) && num > base) {
+      multiplier += 0.1;
+    }
+  }
+
+  // 🔁 REPEAT CUSTOMER
+  if (repeatCustomer) {
+    multiplier += 0.05;
+  }
+
+  // 🎯 HIGH VALUE CUSTOMER
+  if (customerValueInsight.band === "high") {
+    multiplier += 0.1;
+  }
+
+  const suggested = Math.round(base * multiplier);
+
+  // 💸 COST MODEL
+  const LABOUR_COST_RATIO = 0.4;
+  const OVERHEAD_RATIO = 0.1;
+
+  const labour = suggested * 0.5;
+  const materials = suggested * 0.5;
+
+  const labourCost = labour * LABOUR_COST_RATIO;
+  const baseCost = materials + labourCost;
+  const overhead = baseCost * OVERHEAD_RATIO;
+
+  const cost = Math.round(baseCost + overhead);
+  const profit = suggested - cost;
+
+  const margin =
+    suggested > 0
+      ? Math.round((profit / suggested) * 100)
+      : 0;
+
+return {
+  suggested,
+  base,
+  avgFromHistory, // 👈 important
+  multiplier,
+  cost,
+  profit,
+  margin,
+  jobsUsed: relevantJobs.length,
+
+  // 👇 NEW (for UI range)
+  rangeLow: Math.round(base * 0.85),
+  rangeHigh: Math.round(base * 1.15),
+};
+}, [
+  customerValueInsight,
+  selectedRow,
+  pricingHistory,
+  customerStats.totalJobs,
+]);
+
+const pricingExplainText = (() => {
+  if (!selectedRow || !estimateTotal) return null;
+
+  const sell = estimateTotal || 0;
+  const cost = materialsBase || 0;
+
+  const profit = sell - cost;
+
+  const margin =
+    sell > 0 ? Math.round((profit / sell) * 100) : 0;
+
+  const urgency = String(selectedRow.urgency || "").toLowerCase();
+  const isUrgent =
+    urgency.includes("asap") || urgency.includes("urgent");
+
+  const isRepeat = customerStats.totalJobs >= 2;
+
+  const valueBand = customerValueInsight?.band || "medium";
+
+  if (margin < 30) {
+    return "⚠️ Low margin — only worth it if it leads to more work";
+  }
+
+  if (isUrgent && margin >= 50) {
+    return "🔥 Urgent job + strong margin — high value opportunity";
+  }
+
+  if (isRepeat && margin >= 40) {
+    return "🔁 Repeat customer — good chance they’ll accept";
+  }
+
+  if (valueBand === "high" && margin >= 50) {
+    return "💰 High-value customer — strong profit potential";
+  }
+
+  if (margin >= 60) {
+    return "💰 Strong margin — great profit on this job";
+  }
+
+  if (margin >= 40) {
+    return "👍 Solid pricing — good balance of win rate and profit";
+  }
+
+  return "⚡ Competitive price — higher chance of winning this job";
+})();
 
 const selectedBestAction = useMemo<BestAction>(() => {
   if (!selectedRow) {
@@ -1311,6 +2144,7 @@ if (estimateAccepted) {
   };
 }
 
+
 if (selectedReplyStatus === "Customer replied") {
   return {
     title: "Reply now",
@@ -1356,6 +2190,48 @@ button: {
 },
   };
 }
+const isHighChance =
+  selectedReadinessScore >= 80 ||
+  hasReply ||
+  estimateEngagement === "viewed" ||
+  selectedPhotoCount >= 3; // 👈 NEW
+
+if (
+  followUpState &&
+  (followUpState.status === "follow_up_due" ||
+    followUpState.status === "estimate_follow_up_due") &&
+  isHighChance
+) {
+  return {
+    title: "Follow up now — high chance of winning",
+    text:
+      "This enquiry looks strong. The customer has shown interest, so a quick follow-up now could help win the job.",
+    button: {
+      label: "Send follow-up",
+action: () => {
+  syncRightTab("messages");
+
+  const customerName =
+    titleCase(selectedRow.customer_name) || "there";
+
+  let message = "";
+if (selectedPhotoCount >= 3) {
+  message = `Hi ${customerName}, thanks for the photos — that really helps. Let me know if you'd like me to get this booked in 👍`;
+}
+  if (estimateEngagement === "viewed") {
+    message = `Hi ${customerName}, just checking you saw the estimate — happy to get this booked in if you're ready 👍`;
+  } else if (selectedReadinessScore >= 80) {
+    message = `Hi ${customerName}, just checking in — do you want me to get this booked in?`;
+  } else {
+    message = `Hi ${customerName}, just checking what you thought — let me know if you want me to go ahead 👍`;
+  }
+
+  setReplyBody(message);
+  setScrollToComposerPending(true);
+},
+    },
+  };
+}
 if (
   followUpState &&
   (followUpState.status === "follow_up_due" ||
@@ -1382,19 +2258,32 @@ if (
         const customerName =
           titleCase(selectedRow.customer_name) || "there";
 
-        const followUpMessage =
-          followUpState.status === "estimate_follow_up_due"
-            ? `Hi ${customerName}, just checking you received the estimate I sent over and whether you'd like to go ahead.`
-            : `Hi ${customerName}, just checking in to see if you'd still like to go ahead with this job.`;
+const jobType = selectedRow.job_type?.toLowerCase() || "job";
 
-        setReplyBody(followUpMessage);
-        setScrollToComposerPending(true);
+let pool = followUps24h(customerName, jobType);
+
+// stronger push (estimate sent, no reply)
+if (followUpState.status === "estimate_follow_up_due") {
+  pool = followUps48h(customerName, jobType);
+}
+
+// going cold (long time no reply)
+if (followUpState.status === "follow_up_due") {
+  pool = followUps5d(customerName, jobType);
+}
+
+// random = feels human
+const followUpMessage =
+  pool[Math.floor(Math.random() * pool.length)];
+
+setReplyBody(followUpMessage);
+setScrollToComposerPending(true);
       },
     },
   };
 }
 
-  if (estimateSent) {
+  if (estimateStatus === "sent") {
     return {
       title:
         estimateEngagement === "viewed"
@@ -1437,31 +2326,50 @@ button: {
     };
   }
 
-  if (!hasVisit && (selectedPhotoCount === 0 || selectedMissingInfo.length >= 2)) {
-    return {
-      title: selectedPhotoCount === 0 ? "Ask for photos" : "Get missing details",
-      text:
-        selectedPhotoCount === 0
-          ? "A few photos will make this much easier to price accurately."
-          : "A couple more details will help you quote this job with more confidence.",
-button: {
-  label: "Ask customer",
-  action: () => {
-    syncRightTab("messages");
+if (!hasVisit && selectedPhotoCount === 0) {
+  return {
+    title: "Ask for photos",
+    text: "Photos will help you price this faster and more accurately.",
+    button: {
+      label: "Ask customer",
+      action: () => {
+        syncRightTab("messages");
 
-    const customerName =
-      titleCase(selectedRow.customer_name) || "there";
+        const customerName =
+          titleCase(selectedRow.customer_name) || "there";
 
-    setReplyBody(
-      `Hi ${customerName}, could you please send:\n- ${selectedMissingInfo.join("\n- ")}`
-    );
+        setReplyBody(
+          `Hi ${customerName}, could you send a couple of photos of the job? That’ll help me give you an accurate price 👍`
+        );
 
-    // 🔥 scroll + focus
-    setScrollToComposerPending(true);
-  },
-},
-    };
-  }
+        setScrollToComposerPending(true);
+      },
+    },
+  };
+}
+
+if (!hasVisit && selectedMissingInfo.length >= 2) {
+  return {
+    title: "Get missing details",
+    text:
+      "A couple more details will help you quote this job with more confidence.",
+    button: {
+      label: "Ask customer",
+      action: () => {
+        syncRightTab("messages");
+
+        const customerName =
+          titleCase(selectedRow.customer_name) || "there";
+
+        setReplyBody(
+          `Hi ${customerName}, could you please send:\n- ${selectedMissingInfo.join("\n- ")}`
+        );
+
+        setScrollToComposerPending(true);
+      },
+    },
+  };
+}
 
   if (selectedReadinessScore >= 85) {
     return {
@@ -1474,28 +2382,7 @@ button: {
     };
   }
 
-  if (!hasVisit && (selectedPhotoCount === 0 || selectedMissingInfo.length >= 2)) {
-    return {
-      title: "Get a bit more info",
-      text: "Ask for missing details or photos before pricing this one properly.",
-button: {
-  label: "Ask customer",
-  action: () => {
-    syncRightTab("messages");
 
-    const customerName =
-      titleCase(selectedRow.customer_name) || "there";
-
-    setReplyBody(
-      `Hi ${customerName}, could you please send:\n- ${selectedMissingInfo.join("\n- ")}`
-    );
-
-    // 🔥 scroll + focus to composer
-    setScrollToComposerPending(true);
-  },
-},
-    };
-  }
 
   if (!hasVisit) {
     return {
@@ -1529,23 +2416,178 @@ button: {
   estimateMap,
   visitMap,
   threadMap,
+  followUpMap,
+  selectedReplyStatus,
+  router,
+  syncRightTab,
+  setReplyBody,
+  setScrollToComposerPending,
+  followUps24h,
+  followUps48h,
+  followUps5d,
 ]);
 
-  const quickReplies = useMemo(() => {
-    const customerName = selectedRow?.customer_name
-      ? titleCase(selectedRow.customer_name)
-      : "there";
+const quickReplies = useMemo(() => {
+  const customerName = selectedRow?.customer_name
+    ? titleCase(selectedRow.customer_name)
+    : "there";
 
-    return [
-      `Hi ${customerName}, thanks for your enquiry — I’m just reviewing this now.`,
-      `Could you send over a couple more photos so I can price this more accurately?`,
-      `Would you like me to book a quick site visit to take a proper look?`,
-      `I’ve sent your estimate over — let me know if you’d like to go ahead.`,
-      `Just checking in to see if you'd like to move forward with this job.`,
-    ];
-  }, [selectedRow]);
+  return [
+    `Hi ${customerName}, thanks for your enquiry — I’m just reviewing this now.`,
+    `Could you send over a couple more photos so I can price this more accurately?`,
+    `Would you like me to book a quick site visit to take a proper look?`,
+    `I’ve sent your estimate over — let me know if you’d like to go ahead.`,
+    `Just checking in to see if you'd like to move forward with this job.`,
+  ];
+}, [selectedRow]);
+
+
 const isAutoFilled = replyBody.trim().startsWith("Hi ");
 
+const lostJobInsights = useMemo(() => {
+  const lostRows = rows.filter((r) => r.stage === "lost");
+
+  const reasonCounts = lostRows.reduce<Record<string, number>>((acc, row) => {
+    const reason = row.lost_reason || "No reason given";
+    acc[reason] = (acc[reason] || 0) + 1;
+    return acc;
+  }, {});
+
+  const topReason = Object.entries(reasonCounts).sort(
+    (a, b) => b[1] - a[1]
+  )[0];
+
+  return {
+    totalLost: lostRows.length,
+    topReason: topReason?.[0] || null,
+    topReasonCount: topReason?.[1] || 0,
+  };
+}, [rows]);
+
+const lostJobAdvice = useMemo(() => {
+  const reason = (lostJobInsights.topReason || "").toLowerCase();
+
+  if (reason.includes("expensive")) {
+    return {
+      title: "You're losing jobs on price",
+      text: "Try breaking the estimate down clearly or offering a lower-cost first step.",
+    };
+  }
+
+  if (reason.includes("no response")) {
+    return {
+      title: "Customers are going quiet",
+      text: "Follow up within 24–48 hours. Most quiet leads need a simple nudge.",
+    };
+  }
+
+  if (reason.includes("another")) {
+    return {
+      title: "Losing to other quotes",
+      text: "Speed matters. Reply quickly and make the next step obvious.",
+    };
+  }
+
+  if (reason.includes("cancelled")) {
+    return {
+      title: "Jobs are being cancelled",
+      text: "Check whether customers are delaying, changing scope, or losing urgency.",
+    };
+  }
+
+  return null;
+}, [lostJobInsights]);
+
+const lostReasons = useMemo(() => {
+  const counts = rows.reduce<Record<string, number>>((acc, row) => {
+    if (row.stage !== "lost" || !row.lost_reason) return acc;
+
+    acc[row.lost_reason] = (acc[row.lost_reason] || 0) + 1;
+    return acc;
+  }, {});
+
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([reason, count]) => ({
+      reason,
+      count,
+    }));
+}, [rows]);
+
+const salesPulse = useMemo(() => {
+const now = new Date();
+
+// ⚡ Needs action
+const needsAction = rows.filter((r) => {
+const follow = followUpMap[r.id];
+return follow?.bucket === "needsAction";
+}).length;
+
+// 📉 Lost this week
+const lostThisWeek = rows.filter((r) => {
+if (r.stage !== "lost") return false;
+const created = new Date(r.created_at);
+return now.getTime() - created.getTime() < 7 * 24 * 60 * 60 * 1000;
+}).length;
+
+// 💰 Value waiting (estimates sent but not accepted)
+const valueWaiting = rows.reduce((sum, r) => {
+const est = estimateMap[r.id];
+if (!est) return sum;
+
+const status = String(est.status || "").toLowerCase();
+
+if (status === "sent") {
+return sum + (est.total_amount || 0);
+}
+
+return sum;
+}, 0);
+
+// 👉 Best move
+let bestMove = "Stay on top of replies";
+
+if (needsAction > 0) {
+bestMove = "Follow up on active enquiries";
+} else if (valueWaiting > 0) {
+bestMove = "Chase sent estimates";
+}
+
+return {
+needsAction,
+lostThisWeek,
+valueWaiting,
+bestMove,
+};
+}, [rows, followUpMap, estimateMap]);
+
+const moneyCoach = useMemo(() => {
+  const lost = rows.filter((r) => r.stage === "lost");
+
+  const noResponseLost = lost.filter((r) =>
+    (r.lost_reason || "").toLowerCase().includes("no response")
+  ).length;
+
+  const quietLeads = rows.filter((r) => {
+    const messages = threadMap[r.id] || [];
+    return messages.length > 0 && !hasCustomerReplyAfterOutbound(messages);
+  }).length;
+
+  let message = "Everything looks under control today.";
+
+  if (noResponseLost >= 2) {
+    message =
+      "A few customers have gone quiet recently. A friendly follow-up can often bring these jobs back.";
+  } else if (quietLeads >= 3) {
+    message =
+      "You have a few conversations waiting on customers. A gentle nudge today could help move them forward.";
+  } else if (salesPulse.valueWaiting > 0) {
+    message =
+      "There’s work waiting to be followed up. A quick check-in could help secure it.";
+  }
+
+  return { message };
+}, [rows, threadMap, salesPulse]);
 
  const filteredRows = useMemo(() => {
   let out = [...rows];
@@ -1554,24 +2596,38 @@ const isAutoFilled = replyBody.trim().startsWith("Hi ");
     out = out.filter((r) => !r.read_at);
   }
 
-  if (tab === "needsAction") {
-    out = out.filter((r) => {
-      return followUpMap[r.id]?.bucket === "needsAction";
-    });
-  }
+if (tab === "needsAction") {
+  out = out.filter((r) => {
+    return (
+      r.ai_thread_status !== "cold_after_follow_up" &&
+      followUpMap[r.id]?.bucket === "needsAction"
+    );
+  });
+}
 
-  if (tab === "followUp") {
-    out = out.filter((r) => {
-      return followUpMap[r.id]?.bucket === "followUp";
-    });
-  }
+if (tab === "followUp") {
+  out = out.filter((r) => {
+    return (
+      r.ai_thread_status !== "cold_after_follow_up" &&
+      followUpMap[r.id]?.bucket === "followUp"
+    );
+  });
+}
+
+if (tab === "cold") {
+  out = out.filter((r) => {
+    return r.ai_thread_status === "cold_after_follow_up";
+  });
+}
 
   if (tab === "waiting") {
   out = out.filter((r) => {
     return followUpMap[r.id]?.bucket === "allGood";
   });
 }
-
+if (lostReasonFilter) {
+  out = out.filter((r) => r.lost_reason === lostReasonFilter);
+}
  if (searchFilter.trim()) {
   const q = searchFilter.trim().toLowerCase();
 
@@ -1605,7 +2661,7 @@ const isAutoFilled = replyBody.trim().startsWith("Hi ");
       new Date(b.created_at).getTime() -
       new Date(a.created_at).getTime()
   );
-}, [rows, tab, searchFilter, urgencyFilter, followUpMap]);
+}, [rows, tab, searchFilter, urgencyFilter, lostReasonFilter, followUpMap]);
 function getReplyStatus(messages: EnquiryMessageRow[]) {
   const hasOutbound = messages.some((m) => isOutboundDirection(m.direction));
   const hasCustomerReply = hasCustomerReplyAfterOutbound(messages);
@@ -1615,29 +2671,13 @@ function getReplyStatus(messages: EnquiryMessageRow[]) {
   return "Awaiting first reply";
 }
 
-function getEnquiryPriority(args: {
-  followUp?: FollowUpResult | null;
-  replyStatus: string | null;
-  estimate?: QuickEstimateLite | null;
-}) {
-  const { followUp, replyStatus, estimate } = args;
 
-  if (followUp?.status === "customer_replied") return 100;
-  if (followUp?.status === "needs_reply") return 90;
-
-  if (replyStatus === "Customer replied") return 85;
-  if (replyStatus === "Awaiting first reply") return 80;
-
-  if (followUp?.status === "estimate_follow_up_due") return 70;
-  if (followUp?.status === "follow_up_due") return 60;
-
-  if (String(estimate?.status || "").toLowerCase() === "sent") return 50;
-
-  return 10;
-}
 
 const sortedRows = useMemo(() => {
   return [...filteredRows].sort((a, b) => {
+
+    if (a.id === selectedId) return -1;
+if (b.id === selectedId) return 1;
     const aEstimate = estimateMap[a.id];
     const bEstimate = estimateMap[b.id];
 
@@ -1678,17 +2718,91 @@ const sortedRows = useMemo(() => {
     const aReplyStatus = getReplyStatus(aMessages);
     const bReplyStatus = getReplyStatus(bMessages);
 
-    const aPriority = getEnquiryPriority({
-      followUp: aFollowUp,
-      replyStatus: aReplyStatus,
-      estimate: aEstimate,
-    });
 
-    const bPriority = getEnquiryPriority({
-      followUp: bFollowUp,
-      replyStatus: bReplyStatus,
-      estimate: bEstimate,
-    });
+
+const aPhotos = a.photo_count || 0;
+const bPhotos = b.photo_count || 0;
+
+const aScore = enquiryScore(a, aPhotos);
+const bScore = enquiryScore(b, bPhotos);
+
+const aUrgent =
+  String(a.urgency || "").toLowerCase().includes("asap") ||
+  String(a.urgency || "").toLowerCase().includes("urgent");
+
+const bUrgent =
+  String(b.urgency || "").toLowerCase().includes("asap") ||
+  String(b.urgency || "").toLowerCase().includes("urgent");
+
+const valueBoost = (row: QuoteRequestRow) => {
+  const band = String(row.ai_job_value_band || "").toLowerCase();
+
+  if (band === "high") return 30;
+  if (band === "medium") return 15;
+  if (band === "low") return 5;
+
+  const budget = String(row.budget || "").toLowerCase();
+
+  if (budget.includes("3000")) return 30;
+  if (budget.includes("1000")) return 25;
+  if (budget.includes("500")) return 15;
+  if (budget.includes("250")) return 10;
+
+  return 0;
+};
+
+const aValueBoost = valueBoost(a);
+const bValueBoost = valueBoost(b);
+
+
+
+const aAiFollowUpReady =
+  a.ai_thread_status === "awaiting_trader_review" &&
+  !!a.ai_suggested_reply;
+
+const bAiFollowUpReady =
+  b.ai_thread_status === "awaiting_trader_review" &&
+  !!b.ai_suggested_reply;
+
+const aHotLead =
+  aScore >= 80 &&
+  (aReplyStatus === "Customer replied" ||
+    aUrgent ||
+    String(a.ai_job_value_band || "").toLowerCase() === "high");
+
+const bHotLead =
+  bScore >= 80 &&
+  (bReplyStatus === "Customer replied" ||
+    bUrgent ||
+    String(b.ai_job_value_band || "").toLowerCase() === "high");
+
+const aPriority =
+  getEnquiryPriority({
+    followUp: aFollowUp,
+    replyStatus: aReplyStatus,
+    estimate: aEstimate,
+  }) +
+  aScore +
+  (aUrgent ? 20 : 0) +
+  aValueBoost +
+ (aHotLead ? 40 : 0) +
+(aAiFollowUpReady ? 50 : 0);
+
+const bPriority =
+  getEnquiryPriority({
+    followUp: bFollowUp,
+    replyStatus: bReplyStatus,
+    estimate: bEstimate,
+  }) +
+  bScore +
+  (bUrgent ? 20 : 0) +
+  bValueBoost +
+ (bHotLead ? 40 : 0) +
+(bAiFollowUpReady ? 50 : 0);
+
+if (aAiFollowUpReady !== bAiFollowUpReady) {
+  return aAiFollowUpReady ? -1 : 1;
+}
 
     if (aPriority !== bPriority) {
       return bPriority - aPriority;
@@ -1708,7 +2822,16 @@ const sortedRows = useMemo(() => {
 
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
-}, [filteredRows, selectedId, tab, followUpMap, estimateMap, visitMap, threadMap]);
+}, [
+  filteredRows,
+  selectedId,
+  tab,
+  followUpMap,
+  estimateMap,
+  visitMap,
+  threadMap,
+  
+]);
 
 const enquiryCounts = useMemo(() => {
   return getEnquiryCounts({
@@ -1753,6 +2876,77 @@ const bookedEnquiryRows = useMemo(() => {
   });
 }, [sortedRows, estimateMap, visitMap, threadMap]);
 
+const followUpReadyRows = useMemo(() => {
+  return rows.filter((r) => {
+    return (
+      r.ai_thread_status === "awaiting_trader_review" &&
+      !!r.ai_suggested_reply
+    );
+  });
+}, [rows]);
+
+function jumpToNextFollowUp() {
+  if (!followUpReadyRows.length) return;
+
+  const next = followUpReadyRows[0];
+
+  selectEnquiry(next.id, "messages");
+  setReplyBody(next.ai_suggested_reply || "");
+  setScrollToComposerPending(true);
+}
+const pricingMessage = useMemo(() => {
+ if (!selectedRow || estimateTotal <= 0) return null;
+
+const sell = estimateTotal;        // what customer pays
+const cost = materialsBase;        // your real cost
+
+const profit = sell - cost;
+
+const margin =
+  sell > 0 ? Math.round((profit / sell) * 100) : 0;
+
+  const urgency = String(selectedRow.urgency || "").toLowerCase();
+  const isUrgent =
+    urgency.includes("asap") || urgency.includes("urgent");
+
+  const isRepeat = customerStats.totalJobs >= 2;
+
+  const valueBand = customerValueInsight?.band || "medium";
+
+  // 🎯 Smart messaging logic
+  if (margin < 30) {
+    return "⚠️ Low margin — only proceed if this helps win future work";
+  }
+
+  if (isUrgent && margin >= 50) {
+    return "🔥 Urgent job + strong margin — high value opportunity";
+  }
+
+  if (isRepeat && margin >= 40) {
+    return "🔁 Repeat customer — good chance they’ll accept";
+  }
+
+  if (valueBand === "high" && margin >= 50) {
+    return "💰 High-value customer — strong profit potential";
+  }
+
+  if (margin >= 60) {
+    return "💰 Strong margin — great profit on this job";
+  }
+
+  if (margin >= 40) {
+    return "👍 Solid pricing — good balance of profit and win rate";
+  }
+
+  return "⚡ Competitive price — higher chance of winning this job";
+}, [
+  estimateTotal,
+  materialsBase,
+  selectedRow,
+  customerStats,
+  customerValueInsight
+]);
+
 const activeJobsCount = useMemo(() => {
   return rows.filter((row) => {
     const estimate = estimateMap[row.id];
@@ -1787,15 +2981,70 @@ const activeJobsCount = useMemo(() => {
   }).length;
 }, [rows, estimateMap, visitMap, threadMap]);
 
+function findNextActionRow(currentId?: string) {
+  const candidates = rows.filter((r) => {
+    if (r.id === currentId) return false;
+
+    const estimate = estimateMap[r.id];
+    const visit = visitMap[r.id] || null;
+    const messages = threadMap[r.id] || [];
+
+    const stage = deriveEnquiryStage({
+      row: r,
+      estimate,
+      visit,
+      messages,
+    });
+
+    if (stage === "won" || stage === "lost") return false;
+
+    return true;
+  });
+
+  const scored = candidates.map((r) => {
+    const estimate = estimateMap[r.id];
+    const messages = threadMap[r.id] || [];
+
+    let score = 0;
+
+    const replyStatus = hasCustomerReplyAfterOutbound(messages)
+      ? "customer_replied"
+      : messages.some((m) => isOutboundDirection(m.direction))
+      ? "awaiting_reply"
+      : "needs_reply";
+
+    if (replyStatus === "customer_replied") score += 50;
+    if (replyStatus === "needs_reply") score += 30;
+
+    if (String(r.urgency || "").toLowerCase().includes("asap")) score += 25;
+
+    if (r.ai_job_value_band === "high") score += 20;
+
+    if (estimate?.status === "sent") score += 15;
+
+    return { row: r, score };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  return scored[0]?.row || null;
+}
   /* ================================
      LOCAL HELPERS
   ================================= */
 
-  function pushToast(text: string, type: "success" | "error" = "success") {
-    setToast({ text, type });
-    window.clearTimeout((pushToast as any)._t);
-    (pushToast as any)._t = window.setTimeout(() => setToast(null), 2800);
+function pushToast(text: string, type: "success" | "error" = "success") {
+  setToast({ text, type });
+
+  if (toastTimerRef.current) {
+    window.clearTimeout(toastTimerRef.current);
   }
+
+  toastTimerRef.current = window.setTimeout(() => {
+    setToast(null);
+    toastTimerRef.current = null;
+  }, 2800);
+}
 
   function selectEnquiry(id: string, tabOverride?: RightTab) {
     setSelectedIdState(id);
@@ -1803,7 +3052,9 @@ const activeJobsCount = useMemo(() => {
     const params = new URLSearchParams(sp.toString());
     params.set("requestId", id);
     if (tabOverride) params.set("tab", tabOverride);
-    router.replace(`/dashboard/enquiries?${params.toString()}`);
+    router.replace(`/dashboard/enquiries?${params.toString()}`, {
+  scroll: false,
+});
 
     if (tabOverride) setRightTab(tabOverride);
   }
@@ -1818,13 +3069,17 @@ const activeJobsCount = useMemo(() => {
     );
   }
 
-  function syncRightTab(next: RightTab) {
-    setRightTab(next);
-    const params = new URLSearchParams(sp.toString());
-    if (selectedId) params.set("requestId", selectedId);
-    params.set("tab", next);
-    router.replace(`/dashboard/enquiries?${params.toString()}`);
-  }
+function syncRightTab(next: RightTab) {
+  setRightTab(next);
+
+  const params = new URLSearchParams(sp.toString());
+  if (selectedId) params.set("requestId", selectedId);
+  params.set("tab", next);
+
+  router.replace(`/dashboard/enquiries?${params.toString()}`, {
+    scroll: false,
+  });
+}
 function openFollowUpComposer(params: {
   customerName?: string | null;
   status?: string | null;
@@ -2038,24 +3293,7 @@ for (const row of (data || []) as any[]) {
     setVisitMap(map);
   }
 
-  async function loadPhotoCounts(requests: QuoteRequestRow[]) {
-    const entries = await Promise.all(
-      requests.map(async (r) => {
-        const { data } = await supabase.storage
-          .from(BUCKET)
-          .list(customerFolder(r.id), {
-            limit: 100,
-            sortBy: { column: "name", order: "asc" },
-          });
 
-        const count = (data || []).filter((f) => isImageFile(f.name)).length;
-        return [r.id, count] as const;
-      })
-    );
-
-    const map = Object.fromEntries(entries);
-    setPhotoCountMap(map);
-  }
 
   async function markRead(requestId: string) {
     if (!requestId || lastMarkedRef.current === requestId) return;
@@ -2107,10 +3345,10 @@ for (const row of (data || []) as any[]) {
   setThreadLoading(false);
 
   requestAnimationFrame(() => {
-    threadBottomRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
-    });
+threadBottomRef.current?.scrollIntoView({
+  behavior: "auto",
+  block: "nearest",
+});
   });
 }
 
@@ -2343,13 +3581,31 @@ async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     setFileUploading(true);
     setFileUploaded(false);
 
-    const filePath = `quote/${selectedRow.id}/customer/${Date.now()}_${file.name}`;
+   const filePath = `${customerFolder(selectedRow.id)}/${Date.now()}_${safeFileName(file.name)}`;
 
     const { error: uploadError } = await supabase.storage
       .from("quote-files")
       .upload(filePath, file);
 
-    if (uploadError) throw uploadError;
+if (uploadError) throw uploadError;
+
+
+await supabase
+.from("quote_requests")
+.update({
+photo_count: (selectedRow.photo_count || 0) + 1,
+})
+.eq("id", selectedRow.id);
+
+setRows((prev) =>
+prev.map((r) =>
+r.id === selectedRow.id
+? { ...r, photo_count: (r.photo_count || 0) + 1 }
+: r
+)
+);
+
+
 
     // optional: save metadata
     const { error: insertError } = await supabase.from("job_files").insert({
@@ -2542,19 +3798,26 @@ async function onUploadTraderFiles(
 async function deleteTraderFile(path: string) {
   if (!selectedRow) return;
 
-  const ok = window.confirm("Delete this file?");
-  if (!ok) return;
+  const rowId = selectedRow.id;
 
-  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  openConfirmModal({
+    title: "Delete file?",
+    message: "This will permanently remove this uploaded file.",
+    confirmLabel: "Delete file",
+    danger: true,
+    onConfirm: async () => {
+      const { error } = await supabase.storage.from(BUCKET).remove([path]);
 
-  if (error) {
-    console.error(error);
-    pushToast("Couldn’t delete file", "error");
-    return;
-  }
+      if (error) {
+        console.error(error);
+        pushToast("Couldn’t delete file", "error");
+        return;
+      }
 
-  await loadFiles(selectedRow.id);
-  pushToast("File deleted");
+      await loadFiles(rowId);
+      pushToast("File deleted", "success");
+    },
+  });
 }
 
 function openSiteVisitModal() {
@@ -2583,11 +3846,6 @@ if (!customerEmail || !customerEmail.includes("@")) {
   return;
 }
 
-
-  if (!customerEmail || !customerEmail.includes("@")) {
-    setSiteVisitMsg("Customer email is missing or invalid");
-    return;
-  }
 
   setSiteVisitSending(true);
   setSiteVisitBooked(false);
@@ -2633,11 +3891,11 @@ body: JSON.stringify({
 
       const { error } = await supabase
         .from("quote_requests")
-        .update({
-          stage: "visit_booked",
-          status: "booked",
-          job_booked_at: bookedAtIso,
-        })
+.update({
+  stage: "visit_booked",
+  status: "open",
+  job_booked_at: null,
+})
         .eq("id", selectedRow.id);
 
       if (error) {
@@ -2649,9 +3907,9 @@ body: JSON.stringify({
             r.id === selectedRow.id
               ? {
                   ...r,
-                  stage: "visit_booked",
-                  status: "booked",
-                  job_booked_at: bookedAtIso,
+                 stage: "visit_booked",
+status: "open",
+job_booked_at: null,
                 }
               : r
           )
@@ -2681,6 +3939,10 @@ async function sendReply() {
     setReplySending(true);
     setReplySent(false);
 
+    const wasAiFollowUp =
+      selectedRow.ai_thread_status === "awaiting_trader_review" &&
+      !!selectedRow.ai_suggested_reply;
+
     const res = await fetch("/api/enquiries/send-email", {
       method: "POST",
       headers: {
@@ -2694,6 +3956,10 @@ async function sendReply() {
           replySubject.trim() || `Re: ${selectedRow.job_type || "Your enquiry"}`,
         body: replyBody.trim(),
         customerName: selectedRow.customer_name,
+        isFollowUp: wasAiFollowUp,
+        followUpNumber: wasAiFollowUp
+          ? (selectedRow.ai_follow_up_count || 0) + 1
+          : null,
       }),
     });
 
@@ -2703,6 +3969,47 @@ async function sendReply() {
       throw new Error(json?.error || "Couldn’t send");
     }
 
+    const nextFollowUpCount = wasAiFollowUp
+      ? (selectedRow.ai_follow_up_count || 0) + 1
+      : selectedRow.ai_follow_up_count || 0;
+
+    const isFinalFollowUp = wasAiFollowUp && nextFollowUpCount >= 3;
+
+    await supabase
+      .from("quote_requests")
+      .update({
+        ai_thread_status: isFinalFollowUp
+          ? "cold_after_follow_up"
+          : "awaiting_customer_reply",
+        ai_suggested_reply: null,
+        ai_follow_up_count: nextFollowUpCount,
+        ai_next_action_due_at:
+          wasAiFollowUp && !isFinalFollowUp
+            ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+            : selectedRow.ai_next_action_due_at ?? null,
+        ai_last_ai_message_at: new Date().toISOString(),
+      })
+      .eq("id", selectedRow.id);
+
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === selectedRow.id
+          ? {
+              ...r,
+              ai_thread_status: isFinalFollowUp
+                ? "cold_after_follow_up"
+                : "awaiting_customer_reply",
+              ai_suggested_reply: null,
+              ai_follow_up_count: nextFollowUpCount,
+              ai_next_action_due_at:
+                wasAiFollowUp && !isFinalFollowUp
+                  ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+                  : r.ai_next_action_due_at ?? null,
+            }
+          : r
+      )
+    );
+
     setReplyBody("");
     await loadThread(selectedRow.id, uid);
 
@@ -2711,11 +4018,9 @@ async function sendReply() {
     }
 
     setReplySent(true);
-    window.setTimeout(() => {
-      setReplySent(false);
-    }, 2000);
+    window.setTimeout(() => setReplySent(false), 2000);
 
-    pushToast("Message sent");
+    pushToast(wasAiFollowUp ? "Follow-up sent" : "Message sent");
   } catch (err) {
     console.error(err);
     pushToast("Couldn’t send message", "error");
@@ -2723,60 +4028,61 @@ async function sendReply() {
     setReplySending(false);
   }
 }
-
 async function deleteEnquiry() {
   if (!selectedRow) return;
 
-  const ok = window.confirm(
-    "Delete this enquiry? This will remove it from your list."
-  );
-  if (!ok) return;
+  openConfirmModal({
+    title: "Delete enquiry?",
+    message: "Delete this enquiry and all related messages? This cannot be undone.",
+    confirmLabel: "Delete enquiry",
+    danger: true,
+ onConfirm: async () => {
+if (!selectedRow) return;
+const rowId = selectedRow!.id;
 
-  const { error } = await supabase
-    .from("quote_requests")
-    .delete()
-    .eq("id", selectedRow.id);
+      const { error } = await supabase
+        .from("quote_requests")
+        .delete()
+        .eq("id", rowId);
 
-  if (error) {
-    console.error(error);
-    pushToast("Couldn’t delete enquiry", "error");
-    return;
-  }
+      if (error) {
+        console.error(error);
+        pushToast("Couldn’t delete enquiry", "error");
+        return;
+      }
 
-  const remaining = rows.filter((r) => r.id !== selectedRow.id);
-  setRows(remaining);
+      const remaining = rows.filter((r) => r.id !== rowId);
+      setRows(remaining);
 
-  setThreadMap((prev) => {
-  const next = { ...prev };
-  delete next[selectedRow.id];
-  return next;
-});
+      setThreadMap((prev) => {
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      });
 
-setVisitMap((prev) => {
-  const next = { ...prev };
-  delete next[selectedRow.id];
-  return next;
-});
+      setVisitMap((prev) => {
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      });
 
-setEstimateMap((prev) => {
-  const next = { ...prev };
-  delete next[selectedRow.id];
-  return next;
-});
+      setEstimateMap((prev) => {
+        const next = { ...prev };
+        delete next[rowId];
+        return next;
+      });
 
-setPhotoCountMap((prev) => {
-  const next = { ...prev };
-  delete next[selectedRow.id];
-  return next;
-});
+     
 
-  if (remaining.length) {
-    selectEnquiry(remaining[0].id);
-  } else {
-    clearSelected();
-  }
+      if (remaining.length) {
+        selectEnquiry(remaining[0].id);
+      } else {
+        clearSelected();
+      }
 
-  pushToast("Enquiry deleted");
+      pushToast("Enquiry deleted", "success");
+    },
+  });
 }
 
 async function saveDetailedEstimate(
@@ -3020,99 +4326,331 @@ function fillEstimateFromRequest() {
   }));
 }
 
+async function logCallOnCurrentEnquiry() {
+  if (!selectedRow || !uid) return;
 
-async function moveToJobs() {
-  if (!selectedRow) return;
+  setCallForm({
+    customer_name: selectedRow.customer_name || "",
+    customer_phone: selectedRow.customer_phone || "",
+    job_type: selectedRow.job_type || "",
+    urgency: selectedRow.urgency || "Flexible",
+    details: "",
+    source: "phone",
+  });
 
-  const nowIso = new Date().toISOString();
+  setShowCallModal(true);
+}
 
-  const { data: existingQuote, error: existingQuoteError } = await supabase
-    .from("quotes")
-    .select("id")
-    .eq("request_id", selectedRow.id)
-    .maybeSingle();
+async function createCallEnquiry() {
+  if (!uid) return;
 
-  if (existingQuoteError) {
-    console.error("Quote lookup failed:", existingQuoteError);
-    pushToast("Couldn’t check quote record", "error");
+  const { data, error } = await supabase
+    .from("quote_requests")
+    .insert({
+      plumber_id: uid,
+      customer_name: callForm.customer_name.trim() || null,
+      customer_phone: callForm.customer_phone.trim() || null,
+      job_type: callForm.job_type.trim() || "Phone enquiry",
+      details: callForm.details.trim() || "Phone call enquiry",
+      urgency: callForm.urgency,
+      status: "new",
+      stage: "new",
+      source: callForm.source,
+    })
+    .select()
+    .single();
+
+  if (error || !data) {
+    pushToast("Couldn’t save phone enquiry", "error");
     return;
   }
 
-  if (existingQuote?.id) {
-    const { error: quoteUpdateError } = await supabase
-      .from("quotes")
-      .update({
-        status: "booked",
-      })
-      .eq("id", existingQuote.id);
-
-    if (quoteUpdateError) {
-      console.error("Quote update failed:", quoteUpdateError);
-      pushToast("Couldn’t update quote record", "error");
-      return;
-    }
-  } else {
-    const { error: quoteInsertError } = await supabase
-      .from("quotes")
-      .insert({
-        plumber_id: selectedRow.plumber_id,
-        request_id: selectedRow.id,
-        customer_name: selectedRow.customer_name,
-        customer_email: selectedRow.customer_email,
-        customer_phone: selectedRow.customer_phone,
-        postcode: selectedRow.postcode,
-        address: selectedRow.address,
-        job_type: selectedRow.job_type,
-        urgency: selectedRow.urgency,
-        job_details: selectedRow.details,
-        status: "booked",
-        created_at: nowIso,
-      });
-
-    if (quoteInsertError) {
-      console.error("Quote insert failed:", quoteInsertError);
-      pushToast("Couldn’t create job record", "error");
-      return;
-    }
+  if (callForm.source === "phone") {
+    await supabase.from("enquiry_messages").insert({
+      request_id: data.id,
+      plumber_id: uid,
+      direction: "in",
+      channel: "phone",
+      subject: "Phone call",
+      body_text: callForm.details.trim() || "Phone call logged",
+      from_email: callForm.customer_phone.trim() || "Phone call",
+      to_email: null,
+    });
   }
 
-  const { error: requestError } = await supabase
+  setRows((prev) => [data as QuoteRequestRow, ...prev]);
+
+  setShowCallModal(false);
+
+  setCallForm({
+    customer_name: "",
+    customer_phone: "",
+    job_type: "",
+    urgency: "Flexible",
+    details: "",
+    source: "manual",
+  });
+
+  selectEnquiry(data.id, "messages");
+
+  setReplyBody(
+    `Hi ${data.customer_name || "there"}, nice speaking to you earlier — I’ll take a look at this and get back to you shortly.`
+  );
+
+  setScrollToComposerPending(true);
+
+  pushToast(
+    callForm.source === "phone" ? "Phone call logged" : "Enquiry added"
+  );
+}
+
+async function sendAutoMessage(row: QuoteRequestRow, body: string) {
+  if (!uid) return;
+
+  const customerEmail = String(row.customer_email || "").trim();
+  if (!customerEmail || !customerEmail.includes("@")) return;
+
+  const res = await fetch("/api/enquiries/send-email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      requestId: row.id,
+      plumberId: uid,
+      to: customerEmail,
+      subject: `Re: ${row.job_type || "Your enquiry"}`,
+      body,
+      customerName: row.customer_name,
+      isAuto: true,
+    }),
+  });
+
+  if (!res.ok) return;
+
+  await supabase
     .from("quote_requests")
     .update({
-      stage: "won",
-      status: "booked",
-      job_booked_at: nowIso,
+      ai_thread_status: "awaiting_customer_reply",
+      ai_last_ai_message_at: new Date().toISOString(),
     })
-    .eq("id", selectedRow.id);
-
-  if (requestError) {
-    console.error(requestError);
-    pushToast("Quote record created but enquiry could not be moved", "error");
-    return;
-  }
+    .eq("id", row.id);
 
   setRows((prev) =>
     prev.map((r) =>
-      r.id === selectedRow.id
+      r.id === row.id
         ? {
             ...r,
-            stage: "won",
-            status: "booked",
-            job_booked_at: nowIso,
+            ai_thread_status: "awaiting_customer_reply",
           }
         : r
     )
   );
 
-  pushToast("Moved to jobs");
-  router.push(`/dashboard/bookings?requestId=${selectedRow.id}`);
+  await loadThreadMapForRows(rows, uid);
 }
+
+async function loadCustomerHistory(email?: string | null, phone?: string | null) {
+  if (!email && !phone) return;
+
+  setHistoryLoading(true);
+
+  let query = supabase
+    .from("quote_requests")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(10);
+
+  if (email) {
+    query = query.eq("customer_email", email);
+  } else if (phone) {
+    query = query.eq("customer_phone", phone);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error(error);
+    setCustomerHistory([]);
+  } else {
+    setCustomerHistory(data || []);
+  }
+
+  setHistoryLoading(false);
+}
+
+async function loadPricingHistory(userId: string) {
+  const { data, error } = await supabase
+    .from("estimates")
+    .select(`
+      total,
+      status,
+      request_id,
+      quote_requests (
+        job_type
+      )
+    `)
+    .eq("plumber_id", userId)
+    .eq("status", "accepted") // ✅ ONLY REAL WON JOBS
+    .not("total", "is", null);
+
+  if (error) {
+    console.error("Pricing history load error:", JSON.stringify(error, null, 2));
+    return;
+  }
+
+  setPricingHistory(data || []);
+}
+
+async function runAutoFollowUps() {
+  if (!uid || !rows.length) return;
+
+  for (const row of rows) {
+    const estimate = estimateMap[row.id];
+    const visit = visitMap[row.id] || null;
+    const messages = threadMap[row.id] || [];
+
+
+if (
+  autoFollowUpsEnabled &&
+  messages.length === 0 &&
+  row.customer_email
+) {
+const name = row?.customer_name
+  ? titleCase(row.customer_name).split(" ")[0]
+  : "there";
+  const job = row.job_type?.toLowerCase() || "job";
+
+ const safeName = name || "there";
+
+const firstReply = `Hi ${safeName}, thanks for your enquiry — I’ll take a look and get back to you shortly.`;
+
+  await sendAutoMessage(row, firstReply);
+
+  continue;
+}
+
+const lastMessage = [...messages].sort(
+  (a, b) =>
+    new Date(b.created_at).getTime() -
+    new Date(a.created_at).getTime()
+)[0];
+
+if (!lastMessage) continue;
+
+if (!isOutboundDirection(lastMessage.direction)) continue;
+
+    const derivedStage = deriveEnquiryStage({
+      row,
+      estimate,
+      visit,
+      messages,
+    });
+
+    if (derivedStage === "won" || derivedStage === "lost") continue;
+
+const followUp = followUpMap[row.id];
+if (!followUp) continue;
+
+if (
+  row.ai_next_action_due_at &&
+  new Date(row.ai_next_action_due_at).getTime() > Date.now()
+) {
+  continue;
+}
+const canPrepareSuggestion =
+  row.ai_thread_status !== "awaiting_trader_review" &&
+  row.ai_thread_status !== "awaiting_customer_reply" &&
+  !row.ai_suggested_reply &&
+  !hasCustomerReplyAfterOutbound(messages);
+
+const shouldSend =
+  followUp.status === "follow_up_due" ||
+  followUp.status === "estimate_follow_up_due";
+
+if (!shouldSend) continue;
+
+
+if (!canPrepareSuggestion) continue;
+
+const followUpCount = Number(row.ai_follow_up_count || 0);
+const name = getCustomerFirstName(row?.customer_name);
+
+const message =
+  followUpCount === 0
+    ? `Hi ${name}, just checking in to see if you’re still looking to get this sorted?`
+    : followUpCount === 1
+    ? `Hi ${name}, just checking again — I’ve got some availability coming up if you’d like me to get this booked in.`
+    : `Hi ${name}, just a final check-in. Would you like me to keep this open, or close it off for now?`;
+
+if (autoFollowUpsEnabled && row.customer_email) {
+  const res = await fetch("/api/enquiries/send-email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      requestId: row.id,
+      plumberId: uid,
+      to: row.customer_email,
+      subject: `Re: ${row.job_type || "Your enquiry"}`,
+      body: message,
+      customerName: row.customer_name,
+      isFollowUp: true,
+      followUpNumber: followUpCount + 1,
+    }),
+  });
+
+  if (!res.ok) continue;
+
+  const nextFollowUpCount = followUpCount + 1;
+  const isFinalFollowUp = nextFollowUpCount >= 3;
+
+  await supabase
+    .from("quote_requests")
+    .update({
+      ai_suggested_reply: null,
+      ai_thread_status: isFinalFollowUp
+        ? "cold_after_follow_up"
+        : "awaiting_customer_reply",
+      ai_follow_up_count: nextFollowUpCount,
+      ai_next_action_due_at: isFinalFollowUp
+        ? null
+        : new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(),
+      ai_last_ai_message_at: new Date().toISOString(),
+    })
+    .eq("id", row.id);
+} else {
+  await supabase
+    .from("quote_requests")
+    .update({
+      ai_suggested_reply: message,
+      ai_thread_status: "awaiting_trader_review",
+      ai_follow_up_count: followUpCount,
+    })
+    .eq("id", row.id);
+}
+  }
+}
+  useEffect(() => {
+  runAutoFollowUpsRef.current = runAutoFollowUps;
+}, [runAutoFollowUps]);
+
+
 
   /* ================================
      EFFECTS
   ================================= */
 
+useEffect(() => {
+  if (!autoFollowUpsEnabled) return;
 
+  const id = window.setInterval(() => {
+    runAutoFollowUpsRef.current();
+  }, 1000 * 60 * 10);
+
+  return () => window.clearInterval(id);
+}, [autoFollowUpsEnabled]);
 
 
 useEffect(() => {
@@ -3129,17 +4667,19 @@ useEffect(() => {
     setUid(user.id);
     setLoading(true);
 
-    await Promise.all([
-      loadTraderProfile(user.id),
-      loadEstimateMap(user.id),
-      loadVisitMap(user.id),
-    ]);
+await Promise.all([
+  loadTraderProfile(user.id),
+  loadEstimateMap(user.id),
+  loadVisitMap(user.id),
+  loadPricingHistory(user.id),
+]);
 
-    const { data, error } = await supabase
-      .from("quote_requests")
-      .select("*")
-      .eq("plumber_id", user.id)
-      .order("created_at", { ascending: false });
+const { data, error } = await supabase
+  .from("quote_requests")
+  .select("*")
+  .eq("plumber_id", user.id)
+  .order("created_at", { ascending: false })
+  .limit(limitCount);
 
     if (error) {
       console.error(error);
@@ -3149,13 +4689,13 @@ useEffect(() => {
     }
 
     const loaded = (data || []) as QuoteRequestRow[];
+    const history = await getCustomerHistoryMap(user.id, loaded);
+
+
     setRows(loaded);
 
 
-    await Promise.all([
-      loadPhotoCounts(loaded),
-      loadThreadMapForRows(loaded, user.id),
-    ]);
+await loadThreadMapForRows(loaded, user.id);
 
     setLoading(false);
   })();
@@ -3163,6 +4703,10 @@ useEffect(() => {
 
 useEffect(() => {
   if (!selectedRow || !uid) return;
+
+  if (!urlTab) {
+  setRightTab("messages");
+}
 
   setTraderNotes(selectedRow.trader_notes || "");
   setReplyTo(selectedRow.customer_email || "");
@@ -3181,9 +4725,9 @@ useEffect(() => {
   loadDetailedEstimate(selectedRow.id);
   markRead(selectedRow.id);
 
-  if (rightPaneScrollRef.current) {
-    rightPaneScrollRef.current.scrollTop = 0;
-  }
+if (rightPaneScrollRef.current && rightTab !== "messages") {
+  rightPaneScrollRef.current.scrollTop = 0;
+}
 }, [selectedRow?.id, uid]);
 
 useEffect(() => {
@@ -3253,27 +4797,32 @@ useEffect(() => {
 }, [selectedId]);
 
 useEffect(() => {
-  if (rightTab !== "messages") return;
-  if (!scrollToComposerPending) return;
+if (rightTab !== "messages") return;
+if (!scrollToComposerPending) return;
 
-  const id = window.setTimeout(() => {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        replyBodyRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "end",
-          inline: "nearest",
-        });
+const id = window.setTimeout(() => {
+requestAnimationFrame(() => {
+requestAnimationFrame(() => {
+replyBodyRef.current?.scrollIntoView({
+behavior: "auto",
+block: "nearest",
+inline: "nearest",
+});
 
-        window.setTimeout(() => {
-          replyBodyRef.current?.focus({ preventScroll: true });
-          setScrollToComposerPending(false);
-        }, 220);
-      });
-    });
-  }, 120);
+replyBodyRef.current?.focus({ preventScroll: true });
 
-  return () => window.clearTimeout(id);
+const el = replyBodyRef.current;
+if (el) {
+el.selectionStart = el.value.length;
+el.selectionEnd = el.value.length;
+}
+
+setScrollToComposerPending(false);
+});
+});
+}, 180);
+
+return () => window.clearTimeout(id);
 }, [rightTab, scrollToComposerPending]);
 
 useEffect(() => {
@@ -3317,6 +4866,31 @@ useEffect(() => {
 
   return () => window.clearTimeout(id);
 }, [rightTab, scrollToVisitPending]);
+
+useEffect(() => {
+  if (!selectedRow) return;
+  if (rightTab !== "messages") return;
+
+  if (
+    selectedRow.ai_thread_status === "awaiting_trader_review" &&
+    selectedRow.ai_suggested_reply &&
+    !replyBody.trim()
+  ) {
+    setReplyBody(selectedRow.ai_suggested_reply);
+
+    setScrollToComposerPending(true);
+  }
+}, [selectedRow, rightTab]);
+
+useEffect(() => {
+  if (!selectedRow) return;
+
+  loadCustomerHistory(
+    selectedRow.customer_email,
+    selectedRow.customer_phone
+  );
+}, [selectedRow?.id]);
+
   /* ================================
      EARLY EMPTY STATE
   ================================= */
@@ -3388,8 +4962,8 @@ useEffect(() => {
                   </div>
 
 <div className="ff-statCard">
-  <div className="ff-statLabel">Active jobs</div>
-  <div className="ff-statValue">{activeJobsCount}</div>
+<div className="ff-statLabel">Booked</div>
+<div className="ff-statValue">{bookedEnquiryRows.length}</div>
 </div>
 
                   <div className="ff-statCard">
@@ -3412,8 +4986,141 @@ useEffect(() => {
 
           <div className={`ff-mainShell ${selectedRow ? "hasSelection" : ""}`}>
             <div className="ff-leftPane">
-              <div className="ff-leftTop">
-                <div className="ff-leftTitle">All enquiries</div>
+             <div className="ff-leftTop">
+  <div className="ff-leftTitle">All enquiries</div>
+
+  {lostJobInsights.totalLost > 0 && (
+  <div className="ff-followUpBar">
+    <div>
+      <div className="ff-followUpText">
+        📉 {lostJobInsights.totalLost} lost job
+        {lostJobInsights.totalLost === 1 ? "" : "s"}
+        {lostJobInsights.topReason
+          ? ` — ${lostJobInsights.topReason}`
+          : ""}
+      </div>
+
+      {lostJobAdvice && (
+        <div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>
+          💡 {lostJobAdvice.text}
+        </div>
+      )}
+    </div>
+
+    {lostJobInsights.topReason && (
+      <button
+        className="ff-btn ff-btnGhost ff-btnSm"
+        onClick={() =>
+          setLostReasonFilter(lostJobInsights.topReason || "")
+        }
+      >
+        View
+      </button>
+    )}
+  </div>
+)}
+
+
+
+{followUpReadyRows.length > 0 && (
+<div className="ff-followUpBar">
+<div className="ff-followUpText">
+⚡ {followUpReadyRows.length} job
+{followUpReadyRows.length > 1 ? "s" : ""} ready to follow up
+</div>
+
+<button
+className="ff-btn ff-btnPrimary ff-btnSm"
+onClick={jumpToNextFollowUp}
+>
+Review now
+</button>
+</div>
+)}
+
+<div className="ff-followUpBar">
+<div>
+<div className="ff-followUpText">
+⚡ {salesPulse.needsAction} need action
+{" • "}
+📉 {salesPulse.lostThisWeek} lost this week
+</div>
+
+<div style={{ fontSize: 12, opacity: 0.8, marginTop: 4 }}>
+💰 £{salesPulse.valueWaiting.toLocaleString("en-GB")} waiting
+</div>
+
+<div style={{ fontSize: 12, marginTop: 4 }}>
+👉 {salesPulse.bestMove}
+</div>
+</div>
+</div>
+
+<div
+className={`ff-salesPulse ${
+salesPulse.valueWaiting > 0 || salesPulse.needsAction > 0
+? "ff-salesPulseHot"
+: ""
+}`}
+>
+<div className="ff-salesPulseTop">
+<div>
+<div className="ff-salesPulseEyebrow">Today’s sales pulse</div>
+<div className="ff-salesPulseTitle">
+{salesPulse.needsAction > 0
+? `${salesPulse.needsAction} job${salesPulse.needsAction === 1 ? "" : "s"} need action`
+: "You’re in control"}
+</div>
+</div>
+
+<div className="ff-salesPulseMoney">
+£{salesPulse.valueWaiting.toLocaleString("en-GB")}
+</div>
+</div>
+
+<div className="ff-salesPulseGrid">
+<div>
+<span>⚡ Action</span>
+<strong>{salesPulse.needsAction}</strong>
+</div>
+
+<div>
+<span>📉 Lost this week</span>
+<strong>{salesPulse.lostThisWeek}</strong>
+</div>
+
+<div>
+<span>💰 Waiting</span>
+<strong>£{salesPulse.valueWaiting.toLocaleString("en-GB")}</strong>
+</div>
+</div>
+
+<div className="ff-salesPulseMove">
+👉 {salesPulse.bestMove}
+</div>
+<div className="ff-moneyCoach">
+  💡 {moneyCoach.message}
+</div>
+</div>
+
+<button
+  type="button"
+  className="ff-btn ff-btnPrimary ff-btnSm"
+  onClick={() => {
+    setCallForm({
+      customer_name: "",
+      customer_phone: "",
+      job_type: "",
+      urgency: "Flexible",
+      details: "",
+      source: "manual", // or "phone" depending on button
+    });
+
+    setShowCallModal(true);
+  }}
+>
+  + Add enquiry
+</button>
 
 <div className="ff-leftFilters">
   <div className="ff-segmented">
@@ -3456,7 +5163,16 @@ useEffect(() => {
     >
       Waiting
     </button>
+
+    <button
+  type="button"
+  className={`ff-segBtn ${tab === "cold" ? "isActive" : ""}`}
+  onClick={() => setTab("cold")}
+>
+  Cold 🧊
+</button>
   </div>
+
                   <input
   className="ff-input"
   placeholder="Search by postcode, name or job no."
@@ -3475,8 +5191,29 @@ useEffect(() => {
                     <option value="next week">Next week</option>
                     <option value="flex">Flexible</option>
                   </select>
+
+
+
+{lostReasons.length > 0 && (
+  <select
+    className="ff-input"
+    value={lostReasonFilter}
+    onChange={(e) => setLostReasonFilter(e.target.value)}
+  >
+    <option value="">All lost reasons</option>
+
+{lostReasons.map((item, index) => (
+  <option key={item.reason} value={item.reason}>
+    {index === 0 ? "🔥 " : ""}
+    {item.reason} ({item.count})
+  </option>
+))}
+  </select>
+)}
                 </div>
               </div>
+
+
 
 <div className="ff-leftList">
   {loading ? (
@@ -3484,7 +5221,8 @@ useEffect(() => {
       <div className="ff-loadingText">Loading enquiries…</div>
     </div>
   ) : activeEnquiryRows.length || bookedEnquiryRows.length ? (
-    <>
+    
+<>
 
     {/* ACTIVE */}
 {activeEnquiryRows.map((r) => {
@@ -3493,6 +5231,13 @@ useEffect(() => {
   const estimate = estimateMap[r.id];
   const visit = visitMap[r.id] || null;
   const messages = threadMap[r.id] || [];
+const email = r.customer_email?.toLowerCase().trim();
+const history = email ? customerHistoryMap[email] : null;
+const repeatCount = history ? history.count - 1 : 0;
+const isRepeat = repeatCount > 0;
+  const hasAiFollowUpReady =
+  r.ai_thread_status === "awaiting_trader_review" &&
+  !!r.ai_suggested_reply;
 
   const alert = getAlertState({
     row: r,
@@ -3524,7 +5269,7 @@ useEffect(() => {
   const isWon = derivedStage === "won";
   const stage = stageChip(derivedStage);
 
-  const photos = photoCountMap[r.id] || 0;
+  const photos = r.photo_count || 0;
   const strength = enquiryStrength(r, photos);
   const score = enquiryScore(r, photos);
 
@@ -3556,17 +5301,30 @@ return (
   role="button"
   tabIndex={0}
   ref={isActive ? activeEnquiryRef : null}
-  className={`ff-leftItem 
-    ${isActive ? "isActive" : ""} 
-    ${isWon ? "ff-leftWon" : getUrgencyGlowClass(r.urgency)} 
-    ${
-      !isWon &&
-      (followUp?.status === "follow_up_due" ||
-        followUp?.status === "estimate_follow_up_due")
-        ? "ff-leftFollowUp"
-        : ""
-    }
-  `}
+className={`ff-leftItem 
+  ${isActive ? "isActive" : ""} 
+  ${isWon ? "ff-leftWon" : getUrgencyGlowClass(r.urgency)} 
+  ${
+    !isWon &&
+    score >= 80 &&
+    (replyStatus === "Customer replied" ||
+      String(r.urgency || "").toLowerCase().includes("asap") ||
+      String(r.ai_job_value_band || "").toLowerCase() === "high")
+      ? "ff-hotLeadCard"
+      : ""
+  }
+  ${
+!isWon &&
+(
+  followUp?.status === "follow_up_due" ||
+  followUp?.status === "estimate_follow_up_due"
+)
+  ? `ff-leftFollowUp ${
+      (r.ai_follow_up_count || 0) >= 2 ? "ff-leftFollowUpHot" : ""
+    }`
+  : ""
+  }
+`}
   onClick={() => selectEnquiry(r.id)}
   onKeyDown={(e) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -3586,6 +5344,10 @@ return (
   </div>
 
 <div className="ff-leftChipRow">
+  {r.source === "phone" && (
+    <Chip cls="ff-chip ff-chipGray">📞 Call</Chip>
+  )}
+
   {isWon ? (
     <>
       <Chip cls="ff-chip ff-chipGreen">Booked</Chip>
@@ -3602,11 +5364,22 @@ return (
       {String(estimate?.status || "").toLowerCase() === "accepted" ? (
         <Chip cls="ff-chip ff-chipGreen">Accepted</Chip>
       ) : null}
+
+      {isRepeat && (
+        <Chip cls="ff-chip ff-chipGreen">
+          🔁 Repeat ({repeatCount})
+        </Chip>
+      )}
+
+      {hasAiFollowUpReady && (
+        <Chip cls="ff-chip ff-chipBlue ff-chipPulse">
+          Follow-up ready
+        </Chip>
+      )}
     </>
   )}
 </div>
-  </div>
-
+</div>
 
 
 
@@ -3634,6 +5407,26 @@ return (
   </div>
 
   <Chip cls={strength.cls}>{strength.text}</Chip>
+
+  <Chip
+    cls={
+      score >= 80
+        ? "ff-chip ff-chipGreen"
+        : score >= 55
+        ? "ff-chip ff-chipBlue"
+        : "ff-chip ff-chipAmber"
+    }
+  >
+    {score}% ready
+  </Chip>
+
+  {!isWon &&
+  score >= 80 &&
+  (replyStatus === "Customer replied" ||
+    String(r.urgency || "").toLowerCase().includes("asap") ||
+    String(r.ai_job_value_band || "").toLowerCase() === "high") ? (
+    <Chip cls="ff-chip ff-chipRed">🔥 Hot lead</Chip>
+  ) : null}
 </div>
 
 <div style={{ display: "grid", gap: 8 }}>
@@ -3705,7 +5498,24 @@ return (
   </div>
 )}
 
-{followUp ? (
+{hasAiFollowUpReady ? (
+  <button
+    type="button"
+    className="ff-leftQuickAction"
+    onClick={(e) => {
+      e.stopPropagation();
+
+      selectEnquiry(r.id);
+      syncRightTab("messages");
+      setReplyBody(r.ai_suggested_reply || "");
+      setScrollToComposerPending(true);
+    }}
+  >
+    ⚡ Review follow-up
+  </button>
+) : null}
+
+{followUp && (
   <button
     type="button"
     onClick={(e) => {
@@ -3728,19 +5538,33 @@ return (
   >
     <Chip
       cls={
-        followUp.status === "needs_reply" ||
-        followUp.status === "customer_replied"
+        followUp.status === "customer_replied" ||
+        followUp.status === "needs_reply"
           ? "ff-chip ff-chipBlue"
-          : followUp.status === "follow_up_due" ||
-            followUp.status === "estimate_follow_up_due"
+          : followUp.status === "estimate_follow_up_due"
           ? "ff-chip ff-chipAmber"
+          : followUp.status === "follow_up_due"
+          ? "ff-chip ff-chipRed"
           : "ff-chip ff-chipGray"
       }
     >
-      {followUp.label}
+      {r.ai_thread_status === "cold_after_follow_up"
+        ? "Cold — no more chase"
+        : followUp.status === "customer_replied" ||
+          followUp.status === "needs_reply"
+        ? "⚡ Reply now"
+        : followUp.status === "estimate_follow_up_due"
+        ? (r.ai_follow_up_count || 0) >= 2
+          ? "🔥 Final estimate chase"
+          : "🔥 Chase estimate"
+        : followUp.status === "follow_up_due"
+        ? (r.ai_follow_up_count || 0) >= 2
+          ? "🔥 Final follow-up"
+          : "🔥 Follow up now"
+        : followUp.label}
     </Chip>
   </button>
-) : null}
+)}
     </>
   )}
 </div>
@@ -3760,7 +5584,10 @@ return (
                     const estimate = estimateMap[r.id];
                     const visit = visitMap[r.id] || null;
                     const messages = threadMap[r.id] || [];
-
+const email = r.customer_email?.toLowerCase().trim();
+const history = email ? customerHistoryMap[email] : null;
+const repeatCount = history ? history.count - 1 : 0;
+const isRepeat = repeatCount > 0;
                     const alert = getAlertState({
                       row: r,
                       estimate,
@@ -3791,7 +5618,7 @@ return (
                     const isWon = derivedStage === "won";
                     const stage = stageChip(derivedStage);
 
-                    const photos = photoCountMap[r.id] || 0;
+                    const photos = r.photo_count || 0;
                     const strength = enquiryStrength(r, photos);
                     const score = enquiryScore(r, photos);
 
@@ -3866,7 +5693,14 @@ const nextAction = getLeftNextAction({
                                 {String(estimate?.status || "").toLowerCase() === "accepted" ? (
                                   <Chip cls="ff-chip ff-chipGreen">Accepted</Chip>
                                 ) : null}
+                                {isRepeat && (
+  <Chip cls="ff-chip ff-chipGreen">
+    🔁 Repeat ({repeatCount})
+  </Chip>
+)}
                               </>
+                                            
+                              
                             )}
                           </div>
                         </div>
@@ -3876,6 +5710,15 @@ const nextAction = getLeftNextAction({
                             {titleCase(r.job_type || "Enquiry")}
                           </div>
 
+  {r.stage === "lost" && r.lost_reason && (
+
+    <div className="ff-leftLostReason">
+
+      Lost — {r.lost_reason}
+
+    </div>
+
+  )}
                           <div className="ff-leftCustomer">
                             {titleCase(r.customer_name || "Customer")}
                           </div>
@@ -3895,6 +5738,9 @@ const nextAction = getLeftNextAction({
                           </div>
 
                           <Chip cls={strength.cls}>{strength.text}</Chip>
+                          {!isWon && score >= 80 ? (
+  <Chip cls="ff-chip ff-chipGreen">High chance</Chip>
+) : null}
                         </div>
 
                         <div style={{ display: "grid", gap: 8 }}>
@@ -3934,10 +5780,25 @@ const nextAction = getLeftNextAction({
                           )}
                         </div>
                      </div>
-                    );
+                                   );
                   })}
+
+                  {rows.length >= limitCount && (
+                    <div style={{ padding: 12 }}>
+                      <button
+                        className="ff-btn ff-btnGhost ff-btnSm"
+                        onClick={() => {
+  setLimitCount((prev) => prev + 100);
+  pushToast("Loading more enquiries…", "success");
+}}
+                      >
+                        Show older enquiries
+                      </button>
+                    </div>
+                  )}
                 </>
               ) : (
+              
                   <div className="ff-emptyWrap">
                     <EmptyState
                       title="No matching enquiries"
@@ -3982,13 +5843,12 @@ const nextAction = getLeftNextAction({
     </div>
   </div>
 
-<div className="ff-rightTopActions">
-
+        <div className="ff-rightTopActions">
   <button
     type="button"
     className={`ff-btn ff-btnGhost ff-btnSm ${getAiButtonClass(selectedDisplayedAiAction, "messages")}`}
     onClick={() => {
-      setRightTab("messages");
+      syncRightTab("messages");
       setScrollToComposerPending(true);
     }}
   >
@@ -3997,25 +5857,6 @@ const nextAction = getLeftNextAction({
       ? "⚡ Message customer"
       : "Message customer"}
   </button>
-
-  <button
-    type="button"
-    className="ff-btn ff-btnGhost ff-btnSm"
-    onClick={() => handleAnalyseEnquiry(selectedRow.id)}
-    disabled={aiLoadingId === selectedRow.id}
-  >
-    {aiLoadingId === selectedRow.id ? "Refreshing..." : "Refresh AI"}
-  </button>
-
-  <button
-    type="button"
-    className="ff-btn ff-btnPrimary ff-btnSm"
-    onClick={() => selectedRow && handleRunAiEngine(selectedRow.id)}
-  >
-    ⚡ Run AI
-  </button>
-
-</div>
 
   {String(selectedEstimateStatus || "").toLowerCase() === "accepted" ? (
     <button
@@ -4029,33 +5870,33 @@ const nextAction = getLeftNextAction({
     </button>
   ) : (
     <>
-     <button
-  type="button"
-  className={`ff-btn ff-btnGhost ff-btnSm ${getAiButtonClass(selectedDisplayedAiAction, "visit")}`}
-  onClick={() => syncRightTab("visit")}
->
-{selectedRow?.ai_recommended_action?.toLowerCase().includes("visit")
-  ? "⚡ Book visit"
-  : "Book visit"}
-</button>
+      <button
+        type="button"
+        className={`ff-btn ff-btnGhost ff-btnSm ${getAiButtonClass(selectedDisplayedAiAction, "visit")}`}
+        onClick={() => syncRightTab("visit")}
+      >
+        {selectedRow?.ai_recommended_action?.toLowerCase().includes("visit")
+          ? "⚡ Book visit"
+          : "Book visit"}
+      </button>
 
-<button
-  type="button"
-  className={`ff-btn ff-btnPrimary ff-btnSm ${getAiButtonClass(selectedDisplayedAiAction, "estimate")}`}
-  onClick={() => {
-    setRightTab("estimate");
-    setScrollToEstimatePending(true);
-  }}
->
-  {String(selectedDisplayedAiAction || "").toLowerCase().includes("estimate")
-    ? "⚡ Create estimate"
-    : "Create estimate"}
-</button>
+      <button
+        type="button"
+        className={`ff-btn ff-btnPrimary ff-btnSm ${getAiButtonClass(selectedDisplayedAiAction, "estimate")}`}
+        onClick={() => {
+          syncRightTab("estimate");
+          setScrollToEstimatePending(true);
+        }}
+      >
+        {String(selectedDisplayedAiAction || "").toLowerCase().includes("estimate")
+          ? "⚡ Create estimate"
+          : "Create estimate"}
+      </button>
     </>
   )}
 </div>
 
-   {aiRunStatus !== "idle" && aiRunMessage && (
+{aiRunStatus !== "idle" && aiRunMessage && (
   <div className={`ff-aiRunStatus ff-aiRunStatus--${aiRunStatus}`}>
     {aiRunStatus === "running" && "⚡ "}
     {aiRunStatus === "sent" && "✓ "}
@@ -4063,11 +5904,12 @@ const nextAction = getLeftNextAction({
     {aiRunStatus === "error" && "⚠ "}
     {aiRunMessage}
   </div>
-)}           
-
+  
+)}
+              </div>
                   <div className="ff-tabs">
                     {[
-                      ["details", "Details"],
+                      ["details", "Overview"],
                       ["estimate", "Estimate"],
                       ["files", "Files"],
                       ["visit", "Visit"],
@@ -4086,6 +5928,53 @@ const nextAction = getLeftNextAction({
                   </div>
 
                   <div className="ff-rightInner" ref={rightPaneScrollRef}>
+{selectedDerivedStage !== "won" &&
+selectedReadinessScore >= 80 &&
+(
+  selectedReplyStatus === "Customer replied" ||
+  String(selectedRow?.urgency || "").toLowerCase().includes("asap") ||
+  String(selectedRow?.ai_job_value_band || "").toLowerCase() === "high"
+) ? (
+  <div className="ff-hotLeadBanner">
+    🔥 Hot lead — high chance of winning this job
+
+    <button
+      type="button"
+      className="ff-btn ff-btnSm ff-btnPrimary"
+onClick={() => {
+  syncRightTab("messages");
+  setScrollToComposerPending(true);
+}}
+    >
+      Act now
+    </button>
+  </div>
+) : null}
+
+{selectedRow ? (
+  <div className="ff-salesHero">
+    <div>
+      <div className="ff-salesEyebrow">Next job-winning move</div>
+      <div className="ff-salesTitle">
+  ⚡ {selectedBestAction.title}
+</div>
+<div className="ff-salesText">
+  {selectedBestAction.text}
+</div>
+    </div>
+
+    {selectedBestAction.button ? (
+      <button
+        type="button"
+        className="ff-btn ff-btnPrimary"
+        onClick={selectedBestAction.button.action}
+      >
+        ⚡ {selectedBestAction.button.label}
+      </button>
+    ) : null}
+  </div>
+) : null}
+                    
 
 {rightTab === "details" ? (
   <>
@@ -4093,7 +5982,7 @@ const nextAction = getLeftNextAction({
       <div className="ff-nextStepCard">
         <div className="ff-nextStepTop">
           <div>
-            <div className="ff-nextStepEyebrow">Suggested next step</div>
+            <div className="ff-nextStepEyebrow">Next job-winning move</div>
             <div className="ff-nextStepTitle">{selectedBestAction.title}</div>
             <div className="ff-nextStepText">{selectedBestAction.text}</div>
           </div>
@@ -4111,22 +6000,30 @@ const nextAction = getLeftNextAction({
       </div>
     </div>
 
-    {selectedFollowUpState?.label ? (
-      <div className="ff-followUpBanner">
-        {selectedFollowUpState.label}
+{selectedFollowUpState?.label ? (
+<div className="ff-followUpBanner">
+  <div className="ff-followUpText">
+{selectedFollowUpState.status === "follow_up_due"
+  ? "No reply — follow up"
+  : selectedFollowUpState.status === "estimate_follow_up_due"
+  ? "Estimate sent — chase"
+  : selectedFollowUpState.status === "customer_replied"
+  ? "Customer replied — act now"
+  : selectedFollowUpState.label}
+  </div>
 
-        <button
-          type="button"
-          className="ff-btn ff-btnSm ff-btnPrimary"
-          onClick={() => {
-            setRightTab("messages");
-            setScrollToComposerPending(true);
-          }}
-        >
-          Follow up
-        </button>
-      </div>
-    ) : null}
+  <button
+    type="button"
+    className="ff-btn ff-btnSm ff-btnPrimary"
+    onClick={() => {
+      syncRightTab("messages");
+      setScrollToComposerPending(true);
+    }}
+  >
+    Follow up
+  </button>
+</div>
+) : null}
 
     {selectedRow?.ai_summary ? (
       <div className="ff-card">
@@ -4143,7 +6040,7 @@ const nextAction = getLeftNextAction({
                   selectedDisplayedAiAction === "follow_up" ||
                   selectedDisplayedAiAction === "ask_for_photos"
                 ) {
-                  setRightTab("messages");
+                  syncRightTab("messages");
                   setReplyBody(selectedRow.ai_suggested_reply || "");
 
                   if (!replySubject.trim()) {
@@ -4156,14 +6053,14 @@ const nextAction = getLeftNextAction({
                   return;
                 }
 
-                if (selectedDisplayedAiAction === "book_visit") {
-                  setRightTab("visit");
-                  return;
-                }
+if (selectedDisplayedAiAction === "book_visit") {
+  syncRightTab("visit");
+  return;
+}
 
-                if (selectedDisplayedAiAction === "send_estimate") {
-                  setRightTab("estimate");
-                }
+if (selectedDisplayedAiAction === "send_estimate") {
+  syncRightTab("estimate");
+}
               }}
             >
               {selectedDisplayedAiAction === "reply_now" &&
@@ -4181,39 +6078,108 @@ const nextAction = getLeftNextAction({
             </button>
           ) : null}
 
-          <div className="ff-aiSection">
-            <div className="ff-aiLabel">What’s going on</div>
-            <p>{selectedRow.ai_summary}</p>
-          </div>
 
-          {selectedRow.ai_suggested_reply ? (
-            <>
-              <div className="ff-aiReplyBox">
-                <div className="ff-aiLabel">Quick reply</div>
-                <p>{selectedRow.ai_suggested_reply}</p>
-              </div>
+<div className="ff-aiSection">
+  <div className="ff-aiLabel">What’s going on</div>
+  <p>{selectedRow.ai_summary}</p>
+</div>
 
-              <button
-                type="button"
-                className="ff-btn ff-btnPrimary ff-btnSm ff-btnFull"
-                style={{ marginTop: 22 }}
-                onClick={() => {
-                  setRightTab("messages");
-                  setReplyBody(selectedRow.ai_suggested_reply || "");
+{selectedAiFollowUpDue && selectedRow && (
+  <div
+    className="ff-aiRunStatus ff-aiRunStatus--draft"
+    style={{ marginTop: 12 }}
+  >
+    💬 {selectedAiFollowUpDue.label} — {selectedAiFollowUpDue.message}
 
-                  if (!replySubject.trim()) {
-                    setReplySubject(
-                      `Re: ${titleCase(selectedRow.job_type || "Enquiry")}`
-                    );
-                  }
+    <div style={{ marginTop: 10 }}>
+      <button
+        type="button"
+        className="ff-btn ff-btnPrimary ff-btnSm"
+onClick={() => {
+  syncRightTab("messages");
+  setReplyBody(
+    buildAiFollowUpReply(
+      selectedRow,
+      selectedAiFollowUpDue.followUpCount
+    )
+  );
 
-                  setScrollToComposerPending(true);
-                }}
-              >
-                Use this reply
-              </button>
-            </>
-          ) : null}
+          if (!replySubject.trim()) {
+            setReplySubject(
+              `Re: ${titleCase(selectedRow.job_type || "Enquiry")}`
+            );
+          }
+
+          setScrollToComposerPending(true);
+        }}
+      >
+       ⚡ Nudge customer
+      </button>
+    </div>
+  </div>
+)}
+{selectedRow.ai_thread_status === "awaiting_trader_review" && (
+  <div className="ff-aiRunStatus ff-aiRunStatus--draft" style={{ marginTop: 12 }}>
+    💬 Follow-up ready — FixFlow has prepared a message for you to review.
+
+    <div style={{ marginTop: 10 }}>
+      <button
+        type="button"
+        className="ff-btn ff-btnPrimary ff-btnSm"
+onClick={() => {
+  syncRightTab("messages");
+  setReplyBody(selectedRow.ai_suggested_reply || "");
+  setScrollToComposerPending(true);
+}}
+      >
+        Review message
+      </button>
+    </div>
+  </div>
+)}
+{selectedRow.ai_suggested_reply && (
+<div className="ff-aiReplyBox">
+<div className="ff-aiLabel">Suggested reply</div>
+
+<p className="ff-aiReplyText">
+{selectedRow.ai_suggested_reply}
+</p>
+
+<div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+<button
+type="button"
+className="ff-btn ff-btnPrimary ff-btnSm"
+onClick={() => {
+syncRightTab("messages");
+setReplyBody(selectedRow.ai_suggested_reply || "");
+
+if (!replySubject.trim()) {
+setReplySubject(
+`Re: ${titleCase(selectedRow.job_type || "Enquiry")}`
+);
+}
+
+setScrollToComposerPending(true);
+}}
+>
+Send this
+</button>
+
+<button
+type="button"
+className="ff-btn ff-btnGhost ff-btnSm"
+onClick={() => {
+syncRightTab("messages");
+setReplyBody(selectedRow.ai_suggested_reply || "");
+setScrollToComposerPending(true);
+}}
+>
+Edit first
+</button>
+</div>
+</div>
+)}
+  
         </div>
       </div>
     ) : null}
@@ -4242,27 +6208,66 @@ const nextAction = getLeftNextAction({
         </div>
       </div>
 
-      <div className="ff-overviewMiniCard">
-        <div className="ff-overviewMiniLabel">Estimate</div>
-        <div className="ff-overviewMiniValue">{selectedEstimateLabel}</div>
-        <div className="ff-overviewMiniSub">
-          {selectedEstimateStatus === "accepted"
-            ? "Accepted by the customer and now moved into your Jobs workflow."
-            : selectedEstimateStatus === "sent"
-            ? "Sent to customer and ready for follow-up."
-            : selectedEstimateStatus === "draft"
-            ? "Draft started and ready to finish."
-            : "No estimate created yet."}
-        </div>
+<div className="ff-overviewMiniCard">
+  <div className="ff-overviewMiniLabel">Estimate</div>
+
+  <div className="ff-overviewMiniValue">
+    {selectedEstimateLabel}
+  </div>
+
+  <div className="ff-overviewMiniSub">
+    {selectedEstimateStatus === "accepted"
+      ? "Accepted by the customer and now moved into your Jobs workflow."
+      : selectedEstimateStatus === "sent"
+      ? "Sent to customer and ready for follow-up."
+      : selectedEstimateStatus === "draft"
+      ? "Draft started and ready to finish."
+      : "No estimate created yet."}
+  </div>
+
+{pricingInsight && (() => {
+  const profit = Math.round(pricingInsight.profit ?? 0);
+  const margin = pricingInsight.margin ?? 0;
+
+  const band =
+    margin >= 60 ? "high" :
+    margin >= 40 ? "medium" :
+    "low";
+
+  let visualClass = "ff-pricingExplainNeutral";
+
+  if (pricingExplainText?.includes("🔥")) {
+    visualClass = "ff-pricingExplainHot";
+  } else if (pricingExplainText?.includes("⚠️")) {
+    visualClass = "ff-pricingExplainWarn";
+  } else if (pricingExplainText?.includes("💰")) {
+    visualClass = "ff-pricingExplainGood";
+  } else if (pricingExplainText?.includes("⚡")) {
+    visualClass = "ff-pricingExplainFast";
+  }
+
+  return (
+    <>
+      <div className={`ff-overviewMiniMeta ff-profit-${band}`}>
+        💰 £{profit} profit • {margin}% margin
       </div>
 
+      {pricingExplainText && (
+        <div className={`ff-pricingExplain ${visualClass}`}>
+          {pricingExplainText}
+        </div>
+      )}
+    </>
+  );
+})()}
+</div>
       <div className="ff-overviewMiniCard">
         <div className="ff-overviewMiniLabel">Visit</div>
         <div className="ff-overviewMiniValue">{selectedVisitLabel}</div>
         <div className="ff-overviewMiniSub">
           {selectedVisit
             ? selectedDerivedStage === "won"
-              ? "Visit completed and this enquiry is now in Jobs."
+              ? "Visit booked. Next step is usually estimate or follow-up."
               : "Visit booked. Next step is usually estimate or follow-up."
             : selectedDerivedStage === "won"
             ? "This enquiry is now managed in Jobs."
@@ -4282,23 +6287,42 @@ const nextAction = getLeftNextAction({
         </div>
       </div>
 
-      <div className="ff-overviewMiniCard ff-bestActionCard">
-        <div className="ff-bestActionEyebrow">Best next action</div>
-        <div className="ff-bestActionTitle">{selectedBestAction.title}</div>
-        <div className="ff-bestActionText">{selectedBestAction.text}</div>
+{selectedRow?.stage === "lost" && selectedRow?.lost_reason && (
+  <div className="ff-overviewMiniCard">
+    <div className="ff-overviewMiniLabel">Lost reason</div>
+    <div className="ff-overviewMiniValue">
+      {selectedRow.lost_reason}
+    </div>
+  </div>
+)}
 
-        {selectedBestAction.button ? (
-          <div style={{ marginTop: 16 }}>
-            <button
-              type="button"
-              className="ff-btn ff-btnPrimary ff-btnSm"
-              onClick={selectedBestAction.button.action}
-            >
-              {selectedBestAction.button.label}
-            </button>
-          </div>
-        ) : null}
+{pricingInsight && (
+  <div className="ff-overviewMiniCard ff-pricingCard">
+    
+    <div className="ff-overviewMiniLabel">Suggested price</div>
+
+    <div className="ff-overviewMiniValue">
+      £{pricingInsight.suggested}
+    </div>
+
+    {pricingInsight.rangeLow && pricingInsight.rangeHigh && (
+      <div className="ff-overviewMiniSub">
+        Most jobs won between £{pricingInsight.rangeLow}–£{pricingInsight.rangeHigh}
       </div>
+    )}
+
+    <div className="ff-overviewMiniSub">
+      {pricingInsight.jobsUsed >= 5
+        ? "📊 Based on your past winning jobs"
+        : "⚠️ Limited data — estimate carefully"}
+    </div>
+
+    <div className="ff-overviewMiniSub">
+      💰 Profit: £{pricingInsight.profit} ({pricingInsight.margin}%)
+    </div>
+
+  </div>
+)}
 
       <div className="ff-overviewMiniCard ff-overviewMiniCardWide">
         <div className="ff-overviewMiniLabel">Snooze</div>
@@ -4682,6 +6706,125 @@ const nextAction = getLeftNextAction({
         </div>
       </div>
 
+<div className="ff-detailCard">
+  <div className="ff-detailSectionTitle">Customer history</div>
+
+
+
+  {historyLoading ? (
+    <div className="ff-detailSub">Loading…</div>
+  ) : customerHistory.length <= 1 ? (
+    <div className="ff-detailSub">No previous jobs</div>
+  ) : (
+   <>
+  {/* 🔥 CUSTOMER VALUE HERO */}
+  {customerStats.totalJobs > 0 && (
+    <div className="ff-historyHero">
+      <div className="ff-historyHeroText">
+        {customerStats.totalJobs >= 3
+          ? "🔥 Loyal customer — strong chance of winning this job"
+          : "🔁 Returning customer — higher chance of winning this job"}
+      </div>
+    </div>
+  )}
+
+  {/* 💰 PRICING CARD */}
+  {customerValueInsight && (
+    <div className="ff-pricingInsightCard">
+
+      <div className="ff-pricingMain">
+        Typical job: {money(customerValueInsight.avg)}
+      </div>
+
+      <div className="ff-pricingSub">
+        Based on {customerValueInsight.count} previous job
+        {customerValueInsight.count > 1 ? "s" : ""}
+      </div>
+
+      <div className="ff-pricingActions">
+        {pricingInsight && (
+          <>
+            <button
+              type="button"
+              className="ff-btn ff-btnPrimary ff-btnSm"
+              onClick={applySuggestedPrice}
+            >
+              ⚡ Use suggested price
+            </button>
+
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnSm"
+              onClick={createMessageWithPrice}
+            >
+              💬 Send price
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )}
+
+  {/* 📊 STATS */}
+  <div className="ff-historyStatsRow">
+    <div className="ff-historyStat">
+      <div className="ff-historyValue">
+        {customerStats.totalJobs}
+      </div>
+      <div className="ff-historyLabel">Previous jobs</div>
+    </div>
+
+    <div className="ff-historyStat">
+      <div className="ff-historyValue">
+        {money(customerStats.totalValue)}
+      </div>
+      <div className="ff-historyLabel">Total value</div>
+    </div>
+  </div>
+
+  {/* 📜 HISTORY LIST */}
+  <div className="ff-historyList">
+    {customerHistory
+      .filter((r) => r.id !== selectedRow?.id)
+      .slice(0, 5)
+      .map((job) => (
+        <div key={job.id} className="ff-historyItem">
+          <div className="ff-historyTitle">
+            {titleCase(job.job_type || "Job")}
+          </div>
+
+          <div className="ff-historyMeta">
+            {job.created_at
+              ? new Date(job.created_at).toLocaleDateString("en-GB", {
+                  day: "2-digit",
+                  month: "short",
+                })
+              : ""}
+          </div>
+        </div>
+      ))}
+  </div>
+</>
+  )}
+</div>
+
+{/* 🧠 AI INSIGHT (separate card) */}
+{customerInsight && (
+  <div
+    className={`ff-detailCard ${
+      customerInsight.type === "good"
+        ? "ff-successCard"
+        : customerInsight.type === "warn"
+        ? "ff-warningCard"
+        : ""
+    }`}
+    style={{ marginTop: 12 }}
+  >
+    <div className="ff-detailSectionTitle">AI insight</div>
+    <div className="ff-detailSub">{customerInsight.text}</div>
+  </div>
+)}
+
       <div className="ff-detailCard">
         <div
           style={{
@@ -4809,14 +6952,65 @@ const nextAction = getLeftNextAction({
           </div>
         ) : null}
 
+<div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
+  <button
+    type="button"
+    className="ff-btn ff-btnGhost ff-btnSm"
+    onClick={() => markAsLost("Too expensive")}
+  >
+    Lost: Too expensive
+  </button>
+
+  <button
+    type="button"
+    className="ff-btn ff-btnGhost ff-btnSm"
+    onClick={() => markAsLost("Went with another quote")}
+  >
+    Lost: Went elsewhere
+  </button>
+
+  <button
+    type="button"
+    className="ff-btn ff-btnGhost ff-btnSm"
+    onClick={() => markAsLost("No response")}
+  >
+    Lost: No response
+  </button>
+
+  <button
+    type="button"
+    className="ff-btn ff-btnGhost ff-btnSm"
+    onClick={() => markAsLost("Job cancelled")}
+  >
+    Lost: Cancelled
+  </button>
+</div>
         <div style={{ marginTop: 18 }}>
           <button
             type="button"
             className="ff-btn ff-btnDanger ff-btnSm"
-            onClick={deleteEnquiry}
+onClick={deleteEnquiry}
           >
             Delete enquiry
           </button>
+
+<div style={{ marginTop: 10 }}>
+  <button
+    type="button"
+    className="ff-btn ff-btnGhost ff-btnSm"
+    onClick={() =>
+      openInputModal({
+        title: "Mark as lost",
+        message: "Why did you lose this job?",
+        placeholder: "Too expensive / no response / chose another quote",
+        submitLabel: "Save",
+        onSubmit: (value) => markAsLost(value),
+      })
+    }
+  >
+    Mark as lost
+  </button>
+</div>
         </div>
       </div>
     </div>
@@ -5246,11 +7440,11 @@ const nextAction = getLeftNextAction({
                                   }))
                                 }
                               />
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ) : null}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ) : null}
 
                     {rightTab === "files" ? (
                       <div className="ff-detailGrid">
@@ -5644,6 +7838,59 @@ const nextAction = getLeftNextAction({
 
 {rightTab === "messages" ? (
   <div className="ff-chatWrap">
+    {selectedReplyStatus === "Customer replied" ? (
+  <div className="ff-followUpBanner">
+    ⚡ Customer replied — reply now before this job goes cold
+
+    <button
+      type="button"
+      className="ff-btn ff-btnSm ff-btnPrimary"
+      onClick={() => {
+       const name = selectedRow?.customer_name
+  ? titleCase(selectedRow.customer_name).split(" ")[0]
+  : "there";
+
+        setReplyBody(
+          `Hi ${name}, thanks for your reply — I’ll take a look and come back to you shortly.`
+        );
+
+        setScrollToComposerPending(true);
+      }}
+    >
+      Write reply
+    </button>
+  </div>
+) : null}
+{selectedReplyStatus === "Awaiting first reply" ? (
+  <div className="ff-followUpBanner">
+    ⚡ New enquiry — send a fast first reply
+
+    <button
+      type="button"
+      className="ff-btn ff-btnSm ff-btnPrimary"
+      onClick={() => {
+       const name = selectedRow?.customer_name
+  ? titleCase(selectedRow.customer_name).split(" ")[0]
+  : "there";
+
+        setReplyBody(
+          `Hi ${name}, thanks for your enquiry — I’m just reviewing this now and will come back to you shortly.`
+        );
+
+        setScrollToComposerPending(true);
+      }}
+    >
+      Write reply
+    </button>
+  </div>
+) : null}
+
+{selectedReplyStatus === "Awaiting reply" ? (
+  <div className="ff-followUpBanner ff-followUpBannerSoft">
+    Waiting on customer — no action needed right now
+  </div>
+) : null}
+
     {selectedFollowUp &&
     (selectedFollowUp.status === "follow_up_due" ||
       selectedFollowUp.status === "estimate_follow_up_due") ? (
@@ -5695,12 +7942,28 @@ const nextAction = getLeftNextAction({
       </div>
     ) : null}
 
+{selectedRow?.ai_thread_status === "awaiting_trader_review" &&
+selectedRow?.ai_suggested_reply ? (
+  <div className="ff-followUpReviewCard">
+    <div>
+      <div className="ff-detailLabel">Follow-up ready</div>
+      <div className="ff-detailSub">
+        FixFlow has prepared this message. Review it, edit if needed, then send.
+      </div>
+    </div>
+
+<Chip cls="ff-chip ff-chipBlue">
+  Follow-up {(selectedRow.ai_follow_up_count || 0) + 1}
+</Chip>
+  </div>
+) : null}
+
     <div className="ff-chatTop">
       <div>
-        <div className="ff-detailLabel">Customer messages</div>
-        <div className="ff-detailSub">
-          View replies and send updates from this enquiry.
-        </div>
+<div className="ff-detailLabel">Win this job</div>
+<div className="ff-detailSub">
+  Reply quickly, follow up clearly, and keep the customer moving.
+</div>
 
         <div className="ff-chatStatusRow">
           <Chip
@@ -5721,14 +7984,33 @@ const nextAction = getLeftNextAction({
         </div>
       </div>
 
-      <button
-        className="ff-btn ff-btnGhost ff-btnSm"
-        type="button"
-        onClick={() => uid && selectedRow && loadThread(selectedRow.id, uid)}
-        disabled={threadLoading}
-      >
-        {threadLoading ? "Loading…" : "Refresh"}
-      </button>
+<div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+  <button
+type="button"
+className={`ff-btn ff-btnGhost ff-btnSm ${
+autoFollowUpsEnabled ? "ff-btnSuccess" : ""
+}`}
+onClick={() => setAutoFollowUpsEnabled((v) => !v)}
+>
+{autoFollowUpsEnabled ? "🤖 Autopilot on" : "Turn on Autopilot"}
+</button>
+  <button
+    className="ff-btn ff-btnGhost ff-btnSm"
+    type="button"
+    onClick={logCallOnCurrentEnquiry}
+  >
+    + Log call
+  </button>
+
+  <button
+    className="ff-btn ff-btnGhost ff-btnSm"
+    type="button"
+    onClick={() => uid && selectedRow && loadThread(selectedRow.id, uid)}
+    disabled={threadLoading}
+  >
+    {threadLoading ? "Loading…" : "Refresh"}
+  </button>
+</div>
     </div>
 
     <div className="ff-chatBody">
@@ -5739,6 +8021,7 @@ const nextAction = getLeftNextAction({
       ) : thread.length ? (
         thread.map((m) => {
           const outbound = isOutboundDirection(m.direction);
+          const isPhone = m.channel === "phone";
           const body = (m.body_text ?? "").trim();
 
           return (
@@ -5757,25 +8040,39 @@ const nextAction = getLeftNextAction({
                 cursor: "pointer",
               }}
             >
-              <div
-                className={`ff-chatBubble ${
-                  outbound ? "ff-chatBubbleOut" : "ff-chatBubbleIn"
-                }`}
-              >
+            <div
+  className={`ff-chatBubble ${
+    isPhone
+      ? "ff-chatBubblePhone"
+      : outbound
+      ? "ff-chatBubbleOut"
+      : "ff-chatBubbleIn"
+  }`}
+>
                 <div className="ff-chatMeta">
-                  <span className="ff-chatName">
-                    {outbound ? "You" : "Customer"}
-                  </span>
+<span className="ff-chatName">
+  {isPhone ? "📞 Phone call" : outbound ? "You" : "Customer"}
+</span>
                   <span className="ff-chatTime">
                     {niceDate(m.created_at)}
                   </span>
                 </div>
 
-                {m.subject ? (
-                  <div className="ff-chatSubject">{m.subject}</div>
-                ) : null}
+{m.subject ? (
+  <div className="ff-chatSubject">{m.subject}</div>
+) : null}
 
-                <div className="ff-chatText">{body || "—"}</div>
+{m.is_follow_up && (
+  <div
+    className={`ff-followUpBadge ${
+      m.follow_up_number === 2 ? "ff-followUpBadgeFinal" : ""
+    }`}
+  >
+    💬 {m.follow_up_number === 2 ? "Final follow-up" : "Follow-up"}
+  </div>
+)}
+
+<div className="ff-chatText">{body || "—"}</div>
               </div>
             </button>
           );
@@ -5810,10 +8107,61 @@ const nextAction = getLeftNextAction({
       </div>
 
       <div className="ff-quickReplyRow">
+        <button
+  type="button"
+  className="ff-quickReplyBtn ff-quickReplyBtnHot"
+  onClick={() => {
+ const name = selectedRow?.customer_name
+  ? titleCase(selectedRow.customer_name).split(" ")[0]
+  : "there";
+    setReplyBody(
+      `Hi ${name}, thanks for your enquiry — I can help with this. I’ll just check a couple of details and come back to you shortly.`
+    );
+  }}
+>
+  ⚡ Fast reply
+</button>
+
+<button
+  type="button"
+  className="ff-quickReplyBtn"
+  onClick={() => {
+    const name = selectedRow?.customer_name
+  ? titleCase(selectedRow.customer_name).split(" ")[0]
+  : "there";
+    const job = selectedRow?.job_type?.toLowerCase() || "job";
+    setReplyBody(
+      `Hi ${name}, thanks for sending this over. I’ve dealt with similar ${job} jobs before, so I should be able to help. Could you send over any photos or extra details so I can price it properly?`
+    );
+  }}
+>
+  🛠 Trust builder
+</button>
+
+<button
+  type="button"
+  className="ff-quickReplyBtn"
+  onClick={() => {
+    const name = selectedRow?.customer_name
+  ? titleCase(selectedRow.customer_name).split(" ")[0]
+  : "there";
+    const job = selectedRow?.job_type?.toLowerCase() || "job";
+    setReplyBody(
+      `Hi ${name}, I can help with the ${job}. I’ve got some availability coming up — would you like me to get you booked in?`
+    );
+  }}
+>
+  💰 Close job
+</button>
         {selectedFollowUp &&
         (selectedFollowUp.status === "follow_up_due" ||
           selectedFollowUp.status === "estimate_follow_up_due") ? (
           <>
+  
+
+
+
+
             <button
               type="button"
               className="ff-quickReplyBtn"
@@ -5880,41 +8228,58 @@ const nextAction = getLeftNextAction({
           Replying to {replyTo || "customer"}
         </div>
 
-        <div className="ff-chatActionButtons">
-          <button
-            className="ff-btn ff-btnGhost ff-btnSm"
-            type="button"
-            onClick={() => setReplyBody("")}
-          >
-            Clear
-          </button>
+<div className="ff-chatActionButtons">
+  <button
+    className="ff-btn ff-btnGhost ff-btnSm"
+    type="button"
+    onClick={() => setReplyBody("")}
+  >
+    Clear
+  </button>
 
-          {isAutoFilled ? (
-            <button
-              className="ff-btn ff-btnGhost ff-btnSm ff-btnPulse"
-              type="button"
-              onClick={sendReply}
-              disabled={!replyTo.trim() || !replyBody.trim()}
-            >
-              ⚡ Send now
-            </button>
-          ) : null}
+{replyBody.trim().startsWith("Hi ") && (
+  <button
+    className="ff-btn ff-btnGhost ff-btnSm ff-btnPulse"
+    type="button"
+    onClick={async () => {
+      try {
+        setSendAndNextLoading(true);
 
-          <button
-            className={`ff-btn ff-btnSm ${
-              replySent ? "ff-btnSuccess" : "ff-btnPrimary"
-            }`}
-            type="button"
-            onClick={sendReply}
-            disabled={replySending || !replyTo.trim() || !replyBody.trim()}
-          >
-            {replySending
-              ? "Sending…"
-              : replySent
-              ? "Sent ✓"
-              : "Send message"}
-          </button>
-        </div>
+        await sendReply();
+
+        setTimeout(() => {
+          const nextRow = findNextActionRow(selectedRow?.id);
+
+          if (nextRow) {
+            selectEnquiry(nextRow.id, "messages");
+          }
+        }, 400);
+      } catch (err) {
+        console.error("Send & next failed", err);
+      } finally {
+        setSendAndNextLoading(false);
+      }
+    }}
+    disabled={
+      sendAndNextLoading ||
+      replySending ||
+      !replyTo.trim() ||
+      !replyBody.trim()
+    }
+  >
+    {sendAndNextLoading ? "Sending…" : "⚡ Send & go to next job"}
+  </button>
+)}
+
+  <button
+    className="ff-btn ff-btnPrimary ff-btnSm"
+    type="button"
+    onClick={sendReply}
+    disabled={!replyTo.trim() || !replyBody.trim()}
+  >
+    Send to customer
+  </button>
+</div>
       </div>
     </div>
   </div>
@@ -5922,6 +8287,7 @@ const nextAction = getLeftNextAction({
 
                   </div>
                 </>
+                     
               )}
             </div>
           </div>
@@ -6048,6 +8414,173 @@ const nextAction = getLeftNextAction({
           </div>
         </div>
       </Modal>
-    </>
+      <Modal
+  open={showCallModal}
+  title="Add enquiry"
+  onClose={() => setShowCallModal(false)}
+>
+  <div className="ff-detailGrid">
+
+  <select
+    className="ff-input"
+    value={callForm.source}
+    onChange={(e) =>
+      setCallForm((p) => ({ ...p, source: e.target.value }))
+    }
+  >
+    <option value="manual">✍️ Manual</option>
+    <option value="phone">📞 Phone call</option>
+    <option value="email">📧 Email</option>
+    <option value="walk_in">🚶 Walk-in</option>
+  </select>
+
+  <input
+    className="ff-input"
+    placeholder="Customer name"
+    value={callForm.customer_name}
+    onChange={(e) =>
+      setCallForm((p) => ({ ...p, customer_name: e.target.value }))
+    }
+  />
+
+  <input
+    className="ff-input"
+    placeholder="Phone number"
+    value={callForm.customer_phone}
+    onChange={(e) =>
+      setCallForm((p) => ({ ...p, customer_phone: e.target.value }))
+    }
+  />
+
+  <input
+    className="ff-input"
+    placeholder="Job type e.g. leaking tap"
+    value={callForm.job_type}
+    onChange={(e) =>
+      setCallForm((p) => ({ ...p, job_type: e.target.value }))
+    }
+  />
+
+  <select
+    className="ff-input"
+    value={callForm.urgency}
+    onChange={(e) =>
+      setCallForm((p) => ({ ...p, urgency: e.target.value }))
+    }
+  >
+    <option>ASAP</option>
+    <option>This week</option>
+    <option>Next week</option>
+    <option>Flexible</option>
+  </select>
+
+  <textarea
+    className="ff-textarea"
+    placeholder="Notes…"
+    value={callForm.details}
+    onChange={(e) =>
+      setCallForm((p) => ({ ...p, details: e.target.value }))
+    }
+  />
+
+
+    <div className="ff-inlineActions" style={{ justifyContent: "flex-end" }}>
+      <button
+        type="button"
+        className="ff-btn ff-btnGhost ff-btnSm"
+        onClick={() => setShowCallModal(false)}
+      >
+        Cancel
+      </button>
+
+      <button
+        type="button"
+        className="ff-btn ff-btnPrimary ff-btnSm"
+        onClick={createCallEnquiry}
+      >
+        Save enquiry
+      </button>
+    </div>
+  </div>
+</Modal>
+{confirmModal?.open && (
+  <div className="ff-modalOverlay" onClick={() => setConfirmModal(null)}>
+    <div className="ff-modalCard" onClick={(e) => e.stopPropagation()}>
+      <div className="ff-modalTitle">{confirmModal.title}</div>
+
+      <div className="ff-modalText">{confirmModal.message}</div>
+
+      <div className="ff-modalActions">
+        <button
+          type="button"
+          className="ff-btn ff-btnGhost"
+          onClick={() => setConfirmModal(null)}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className={
+            confirmModal.danger
+              ? "ff-btn ff-btnDanger"
+              : "ff-btn ff-btnPrimary"
+          }
+          onClick={() => {
+            confirmModal.onConfirm();
+            setConfirmModal(null);
+          }}
+        >
+          {confirmModal.confirmLabel}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{inputModal?.open && (
+  <div className="ff-modalOverlay" onClick={() => setInputModal(null)}>
+    <div className="ff-modalCard" onClick={(e) => e.stopPropagation()}>
+      <div className="ff-modalTitle">{inputModal.title}</div>
+
+      {inputModal.message ? (
+        <div className="ff-modalText">{inputModal.message}</div>
+      ) : null}
+
+      <textarea
+        className="ff-modalTextarea"
+        placeholder={inputModal.placeholder || "Type here..."}
+        value={inputModalValue}
+        onChange={(e) => setInputModalValue(e.target.value)}
+        rows={5}
+        autoFocus
+      />
+
+      <div className="ff-modalActions">
+        <button
+          type="button"
+          className="ff-btn ff-btnGhost"
+          onClick={() => setInputModal(null)}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="ff-btn ff-btnPrimary"
+          disabled={!inputModalValue.trim()}
+          onClick={() => {
+            inputModal.onSubmit(inputModalValue.trim());
+            setInputModal(null);
+            setInputModalValue("");
+          }}
+        >
+          {inputModal.submitLabel}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+   </>
   );
 }

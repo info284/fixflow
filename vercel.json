@@ -1,0 +1,8 @@
+{
+  "cron": [
+    {
+      "path": "/api/cert-reminders",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}

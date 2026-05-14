@@ -131,7 +131,15 @@ export async function GET(req: Request) {
 
     const { data: profile, error: profileErr } = await admin
       .from("profiles")
-      .select("display_name, business_name, logo_url, vat_number")
+     .select(`
+  display_name,
+  business_name,
+  logo_url,
+  vat_number,
+  business_phone,
+  business_email,
+  business_address
+`)
       .eq("id", uid)
       .maybeSingle();
 

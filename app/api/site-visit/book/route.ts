@@ -4,6 +4,12 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { google } from "googleapis";
+import {
+  buildFixFlowEmail,
+  buildFixFlowInfoCard,
+  buildFixFlowSectionLabel,
+  escapeEmailHtml,
+} from "@/lib/emails/fixflowEmail";
 
 /* ---------------- types ---------------- */
 
@@ -331,32 +337,59 @@ async function sendBookingEmail(opts: {
     from: opts.from,
     to,
     subject: textParts.title,
-    html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #0b1320;">
-        <p style="margin: 0 0 16px;">Hi ${opts.enquiry.customer_name || "there"},</p>
+html: buildFixFlowEmail({
+  title: "Site visit booked",
+  introHtml: `
+    <div style="font-size:16px; font-weight:700; margin-bottom:10px;">
+      Hi ${escapeEmailHtml(opts.enquiry.customer_name || "there")},
+    </div>
 
-        <p style="margin: 0 0 16px;">Your site visit has been booked.</p>
-
-        <table cellpadding="0" cellspacing="0" border="0" style="margin: 0 0 18px; width: 100%; max-width: 520px;">
-          <tr>
-            <td style="padding: 0 0 8px; font-weight: 700; width: 110px; vertical-align: top;">Date/time:</td>
-            <td style="padding: 0 0 8px; vertical-align: top;">${textParts.whenText}</td>
-          </tr>
-          <tr>
-            <td style="padding: 0 0 8px; font-weight: 700; vertical-align: top;">Duration:</td>
-            <td style="padding: 0 0 8px; vertical-align: top;">${textParts.durationText}</td>
-          </tr>
-          <tr>
-            <td style="padding: 0; font-weight: 700; vertical-align: top;">Address:</td>
-            <td style="padding: 0; vertical-align: top;">${cleanAddress}</td>
-          </tr>
-        </table>
-
-        <p style="margin: 0 0 16px;">Calendar invite attached (.ics).</p>
-
-        <p style="margin: 0;">Thanks,<br/>FixFlow</p>
+    <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+      Your site visit has been booked. Here are the details:
+    </div>
+  `,
+  bodyHtml: `
+    ${buildFixFlowInfoCard(`
+      <div style="padding:18px; border-bottom:1px solid #E6ECF5;">
+        ${buildFixFlowSectionLabel("Appointment")}
+        <div style="font-size:20px; font-weight:900; color:#0B1320; margin-top:6px;">
+          ${escapeEmailHtml(textParts.title)}
+        </div>
       </div>
-    `,
+
+      <div style="padding:18px; border-bottom:1px solid #E6ECF5;">
+        ${buildFixFlowSectionLabel("Date and time")}
+        <div style="font-size:18px; font-weight:800; color:#1F355C; margin-top:6px;">
+          ${escapeEmailHtml(textParts.whenText)}
+        </div>
+      </div>
+
+      <div style="padding:18px; border-bottom:1px solid #E6ECF5;">
+        ${buildFixFlowSectionLabel("Duration")}
+        <div style="font-size:18px; font-weight:800; color:#0B1320; margin-top:6px;">
+          ${escapeEmailHtml(textParts.durationText)}
+        </div>
+      </div>
+
+      <div style="padding:18px;">
+        ${buildFixFlowSectionLabel("Address")}
+        <div style="font-size:16px; line-height:1.6; font-weight:800; color:#0B1320; margin-top:6px;">
+          ${escapeEmailHtml(cleanAddress)}
+        </div>
+      </div>
+    `)}
+
+    <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+      We’ve attached a calendar invite so you can save this appointment easily.
+    </div>
+  `,
+  closingHtml: `
+    <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
+      Thanks,<br />
+      <span style="font-weight:800; color:#1F355C;">FixFlow</span>
+    </div>
+  `,
+}),
     text:
       `Hi ${opts.enquiry.customer_name || "there"},\n\n` +
       `Your site visit has been booked.\n\n` +

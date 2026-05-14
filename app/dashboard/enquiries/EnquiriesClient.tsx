@@ -3046,18 +3046,22 @@ function pushToast(text: string, type: "success" | "error" = "success") {
   }, 2800);
 }
 
-  function selectEnquiry(id: string, tabOverride?: RightTab) {
-    setSelectedIdState(id);
+ function selectEnquiry(id: string, tabOverride?: RightTab) {
+  setSelectedIdState(id);
 
-    const params = new URLSearchParams(sp.toString());
-    params.set("requestId", id);
-    if (tabOverride) params.set("tab", tabOverride);
-    router.replace(`/dashboard/enquiries?${params.toString()}`, {
-  scroll: false,
-});
+  const nextTab = tabOverride || "details";
 
-    if (tabOverride) setRightTab(tabOverride);
-  }
+  const params = new URLSearchParams(sp.toString());
+
+  params.set("requestId", id);
+  params.set("tab", nextTab);
+
+  router.replace(`/dashboard/enquiries?${params.toString()}`, {
+    scroll: false,
+  });
+
+  setRightTab(nextTab);
+}
 
   function clearSelected() {
     setSelectedIdState(null);
@@ -3873,9 +3877,11 @@ body: JSON.stringify({
 
     const json = await res.json().catch(() => null);
 
-    if (!res.ok) {
-      throw new Error(json?.error || "Booking failed");
-    }
+console.log("response json:", json);
+
+if (!res.ok) {
+  throw new Error(json?.error || "Booking failed");
+}
 
     await loadSiteVisit(selectedRow.id);
     await loadVisitMap(uid);
@@ -3899,7 +3905,7 @@ body: JSON.stringify({
         .eq("id", selectedRow.id);
 
       if (error) {
-        console.error(error);
+        console.error("bookSiteVisit error:", error);
         pushToast("Couldn’t update booking status", "error");
       } else {
         setRows((prev) =>
@@ -4095,60 +4101,34 @@ async function saveDetailedEstimate(
   setEstimateSaving(true);
 
   try {
-    const subtotal = estimateSubtotal;
-    const vat = estimateVat;
-    const total = estimateTotal;
+    const payload = {
+      request_id: selectedRow.id,
+      user_id: uid,
+      plumber_id: uid,
+      status,
+      labour: num(estimateForm.labour),
+      materials: materialsSell,
+      callout: num(estimateForm.callout),
+      parts: num(estimateForm.parts),
+      other: num(estimateForm.other),
+      subtotal: estimateSubtotal,
+      vat: estimateVat,
+      total: estimateTotal,
+      valid_until: estimateForm.validUntil || null,
+      customer_message: estimateForm.customerMessage || null,
+      included_notes: estimateForm.includedNotes || null,
+      excluded_notes: estimateForm.excludedNotes || null,
+    };
 
-    let estimateId = detailedEstimate?.id || null;
+    const { data, error } = await supabase
+      .from("estimates")
+      .upsert(payload, {
+        onConflict: "request_id,user_id",
+      })
+      .select("*")
+      .single();
 
-    if (!estimateId) {
-      const { data, error } = await supabase
-        .from("estimates")
-        .insert({
-          request_id: selectedRow.id,
-          user_id: uid,
-          plumber_id: uid,
-          status,
-          labour: num(estimateForm.labour),
-          materials: materialsSell,
-          callout: num(estimateForm.callout),
-          parts: num(estimateForm.parts),
-          other: num(estimateForm.other),
-          subtotal,
-          vat,
-          total,
-          valid_until: estimateForm.validUntil || null,
-          customer_message: estimateForm.customerMessage || null,
-          included_notes: estimateForm.includedNotes || null,
-          excluded_notes: estimateForm.excludedNotes || null,
-        })
-        .select("*")
-        .single();
-
-      if (error) throw error;
-      estimateId = data.id;
-    } else {
-      const { error } = await supabase
-        .from("estimates")
-        .update({
-          status,
-          labour: num(estimateForm.labour),
-          materials: materialsSell,
-          callout: num(estimateForm.callout),
-          parts: num(estimateForm.parts),
-          other: num(estimateForm.other),
-          subtotal,
-          vat,
-          total,
-          valid_until: estimateForm.validUntil || null,
-          customer_message: estimateForm.customerMessage || null,
-          included_notes: estimateForm.includedNotes || null,
-          excluded_notes: estimateForm.excludedNotes || null,
-        })
-        .eq("id", estimateId);
-
-      if (error) throw error;
-    }
+    if (error) throw error;
 
     await loadDetailedEstimate(selectedRow.id);
     await loadEstimateMap(uid);
@@ -4161,7 +4141,7 @@ async function saveDetailedEstimate(
       pushToast(status === "draft" ? "Estimate saved" : "Estimate updated");
     }
 
-    return true;
+    return data?.id || true;
   } catch (err) {
     console.error(err);
     pushToast("Couldn’t save estimate", "error");
@@ -4170,6 +4150,7 @@ async function saveDetailedEstimate(
     setEstimateSaving(false);
   }
 }
+
 async function sendEstimate() {
   if (!selectedRow || !uid) return;
 
@@ -4178,46 +4159,22 @@ async function sendEstimate() {
   setEstimateDraftSaved(false);
 
   try {
-    const saved = await saveDetailedEstimate("draft", { showToast: false });
-    if (!saved) {
+    const savedEstimateId = await saveDetailedEstimate("draft", {
+      showToast: false,
+    });
+
+    if (!savedEstimateId) {
       throw new Error("Couldn’t save estimate before sending");
     }
 
-let estimateIdToSend =
-  detailedEstimate?.id || estimateMap[selectedRow.id]?.id;
+    const estimateIdToSend =
+      typeof savedEstimateId === "string"
+        ? savedEstimateId
+        : detailedEstimate?.id || estimateMap[selectedRow.id]?.id;
 
-if (!estimateIdToSend) {
-  // create estimate first
-const { data, error } = await supabase
-  .from("estimates")
-  .insert({
-    request_id: selectedRow.id,
-    user_id: uid,
-    plumber_id: uid,
-    status: "draft",
-    labour: num(estimateForm.labour),
-    materials: materialsSell,
-    callout: num(estimateForm.callout),
-    parts: num(estimateForm.parts),
-    other: num(estimateForm.other),
-    subtotal: estimateSubtotal,
-    vat: estimateVat,
-    total: estimateTotal,
-    valid_until: estimateForm.validUntil || null,
-    customer_message: estimateForm.customerMessage || null,
-    included_notes: estimateForm.includedNotes || null,
-    excluded_notes: estimateForm.excludedNotes || null,
-  })
-  .select("id")
-  .single();
-
-if (error || !data?.id) {
-  console.error("create estimate failed:", error);
- throw new Error(error?.message || "Failed to create estimate");
-}
-
-  estimateIdToSend = data.id;
-}
+    if (!estimateIdToSend) {
+      throw new Error("Couldn’t find estimate to send");
+    }
 
     const {
       data: { session },
@@ -4275,6 +4232,7 @@ if (error || !data?.id) {
     setEstimateSending(false);
   }
 }
+
 async function saveEstimateDraft() {
   try {
     setEstimateDraftSaved(false);
@@ -5658,11 +5616,11 @@ const nextAction = getLeftNextAction({
         : ""
     }
   `}
-  onClick={() => selectEnquiry(r.id)}
+onClick={() => selectEnquiry(r.id, "details")}
   onKeyDown={(e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      selectEnquiry(r.id);
+      selectEnquiry(r.id, "details");
     }
   }}
 >

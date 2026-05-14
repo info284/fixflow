@@ -1,9 +1,31 @@
 // lib/invoices/renderInvoicePdf.ts
 import PDFDocument from "pdfkit";
 
-function money(n: number) {
-  const x = Number.isFinite(n) ? n : 0;
-  return `£${x.toFixed(2)}`;
+type PdfCertificate = {
+  name?: string | null;
+  certificate_number?: string | null;
+  expiry_date?: string | null;
+  show_on_invoices?: boolean | null;
+};
+
+function safeText(v?: string | null) {
+  return String(v || "").trim();
+}
+
+function cleanAddress(v?: string | null) {
+  return safeText(v)
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function money(n?: number | null) {
+  const x = Number(n || 0);
+  return `£${x.toLocaleString("en-GB", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function formatPostcode(pc?: string | null) {
@@ -12,17 +34,27 @@ function formatPostcode(pc?: string | null) {
   if (clean.length <= 3) return clean;
   return clean.slice(0, -3) + " " + clean.slice(-3);
 }
+function addressIncludesPostcode(address: string, postcode: string) {
+  if (!address || !postcode) return false;
 
-function formatDate(value?: string | null) {
-  if (!value) return "";
-  try {
-    return new Date(value).toLocaleDateString("en-GB");
-  } catch {
-    return "";
-  }
+  const a = address.replace(/\s+/g, "").toUpperCase();
+  const p = postcode.replace(/\s+/g, "").toUpperCase();
+
+  return a.includes(p);
 }
 
-// More tolerant: don’t require content-type to say “image”
+
+function shortDate(v?: string | null) {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   const u = String(url || "").trim();
   if (!u) return null;
@@ -33,6 +65,7 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
 
     const arr = await res.arrayBuffer();
     const buf = Buffer.from(arr);
+
     if (!buf || buf.length < 200) return null;
     return buf;
   } catch {
@@ -40,59 +73,82 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   }
 }
 
+function invoiceStatusLabel(status?: string | null) {
+  const s = safeText(status).toLowerCase();
+
+  if (s === "paid") return "PAID";
+  if (s === "overdue") return "OVERDUE";
+  if (s === "sent") return "AWAITING PAYMENT";
+  if (s === "draft") return "";
+
+  return "AWAITING PAYMENT";
+}
+
 export async function renderInvoicePdfBuffer(opts: {
   invoice: any;
   profile: any;
   fallbackEnquiryDetails?: string;
-  certificates?: {
-    name?: string | null;
-    certificate_number?: string | null;
-    expiry_date?: string | null;
-    show_on_invoices?: boolean | null;
-  }[];
+  certificates?: PdfCertificate[];
 }) {
-  const q = opts.invoice || {};
-  const prof = opts.profile || {};
+  const invoice = opts.invoice || {};
+  const profile = opts.profile || {};
 
   const certificates = Array.isArray(opts.certificates)
-  ? opts.certificates.filter((c) => c?.show_on_invoices !== false)
-  : [];
+    ? opts.certificates.filter((c) => c?.show_on_invoices !== false)
+    : [];
 
   const traderName =
-    String(prof?.business_name || "").trim() ||
-    String(prof?.display_name || "").trim() ||
-    "Your trader";
+    safeText(profile.business_name) ||
+    safeText(profile.display_name) ||
+    "Your Trader";
 
-  const vatNumber = String(prof?.vat_number || "").trim();
-  const logoUrl = String(prof?.logo_url || "").trim();
+  const logoUrl = safeText(profile.logo_url);
   const logoBuf = logoUrl ? await fetchImageBuffer(logoUrl) : null;
 
-  const subtotal = Number(q.subtotal ?? q.amount ?? 0) || 0;
-  const vatRate = Number(q.vat_rate ?? 0) || 0;
-  const vatAmount = subtotal * (vatRate / 100);
-  const total = subtotal + vatAmount;
+  const invoiceNumber =
+    safeText(invoice.invoice_number) ||
+    safeText(invoice.job_number) ||
+    safeText(invoice.id).slice(0, 8) ||
+    "Invoice";
 
-  const created = q.created_at ? new Date(q.created_at) : new Date();
-  const dueDate = q.due_at ? new Date(q.due_at) : null;
+  const createdAt = shortDate(invoice.created_at);
+ const dueDate = shortDate(invoice.due_at || invoice.due_date);
+const dueDateText = dueDate || "Payment due on receipt";
 
-  const refDefault = String(q.id || "").slice(0, 8) || "invoice";
-  const displayRef = String(q.invoice_number || refDefault).trim();
+  const customerName = safeText(invoice.customer_name) || "Customer";
+  const customerEmail = safeText(invoice.customer_email || invoice.to_email);
+  const customerPhone = safeText(invoice.customer_phone);
+  const address = cleanAddress(invoice.address);
+  const postcode = formatPostcode(invoice.postcode);
 
-  const jobNumber = String(q.job_number || "").trim();
-  const jobType = String(q.job_type || "Invoice").trim();
-  const postcode = formatPostcode(q.postcode);
-  const custName = String(q.customer_name || "Customer").trim();
-  const custEmail = String(q.customer_email || q.to_email || "").trim();
-  const custPhone = String(q.customer_phone || "").trim();
-  const custAddr = String(q.address || q.postcode || "").trim();
+  const jobType = safeText(invoice.job_type) || "Invoice";
+  const description =
+    safeText(invoice.job_details) ||
+    safeText(opts.fallbackEnquiryDetails) ||
+    safeText(invoice.notes) ||
+    jobType;
 
-  const details =
-    String(q.job_details || "").trim() ||
-    String(opts.fallbackEnquiryDetails || "").trim() ||
-    String(q.notes || "").trim() ||
-    "—";
+  const subtotal = Number(invoice.subtotal ?? invoice.amount ?? 0) || 0;
+  const vatRate = Number(invoice.vat_rate ?? 0) || 0;
+  const vat = Number(invoice.vat ?? subtotal * (vatRate / 100)) || 0;
+  const total = Number(invoice.total ?? invoice.amount ?? subtotal + vat) || 0;
 
-  const doc = new PDFDocument({ size: "A4", margin: 48 });
+  const breakdown = [
+    {
+      label: "Work completed",
+      description,
+      qty: 1,
+      value: subtotal,
+    },
+  ].filter((x) => x.value > 0);
+
+  const doc = new PDFDocument({
+    size: "A4",
+    margin: 0,
+    autoFirstPage: true,
+    bufferPages: false,
+  });
+
   const chunks: Buffer[] = [];
   doc.on("data", (c: Buffer) => chunks.push(c));
 
@@ -101,440 +157,578 @@ export async function renderInvoicePdfBuffer(opts: {
     doc.on("error", reject);
   });
 
+  const PAGE_W = doc.page.width;
+  const PAGE_H = doc.page.height;
+
+  const NAVY = "#0B2A55";
+  const NAVY_MID = "#1F355C";
+  const BLUE = "#245BFF";
   const INK = "#0B1320";
   const MUTED = "#5C6B84";
+  const FAINT = "#8A94A6";
   const BORDER = "#E6ECF5";
-  const SOFT = "#F6F8FC";
-  const HEADER = "#EEF2F7";
+  const SOFT = "#F8FAFD";
+  const SOFT_BLUE = "#EEF3FF";
+  const WHITE = "#FFFFFF";
 
-  const left = 48;
-  const pageW = doc.page.width;
-  const contentW = pageW - left * 2;
+  const M = 52;
+  const W = PAGE_W - M * 2;
 
-  // Header band
-  doc.save();
-  doc.rect(0, 0, pageW, 136).fill(HEADER);
-  doc.restore();
+  function hRule(y: number, colour = BORDER, lw = 0.75) {
+    doc
+      .save()
+      .moveTo(M, y)
+      .lineTo(M + W, y)
+      .strokeColor(colour)
+      .lineWidth(lw)
+      .stroke()
+      .restore();
+  }
 
-  // Title
+  function rBox(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r = 10,
+    fill = WHITE,
+    strokeCol = BORDER,
+    lw = 0.75
+  ) {
+    doc.save();
+    doc.roundedRect(x, y, w, h, r).fillColor(fill).fill();
+
+    if (lw > 0) {
+      doc
+        .roundedRect(x, y, w, h, r)
+        .lineWidth(lw)
+        .strokeColor(strokeCol)
+        .stroke();
+    }
+
+    doc.restore();
+  }
+
+  function eyebrow(
+    text: string,
+    x: number,
+    y: number,
+    w: number,
+    align: "left" | "right" = "left"
+  ) {
+    doc
+      .fillColor(FAINT)
+      .font("Helvetica-Bold")
+      .fontSize(7)
+      .text(text.toUpperCase(), x, y, {
+        width: w,
+        align,
+        characterSpacing: 1.1,
+        lineBreak: false,
+      });
+  }
+
+  function drawLogo(x: number, y: number, size = 44) {
+    if (logoBuf) {
+      try {
+        rBox(x, y, size, size, 10, WHITE, BORDER);
+        doc.image(logoBuf, x + 6, y + 6, {
+          fit: [size - 12, size - 12],
+          align: "center",
+          valign: "center",
+        });
+        return;
+      } catch {}
+    }
+
+    rBox(x, y, size, size, 10, SOFT_BLUE, BORDER);
+
+    doc
+      .fillColor(NAVY)
+      .font("Helvetica-Bold")
+      .fontSize(18)
+      .text(traderName.charAt(0).toUpperCase(), x, y + 12, {
+        width: size,
+        align: "center",
+        lineBreak: false,
+      });
+  }
+
+  doc.rect(0, 0, PAGE_W, PAGE_H).fillColor(WHITE).fill();
+
+  const HEADER_H = 148;
+
+  doc.rect(0, 0, PAGE_W, HEADER_H).fillColor(NAVY).fill();
+
+  drawLogo(M, 28, 44);
+
   doc
-    .fillColor(INK)
+    .fillColor(WHITE)
+    .font("Helvetica-Bold")
+    .fontSize(16)
+    .text(traderName, M + 58, 32, {
+      width: 260,
+      lineBreak: false,
+    });
+
+  const metaLine = profile.vat_number
+    ? `VAT No. ${safeText(profile.vat_number)}`
+    : "Trusted local professionals";
+
+  doc
+    .fillColor("#BFD0EA")
+    .font("Helvetica")
+    .fontSize(8.5)
+    .text(metaLine, M + 58, 52, {
+      width: 300,
+      lineBreak: false,
+    });
+
+  doc
+    .fillColor("#A9BAD8")
+    .font("Helvetica-Bold")
+    .fontSize(7)
+    .text("DOCUMENT", PAGE_W - M - 120, 30, {
+      width: 120,
+      align: "right",
+      characterSpacing: 1,
+    });
+
+  doc
+    .fillColor(WHITE)
     .font("Helvetica-Bold")
     .fontSize(26)
-    .text("Invoice", left, 42);
-
-  // Ref/date/due pill
-  const pillW = 220;
-  const pillH = 70;
-  const pillX = left + contentW - pillW;
-  const pillY = 34;
-
-  doc
-    .roundedRect(pillX, pillY, pillW, pillH, 12)
-    .fill("#FFFFFF")
-    .strokeColor(BORDER)
-    .stroke();
-
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(8)
-    .text("REF", pillX + 14, pillY + 12);
-
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(12)
-    .text(displayRef, pillX + 64, pillY + 10);
-
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(8)
-    .text("DATE", pillX + 14, pillY + 30);
-
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text(created.toLocaleDateString("en-GB"), pillX + 64, pillY + 28);
-
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(8)
-    .text("DUE", pillX + 14, pillY + 48);
-
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text(dueDate ? dueDate.toLocaleDateString("en-GB") : "—", pillX + 64, pillY + 46);
-
-  // Trader row
-  const traderTop = 104;
-  const logoBox = 74;
-
-  doc
-    .roundedRect(left, traderTop, logoBox, logoBox, 16)
-    .fill("#FFFFFF")
-    .strokeColor(BORDER)
-    .stroke();
-
-  if (logoBuf) {
-    try {
-      doc.image(logoBuf, left + 10, traderTop + 10, {
-        fit: [logoBox - 20, logoBox - 20],
-        align: "center",
-        valign: "center",
-      });
-    } catch {}
-  }
-
-  const traderTextX = left + logoBox + 16;
-
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(20)
-    .text(traderName, traderTextX, traderTop + 10);
-
-  const traderLines = [vatNumber ? `VAT: ${vatNumber}` : ""].filter(Boolean);
-
-  if (traderLines.length) {
-    doc
-      .fillColor(MUTED)
-      .font("Helvetica")
-      .fontSize(10)
-      .text(traderLines.join("\n"), traderTextX, traderTop + 36, {
-        width: contentW - (logoBox + 16),
-      });
-  }
-
-  const dividerY = traderTop + logoBox + 18;
-  doc
-    .moveTo(left, dividerY)
-    .lineTo(left + contentW, dividerY)
-    .strokeColor(BORDER)
-    .lineWidth(1)
-    .stroke();
-
-  // Cards
-  const cardY = dividerY + 18;
-  const cardH = 118;
-  const gap = 16;
-  const cardW = (contentW - gap) / 2;
-  const customerX = left;
-  const jobX = left + cardW + gap;
-
-  doc
-    .roundedRect(customerX, cardY, cardW, cardH, 14)
-    .fill(SOFT)
-    .strokeColor(BORDER)
-    .stroke();
-
-  doc
-    .roundedRect(jobX, cardY, cardW, cardH, 14)
-    .fill(SOFT)
-    .strokeColor(BORDER)
-    .stroke();
-
-  // Customer card
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("CUSTOMER", customerX + 14, cardY + 12);
-
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(12)
-    .text(custName, customerX + 14, cardY + 30, {
-      width: cardW - 28,
-    });
-
-  doc
-    .fillColor(INK)
-    .font("Helvetica")
-    .fontSize(9)
-    .text([custAddr, custEmail, custPhone].filter(Boolean).join("\n"), customerX + 14, cardY + 50, {
-      width: cardW - 28,
-    });
-
-  // Job card
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("JOB", jobX + 14, cardY + 12);
-
-  if (jobNumber) {
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text(jobNumber, jobX + 14, cardY + 30, {
-        width: cardW - 28,
-      });
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica")
-      .fontSize(10)
-      .text(jobType, jobX + 14, cardY + 48, {
-        width: cardW - 28,
-      });
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica")
-      .fontSize(9)
-      .text(postcode ? `Postcode: ${postcode}` : "—", jobX + 14, cardY + 68, {
-        width: cardW - 28,
-      });
-
-    if (dueDate) {
-      doc
-        .fillColor(INK)
-        .font("Helvetica")
-        .fontSize(9)
-        .text(`Due: ${formatDate(dueDate?.toISOString())}`, jobX + 14, cardY + 86, {
-          width: cardW - 28,
-        });
-    }
-  } else {
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text(jobType, jobX + 14, cardY + 30, {
-        width: cardW - 28,
-      });
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica")
-      .fontSize(9)
-      .text(postcode ? `Postcode: ${postcode}` : "—", jobX + 14, cardY + 52, {
-        width: cardW - 28,
-      });
-
-    if (dueDate) {
-      doc
-        .fillColor(INK)
-        .font("Helvetica")
-        .fontSize(9)
-        .text(`Due: ${formatDate(q.due_at)}`, jobX + 14, cardY + 72, {
-          width: cardW - 28,
-        });
-    }
-  }
-
-  // Work description
-  const descY = cardY + cardH + 20;
-
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("WORK DESCRIPTION", left, descY);
-
-  const descBoxY = descY + 14;
-  const descBoxH = 170;
-
-  doc
-    .roundedRect(left, descBoxY, contentW, descBoxH, 16)
-    .fill("#FFFFFF")
-    .strokeColor(BORDER)
-    .stroke();
-
-  doc
-    .fillColor(INK)
-    .font("Helvetica")
-    .fontSize(11)
-    .text(details, left + 14, descBoxY + 14, {
-      width: contentW - 28,
-      height: descBoxH - 28,
-    });
-
-  // Totals
-  const sumY = descBoxY + descBoxH + 40;
-
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("SUMMARY", left, sumY);
-
-  const totalsX = left + contentW - 240;
-  const totalsY = sumY - 8;
-
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica")
-    .fontSize(10)
-    .text("Subtotal", totalsX, totalsY + 20);
-
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(10)
-    .text(money(subtotal), totalsX, totalsY + 20, {
-      width: 240,
+    .text("Invoice", PAGE_W - M - 140, 44, {
+      width: 140,
       align: "right",
+      lineBreak: false,
     });
 
-  if (vatRate > 0) {
-    doc
-      .fillColor(MUTED)
-      .font("Helvetica")
-      .fontSize(10)
-      .text(`VAT (${vatRate}%)`, totalsX, totalsY + 44);
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(10)
-      .text(money(vatAmount), totalsX, totalsY + 44, {
-        width: 240,
-        align: "right",
-      });
-
-    doc
-      .moveTo(totalsX, totalsY + 68)
-      .lineTo(totalsX + 240, totalsY + 68)
-      .strokeColor(BORDER)
-      .stroke();
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text("Total", totalsX, totalsY + 82);
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(16)
-      .text(money(total), totalsX, totalsY + 78, {
-        width: 240,
-        align: "right",
-      });
-  } else {
-    doc
-      .moveTo(totalsX, totalsY + 46)
-      .lineTo(totalsX + 240, totalsY + 46)
-      .strokeColor(BORDER)
-      .stroke();
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(12)
-      .text("Total", totalsX, totalsY + 60);
-
-    doc
-      .fillColor(INK)
-      .font("Helvetica-Bold")
-      .fontSize(16)
-      .text(money(total), totalsX, totalsY + 56, {
-        width: 240,
-        align: "right",
-      });
-  }
-
-// Certificates & trust
-let bankY = sumY + 110;
-
-if (certificates.length > 0) {
-  const certRows = certificates.slice(0, 3);
-
   doc
-    .fillColor(MUTED)
-    .font("Helvetica-Bold")
-    .fontSize(9)
-    .text("CERTIFICATES & TRUST", left, bankY);
+    .save()
+    .moveTo(M, 84)
+    .lineTo(M + W, 84)
+    .strokeColor("#29466F")
+    .lineWidth(0.75)
+    .stroke()
+    .restore();
 
-  const certBoxY = bankY + 14;
-  const certBoxH = 48 + certRows.length * 18;
+  const metaCols = [
+    ["Invoice no.", invoiceNumber],
+    ["Date issued", createdAt || "—"],
+   ["Due date", dueDateText],
+    ["Job type", jobType],
+  ];
 
-  doc
-    .roundedRect(left, certBoxY, contentW, certBoxH, 16)
-    .fill("#FFFFFF")
-    .strokeColor(BORDER)
-    .stroke();
+  const colW = W / 4;
 
-  let certY = certBoxY + 14;
-
-  certRows.forEach((c) => {
-    const certName = String(c.name || "").trim();
-    const certNo = String(c.certificate_number || "").trim();
-    const expiry = formatDate(c.expiry_date);
-
-    const line = [
-      certName ? `✓ ${certName}` : "",
-      certNo ? `No. ${certNo}` : "",
-      expiry ? `Valid until ${expiry}` : "",
-    ]
-      .filter(Boolean)
-      .join(" • ");
+  metaCols.forEach(([label, value], i) => {
+    const cx = M + colW * i;
 
     doc
-      .fillColor(INK)
-      .font("Helvetica")
-      .fontSize(10)
-      .text(line, left + 14, certY, {
-        width: contentW - 28,
+      .fillColor("#A9BAD8")
+      .font("Helvetica-Bold")
+      .fontSize(7)
+      .text(label.toUpperCase(), cx, 96, {
+        width: colW - 8,
+        characterSpacing: 1,
+        lineBreak: false,
       });
 
-    certY += 18;
+    doc
+      .fillColor("#F8FBFF")
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .text(value, cx, 111, {
+        width: colW - 8,
+        lineBreak: false,
+      });
   });
 
-  bankY = certBoxY + certBoxH + 22;
-}
+  let y = HEADER_H + 36;
 
-// Bank details
+  const halfW = (W - 1) / 2;
+
+  eyebrow("From", M, y, halfW);
+
+  doc
+    .fillColor(NAVY_MID)
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .text(traderName, M, y + 16, {
+      width: halfW,
+      lineBreak: false,
+    });
+
+  const businessAddress = cleanAddress(profile.business_address);
+
+  const fromLines = [
+    safeText(profile.business_phone),
+    safeText(profile.business_email),
+    businessAddress,
+    profile.vat_number ? `VAT No. ${safeText(profile.vat_number)}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica")
+    .fontSize(9)
+    .text(fromLines || "Contact details available on request", M, y + 34, {
+      width: halfW,
+      lineGap: 2,
+    });
+
+  eyebrow("Bill to", M + halfW + 1, y, halfW, "right");
+
+  doc
+    .fillColor(NAVY_MID)
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .text(customerName, M + halfW + 1, y + 16, {
+      width: halfW,
+      align: "right",
+      lineBreak: false,
+    });
+
+const toLines = [
+  address,
+  addressIncludesPostcode(address, postcode) ? "" : postcode,
+  customerEmail,
+  customerPhone,
+]
+  .filter(Boolean)
+  .join("\n");
+
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica")
+    .fontSize(9)
+    .text(toLines || "—", M + halfW + 1, y + 33, {
+      width: halfW,
+      align: "right",
+      lineGap: 2,
+    });
+
+  doc
+    .save()
+    .moveTo(M + halfW, y)
+    .lineTo(M + halfW, y + 80)
+    .strokeColor(BORDER)
+    .lineWidth(0.75)
+    .stroke()
+    .restore();
+
+  y += 100;
+
+  rBox(M, y, W, 80, 14, SOFT_BLUE, "#C7D9FF", 0.75);
+
+  eyebrow("Amount due", M + 20, y + 16, 160);
+
+  doc
+    .fillColor(NAVY)
+    .font("Helvetica-Bold")
+    .fontSize(34)
+    .text(money(total), M + 20, y + 30, {
+      width: 260,
+      lineBreak: false,
+    });
+
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica")
+    .fontSize(9)
+    .text(dueDate ? `Payment due by ${dueDate}` : dueDateText, M + 20, y + 64, {
+      width: W - 180,
+      lineBreak: false,
+    });
+
+  const badge = invoiceStatusLabel(invoice.status);
+
+  if (badge) {
+    rBox(M + W - 156, y + 26, 138, 28, 14, NAVY, NAVY, 0);
+
+    doc
+      .fillColor(WHITE)
+      .font("Helvetica-Bold")
+      .fontSize(8)
+      .text(badge, M + W - 150, y + 36, {
+        width: 126,
+        align: "center",
+        characterSpacing: 0.5,
+        lineBreak: false,
+      });
+  }
+
+  y += 104;
+
+  eyebrow("Invoice breakdown", M, y, W);
+  y += 18;
+
+  const ROW_H = 52;
+  const HEAD_H = 26;
+  const TABLE_H = HEAD_H + breakdown.length * ROW_H;
+
+  rBox(M, y, W, TABLE_H, 10, WHITE, BORDER);
+
+  doc.save();
+  doc.roundedRect(M, y, W, TABLE_H, 10).clip();
+  doc.rect(M, y, W, HEAD_H).fillColor(SOFT).fill();
+  doc.restore();
+
+  doc
+    .fillColor(FAINT)
+    .font("Helvetica-Bold")
+    .fontSize(7)
+    .text("DESCRIPTION", M + 16, y + 10, {
+      width: W - 130,
+      characterSpacing: 1,
+      lineBreak: false,
+    });
+
+  doc.text("QTY", M + W - 110, y + 10, {
+    width: 30,
+    align: "center",
+    characterSpacing: 1,
+    lineBreak: false,
+  });
+
+  doc.text("AMOUNT", M + W - 70, y + 10, {
+    width: 54,
+    align: "right",
+    characterSpacing: 1,
+    lineBreak: false,
+  });
+
+  hRule(y + HEAD_H);
+
+  breakdown.forEach((item, i) => {
+    const ry = y + HEAD_H + i * ROW_H;
+
+    if (i > 0) hRule(ry, BORDER, 0.5);
+
+    doc
+      .fillColor(NAVY_MID)
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text(item.label, M + 16, ry + 12, {
+        width: W - 140,
+        lineBreak: false,
+      });
+
+    doc
+      .fillColor(FAINT)
+      .font("Helvetica")
+      .fontSize(8)
+      .text(item.description, M + 16, ry + 27, {
+        width: W - 140,
+        height: 18,
+        ellipsis: true,
+      });
+
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(9)
+      .text(String(item.qty || 1), M + W - 110, ry + 18, {
+        width: 30,
+        align: "center",
+        lineBreak: false,
+      });
+
+    doc
+      .fillColor(INK)
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text(money(item.value), M + W - 74, ry + 18, {
+        width: 58,
+        align: "right",
+        lineBreak: false,
+      });
+  });
+
+  y += TABLE_H + 24;
+
+  const totX = M + W - 200;
+  const totW = 200;
+  const labW = 100;
+  const valX = totX + labW;
+  const valW = 100;
 
   doc
     .fillColor(MUTED)
     .font("Helvetica-Bold")
     .fontSize(9)
-    .text("BANK DETAILS", left, bankY);
+    .text("Subtotal", totX, y, {
+      width: labW,
+      lineBreak: false,
+    });
 
   doc
-    .roundedRect(left, bankY + 14, contentW, 60, 16)
-    .fill("#FFFFFF")
-    .strokeColor(BORDER)
-    .stroke();
+    .fillColor(NAVY_MID)
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .text(money(subtotal), valX, y, {
+      width: valW,
+      align: "right",
+      lineBreak: false,
+    });
+
+  y += 20;
+
+  if (vat > 0) {
+    hRule(y - 5, BORDER, 0.5);
+
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .text(vatRate > 0 ? `VAT (${vatRate}%)` : "VAT", totX, y, {
+        width: labW,
+        lineBreak: false,
+      });
+
+    doc
+      .fillColor(NAVY_MID)
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text(money(vat), valX, y, {
+        width: valW,
+        align: "right",
+        lineBreak: false,
+      });
+
+    y += 24;
+  }
+
+  hRule(y - 6, BORDER);
 
   doc
     .fillColor(INK)
-    .font("Helvetica")
-    .fontSize(10)
-    .text(
-      [
-        "Account name: YOUR BUSINESS NAME",
-        "Sort code: XX-XX-XX",
-        "Account number: XXXXXXXX",
-        `Reference: ${displayRef}`,
-      ].join("\n"),
-      left + 14,
-      bankY + 24,
-      { width: contentW - 28 }
-    );
+    .font("Helvetica-Bold")
+    .fontSize(11)
+    .text("Total", totX, y, {
+      width: labW,
+      lineBreak: false,
+    });
 
   doc
-    .fillColor(MUTED)
+    .fillColor(NAVY)
+    .font("Helvetica-Bold")
+    .fontSize(20)
+    .text(money(total), totX, y - 4, {
+      width: totW,
+      align: "right",
+      lineBreak: false,
+    });
+
+  y += 36;
+
+  if (invoice.status !== "paid" && y < PAGE_H - 110) {
+    rBox(M, y, W, 66, 14, NAVY, NAVY, 0);
+
+    doc
+      .fillColor(WHITE)
+      .font("Helvetica-Bold")
+      .fontSize(11)
+      .text("Ready to pay?", M + 20, y + 16, {
+        width: W - 40,
+        lineBreak: false,
+      });
+
+    doc
+      .fillColor("#C9D8F0")
+      .font("Helvetica")
+      .fontSize(8.5)
+      .text(
+        "Please return to your email and use the payment button to pay this invoice securely.",
+        M + 20,
+        y + 36,
+        {
+          width: W - 40,
+          lineBreak: false,
+        }
+      );
+
+    y += 88;
+  }
+
+  if (description && y < PAGE_H - 150) {
+    rBox(M, y, W, 68, 12, SOFT, BORDER);
+
+    eyebrow("Notes", M + 16, y + 14, W - 32);
+
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(8.8)
+      .text(description, M + 16, y + 32, {
+        width: W - 32,
+        height: 26,
+        ellipsis: true,
+      });
+
+    y += 84;
+  }
+
+  if (certificates.length > 0 && y < PAGE_H - 100) {
+    let pillX = M;
+    const pillY = y;
+
+    certificates.slice(0, 3).forEach((c) => {
+      const name = safeText(c.name);
+      const certNo = safeText(c.certificate_number);
+      const expiry = shortDate(c.expiry_date);
+
+      const parts = [
+        name,
+        certNo ? `No. ${certNo}` : "",
+        expiry ? `Exp ${expiry}` : "",
+      ].filter(Boolean);
+
+      const label = parts.join("  ·  ");
+      const pillW = Math.min(240, Math.max(130, label.length * 5.4 + 28));
+
+      rBox(pillX, pillY, pillW, 24, 12, WHITE, BORDER);
+
+      doc
+        .fillColor(NAVY_MID)
+        .font("Helvetica-Bold")
+        .fontSize(7.5)
+        .text(label, pillX + 14, pillY + 8, {
+          width: pillW - 24,
+          lineBreak: false,
+        });
+
+      pillX += pillW + 8;
+    });
+  }
+
+  hRule(PAGE_H - 52, BORDER, 0.75);
+
+  doc
+    .fillColor("#B0BAC9")
+    .font("Helvetica-Bold")
+    .fontSize(8)
+    .text("Powered by FixFlow", M, PAGE_H - 36, {
+      width: 160,
+      lineBreak: false,
+    });
+
+  doc
+    .fillColor("#C8D3E0")
     .font("Helvetica")
-    .fontSize(9)
+    .fontSize(7.5)
     .text(
-      dueDate
-        ? `Payment due by ${formatDate(q.due_at)}. Thank you for your business.`
-        : "Thank you for your business.",
-      left,
-      bankY + 88,
-      { width: contentW }
+      "This invoice reflects the work and charges agreed for the completed job.",
+      PAGE_W - M - 420,
+      PAGE_H - 36,
+      {
+        width: 420,
+        align: "right",
+        lineBreak: false,
+      }
     );
 
   doc.end();

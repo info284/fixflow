@@ -1485,22 +1485,39 @@ const certificateWarnings = useMemo(() => {
 </div>
 
 {pageMsg ? <div className="ff-msg">{pageMsg}</div> : null}
+<div className="ff-stack">
+  <form id="profileForm" onSubmit={handleSave} className="ff-card">
+    <div className="ff-cardHead">
+      <div className="ff-cardHeading">
+        <div className="ff-cardAccent" />
+        <div>
+          <div className="ff-cardTitle">BUSINESS PROFILE</div>
+          <div className="ff-cardSub">
+            These details appear on your public page and branded documents.
+          </div>
+        </div>
+      </div>
+    </div>
 
-        <div className="ff-stack">
-          <form id="profileForm" onSubmit={handleSave} className="ff-card">
-            <div className="ff-cardHead">
-              <div className="ff-cardHeading">
-                <div className="ff-cardAccent" />
-                <div>
-                  <div className="ff-cardTitle">BUSINESS PROFILE</div>
-                  <div className="ff-cardSub">
-                    These details appear on your public page and branded documents.
-                  </div>
-                </div>
-              </div>
-            </div>
+    {(!displayName.trim() ||
+      !tradingAddress.trim() ||
+      !businessPhone.trim() ||
+      !notifyEmail.trim()) && (
+      <div className="ff-docWarning">
+        <div className="ff-docWarningTitle">
+          Important for estimates & invoices
+        </div>
 
-            <div className="ff-cardBody">
+        <div className="ff-docWarningText">
+          Your business name, trading address, phone number and email
+          appear on customer estimates and invoices. Add them here so
+          your documents look professional.
+        </div>
+      </div>
+    )}
+
+    <div className="ff-cardBody">
+
               {profileMsg ? <div className="ff-inlineMsg">{profileMsg}</div> : null}
 
               <div className="ff-profileTop">
@@ -2569,6 +2586,27 @@ const certificateWarnings = useMemo(() => {
 }
 
 const styles = `
+
+.ff-docWarning{
+  margin:16px 20px 0;
+  padding:14px;
+  border-radius:16px;
+  border:1px solid #ffd6a8;
+  background:#fff7ed;
+}
+
+.ff-docWarningTitle{
+  font-size:12px;
+  font-weight:950;
+  color:#9a4d00;
+  margin-bottom:6px;
+}
+
+.ff-docWarningText{
+  font-size:12px;
+  line-height:1.45;
+  color:#9a4d00;
+}
 .ff-msg{
   border:1px solid #e6ecf5;
   background:#fff;

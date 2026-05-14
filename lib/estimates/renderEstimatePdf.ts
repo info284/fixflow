@@ -22,16 +22,31 @@ type RenderEstimatePdfOpts = {
     display_name?: string | null;
     logo_url?: string | null;
     logo_buffer?: Buffer | null;
+    vat_number?: string | null;
+    business_phone?: string | null;
+business_email?: string | null;
+business_address?: string | null;
   } | null;
 };
 
-function money(n?: number | null) {
-  const x = Number(n || 0);
-  return `£${x.toFixed(2)}`;
-}
-
 function safeText(v?: string | null) {
   return String(v || "").trim();
+}
+
+function cleanAddress(v?: string | null) {
+  return safeText(v)
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function money(n?: number | null) {
+  const x = Number(n || 0);
+  return `£${x.toLocaleString("en-GB", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
 function formatPostcode(pc?: string | null) {
@@ -41,11 +56,24 @@ function formatPostcode(pc?: string | null) {
   return clean.slice(0, -3) + " " + clean.slice(-3);
 }
 
+function addressIncludesPostcode(address: string, postcode: string) {
+  if (!address || !postcode) return false;
+
+  const a = address.replace(/\s+/g, "").toUpperCase();
+  const p = postcode.replace(/\s+/g, "").toUpperCase();
+
+  return a.includes(p);
+}
+
 function shortDate(v?: string | null) {
   if (!v) return "";
   const d = new Date(v);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-GB");
+  return d.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 async function fetchImageBuffer(url: string): Promise<Buffer | null> {
@@ -55,8 +83,10 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   try {
     const res = await fetch(u, { cache: "no-store" });
     if (!res.ok) return null;
+
     const arr = await res.arrayBuffer();
     const buf = Buffer.from(arr);
+
     if (!buf || buf.length < 200) return null;
     return buf;
   } catch {
@@ -64,96 +94,15 @@ async function fetchImageBuffer(url: string): Promise<Buffer | null> {
   }
 }
 
-function splitParagraphs(text: string) {
-  return String(text || "")
-    .replace(/\r/g, "")
-    .split("\n")
-    .map((p) => p.trim())
-    .filter(Boolean);
-}
+function statusLabel(status?: string | null) {
+  const s = safeText(status).toLowerCase();
 
-function splitWords(text: string) {
-  return String(text || "").trim().split(/\s+/).filter(Boolean);
-}
+  if (s === "accepted" || s === "approved") return "APPROVED";
+  if (s === "sent") return "AWAITING APPROVAL";
+if (s === "draft") return "";
+  if (s === "expired") return "EXPIRED";
 
-function fitWordsToLine(
-  doc: PDFKit.PDFDocument,
-  words: string[],
-  maxWidth: number
-) {
-  let line = "";
-  let used = 0;
-
-  while (used < words.length) {
-    const test = line ? `${line} ${words[used]}` : words[used];
-    if (doc.widthOfString(test) <= maxWidth) {
-      line = test;
-      used += 1;
-    } else {
-      break;
-    }
-  }
-
-  if (!line && words[0]) {
-    let raw = words[0];
-    while (raw.length > 1 && doc.widthOfString(`${raw}…`) > maxWidth) {
-      raw = raw.slice(0, -1);
-    }
-    return { line: `${raw}…`, used: 1 };
-  }
-
-  return { line, used };
-}
-
-function truncateLines(
-  doc: PDFKit.PDFDocument,
-  text: string,
-  maxWidth: number,
-  maxLines: number
-) {
-  const paragraphs = splitParagraphs(text);
-  if (!paragraphs.length) return [];
-
-  const lines: string[] = [];
-
-  for (const paragraph of paragraphs) {
-    const words = splitWords(paragraph);
-    let index = 0;
-
-    while (index < words.length && lines.length < maxLines) {
-      const fitted = fitWordsToLine(doc, words.slice(index), maxWidth);
-      lines.push(fitted.line);
-      index += fitted.used;
-    }
-
-    if (lines.length >= maxLines) break;
-  }
-
-  if (paragraphs.length && lines.length > maxLines) {
-    lines.length = maxLines;
-  }
-
-  return lines.slice(0, maxLines);
-}
-
-function drawLines(
-  doc: PDFKit.PDFDocument,
-  text: string,
-  x: number,
-  y: number,
-  width: number,
-  maxLines: number,
-  lineHeight: number,
-  align: "left" | "center" | "right" = "left"
-) {
-  const lines = truncateLines(doc, text, width, maxLines);
-  lines.forEach((line, i) => {
-    doc.text(line, x, y + i * lineHeight, {
-      width,
-      align,
-      lineBreak: false,
-    });
-  });
+  return "AWAITING APPROVAL";
 }
 
 export async function renderEstimatePdfBuffer(opts: RenderEstimatePdfOpts) {
@@ -161,14 +110,14 @@ export async function renderEstimatePdfBuffer(opts: RenderEstimatePdfOpts) {
   const items = Array.isArray(opts.items) ? opts.items : [];
   const profile = opts.profile || {};
 
-const certificates = Array.isArray(opts.certificates)
-  ? opts.certificates.filter((c) => c?.show_on_estimates !== false)
-  : [];
+  const certificates = Array.isArray(opts.certificates)
+    ? opts.certificates.filter((c) => c?.show_on_estimates !== false)
+    : [];
 
   const traderName =
     safeText(profile.business_name) ||
     safeText(profile.display_name) ||
-    "Your trader";
+    "Your Trader";
 
   const logoBuf =
     profile.logo_buffer ||
@@ -176,11 +125,11 @@ const certificates = Array.isArray(opts.certificates)
       ? await fetchImageBuffer(safeText(profile.logo_url))
       : null);
 
- const estimateNumber =
-  safeText(estimate.job_number) ||
-  safeText(estimate.trader_ref) ||
-  safeText(estimate.id).slice(0, 8) ||
-  "Estimate";
+  const estimateNumber =
+    safeText(estimate.job_number) ||
+    safeText(estimate.trader_ref) ||
+    safeText(estimate.id).slice(0, 8) ||
+    "Estimate";
 
   const createdAt = shortDate(estimate.created_at);
   const validUntil = shortDate(estimate.valid_until);
@@ -188,15 +137,10 @@ const certificates = Array.isArray(opts.certificates)
   const customerName = safeText(estimate.customer_name) || "Customer";
   const customerEmail = safeText(estimate.customer_email);
   const customerPhone = safeText(estimate.customer_phone);
-  const address = safeText(estimate.address);
+const address = cleanAddress(estimate.address);
   const postcode = formatPostcode(estimate.postcode);
 
-  const jobNumber =
-  safeText(estimate.job_number) ||
-  safeText(estimate.trader_ref) ||
-  "—";
   const jobType = safeText(estimate.job_type) || "Estimate";
-
   const customerMessage = safeText(estimate.customer_message);
   const includedNotes = safeText(estimate.included_notes);
   const excludedNotes = safeText(estimate.excluded_notes);
@@ -207,22 +151,49 @@ const certificates = Array.isArray(opts.certificates)
   const total = Number(estimate.total || subtotal + vat);
 
   const fallbackBreakdown = [
-    { label: "Labour", qty: 1, value: Number(estimate.labour || 0) },
-    { label: "Materials", qty: 1, value: Number(estimate.materials || 0) },
-    { label: "Callout fee", qty: 1, value: Number(estimate.callout || 0) },
-    { label: "Parts", qty: 1, value: Number(estimate.parts || 0) },
-    { label: "Other", qty: 1, value: Number(estimate.other || 0) },
+    {
+      label: "Labour",
+      description: "Labour and workmanship",
+      qty: 1,
+      value: Number(estimate.labour || 0),
+    },
+    {
+      label: "Materials",
+      description: "Materials, parts and supplies",
+      qty: 1,
+      value: Number(estimate.materials || 0),
+    },
+    {
+      label: "Callout fee",
+      description: "Callout and attendance",
+      qty: 1,
+      value: Number(estimate.callout || 0),
+    },
+    {
+      label: "Parts",
+      description: "Parts required for the work",
+      qty: 1,
+      value: Number(estimate.parts || 0),
+    },
+    {
+      label: "Other",
+      description: "Additional quoted costs",
+      qty: 1,
+      value: Number(estimate.other || 0),
+    },
   ].filter((x) => x.value > 0);
 
   const itemBreakdown = items
     .map((item) => ({
       label: safeText(item.title) || "Item",
+      description: "",
       qty: Number(item.quantity || 1),
       value: Number(item.line_total || 0),
     }))
     .filter((x) => x.value > 0);
 
-  const breakdown = (itemBreakdown.length ? itemBreakdown : fallbackBreakdown).slice(0, 5);
+  const breakdown = (itemBreakdown.length ? itemBreakdown : fallbackBreakdown)
+    .slice(0, 6);
 
   const doc = new PDFDocument({
     size: "A4",
@@ -242,52 +213,80 @@ const certificates = Array.isArray(opts.certificates)
   const PAGE_W = doc.page.width;
   const PAGE_H = doc.page.height;
 
+  const NAVY = "#0B2A55";
+  const NAVY_MID = "#1F355C";
+  const BLUE = "#245BFF";
   const INK = "#0B1320";
-  const NAVY = "#243B6B";
-  const MUTED = "#67748E";
-  const BORDER = "#D9E0EC";
-  const SOFT_BORDER = "#E6EBF3";
-  const PAGE_BG = "#F5F7FB";
-  const PANEL_BG = "#EEF3FB";
-  const CARD_BG = "#FFFFFF";
-  const SOFT_BOX = "#F7F9FC";
-  const SOFT_BLUE = "#F3F6FB";
+  const MUTED = "#5C6B84";
+  const FAINT = "#8A94A6";
+  const BORDER = "#E6ECF5";
+  const SOFT = "#F8FAFD";
+  const SOFT_BLUE = "#EEF3FF";
+  const WHITE = "#FFFFFF";
 
-  const OUTER = 34;
-  const CARD_X = 54;
-  const CARD_Y = 44;
-  const CARD_W = PAGE_W - CARD_X * 2;
-  const INNER = 18;
+  const M = 52;
+  const W = PAGE_W - M * 2;
 
-  function roundedBox(
+  function hRule(y: number, colour = BORDER, lw = 0.75) {
+    doc
+      .save()
+      .moveTo(M, y)
+      .lineTo(M + W, y)
+      .strokeColor(colour)
+      .lineWidth(lw)
+      .stroke()
+      .restore();
+  }
+
+  function rBox(
     x: number,
     y: number,
     w: number,
     h: number,
-    radius = 18,
-    fill = CARD_BG,
-    stroke = SOFT_BORDER
+    r = 10,
+    fill = WHITE,
+    strokeCol = BORDER,
+    lw = 0.75
   ) {
     doc.save();
-    doc.roundedRect(x, y, w, h, radius).fill(fill);
-    doc.roundedRect(x, y, w, h, radius).lineWidth(1).strokeColor(stroke).stroke();
+    doc.roundedRect(x, y, w, h, r).fillColor(fill).fill();
+
+    if (lw > 0) {
+      doc
+        .roundedRect(x, y, w, h, r)
+        .lineWidth(lw)
+        .strokeColor(strokeCol)
+        .stroke();
+    }
+
     doc.restore();
   }
 
-  function label(text: string, x: number, y: number) {
+  function eyebrow(
+    text: string,
+    x: number,
+    y: number,
+    w: number,
+    align: "left" | "right" = "left"
+  ) {
     doc
-      .fillColor(MUTED)
+      .fillColor(FAINT)
       .font("Helvetica-Bold")
-      .fontSize(10)
-      .text(text.toUpperCase(), x, y, { lineBreak: false });
+      .fontSize(7)
+      .text(text.toUpperCase(), x, y, {
+        width: w,
+        align,
+        characterSpacing: 1.1,
+        lineBreak: false,
+      });
   }
 
-  function drawLogoBox(x: number, y: number, size = 56) {
+  function drawLogo(x: number, y: number, size = 44) {
     if (logoBuf) {
       try {
-        roundedBox(x, y, size, size, 14, "#FFFFFF", "#DCE3EF");
-        doc.image(logoBuf, x + 8, y + 8, {
-          fit: [size - 16, size - 16],
+        rBox(x, y, size, size, 10, WHITE, BORDER);
+        doc.image(logoBuf, x + 6, y + 6, {
+          fit: [size - 12, size - 12],
           align: "center",
           valign: "center",
         });
@@ -297,274 +296,534 @@ const certificates = Array.isArray(opts.certificates)
       }
     }
 
-    roundedBox(x, y, size, size, 14, SOFT_BLUE, BORDER);
+    rBox(x, y, size, size, 10, SOFT_BLUE, BORDER);
+
     doc
       .fillColor(NAVY)
       .font("Helvetica-Bold")
-      .fontSize(22)
-      .text(traderName.charAt(0).toUpperCase(), x, y + 16, {
+      .fontSize(18)
+      .text(traderName.charAt(0).toUpperCase(), x, y + 12, {
         width: size,
         align: "center",
         lineBreak: false,
       });
   }
 
-  // Backgrounds
-  doc.rect(0, 0, PAGE_W, PAGE_H).fill(PAGE_BG);
-  roundedBox(
-    OUTER,
-    OUTER,
-    PAGE_W - OUTER * 2,
-    PAGE_H - OUTER * 2,
-    26,
-    PANEL_BG,
-    PANEL_BG
-  );
- 
-const CARD_BOTTOM_PADDING = 14;
-
-roundedBox(
-  CARD_X,
-  CARD_Y,
-  CARD_W,
-  PAGE_H - CARD_Y - CARD_BOTTOM_PADDING,
-  22,
-  CARD_BG,
- "#DCE3EF"
-);
-  const x = CARD_X + INNER;
-  const w = CARD_W - INNER * 2;
-  let y = CARD_Y + 14;
-
-  // Title
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(24).text("Estimate", x, y, {
-    lineBreak: false,
-  });
-  y += 44;
+  // Background
+  doc.rect(0, 0, PAGE_W, PAGE_H).fillColor(WHITE).fill();
 
   // Header
-const headerH = 88;
+  const HEADER_H = 148;
 
-roundedBox(x, y, w, headerH, 18, "#FFFFFF", "#DCE3EF");
+  doc.rect(0, 0, PAGE_W, HEADER_H).fillColor(NAVY).fill();
 
-drawLogoBox(x + 14, y + 16, 56);
 
-doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(18);
-drawLines(doc, traderName, x + 84, y + 18, w - 240, 1, 20);
 
-doc.fillColor(MUTED).font("Helvetica").fontSize(11);
-drawLines(doc, `Estimate no. ${estimateNumber}`, x + 84, y + 46, w - 240, 1, 14);
 
-doc.fillColor(MUTED).font("Helvetica").fontSize(10);
-if (createdAt) {
-  drawLines(doc, `Created ${createdAt}`, x + w - 140, y + 18, 120, 1, 12, "right");
-}
-if (validUntil) {
-  drawLines(doc, `Valid until ${validUntil}`, x + w - 140, y + 42, 120, 1, 12, "right");
-}
+  drawLogo(M, 28, 44);
 
-  y += headerH + 16;
+  doc
+    .fillColor(WHITE)
+    .font("Helvetica-Bold")
+    .fontSize(16)
+    .text(traderName, M + 58, 32, {
+      width: 260,
+      lineBreak: false,
+    });
 
-  // Customer + Job
-  const gap = 14;
-  const colW = (w - gap) / 2;
-  const infoH = 112;
+  const metaLine = profile.vat_number
+    ? `VAT No. ${safeText(profile.vat_number)}`
+    : "Trusted local professionals";
 
-  roundedBox(x, y, colW, infoH, 18, SOFT_BOX, SOFT_BORDER);
-  roundedBox(x + colW + gap, y, colW, infoH, 18, SOFT_BOX, SOFT_BORDER);
+  doc
+    .fillColor("#BFD0EA")
+    .font("Helvetica")
+    .fontSize(8.5)
+    .text(metaLine, M + 58, 52, {
+      width: 300,
+      lineBreak: false,
+    });
 
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(12);
-  drawLines(doc, customerName, x + 16, y + 26, colW - 32, 1, 16, "center");
+  doc
+    .fillColor("#A9BAD8")
+    .font("Helvetica-Bold")
+    .fontSize(7)
+    .text("DOCUMENT", PAGE_W - M - 120, 30, {
+      width: 120,
+      align: "right",
+      characterSpacing: 1,
+    });
 
-  doc.fillColor(INK).font("Helvetica").fontSize(10);
- const customerBlock = [address, postcode, customerEmail, customerPhone]
+  doc
+    .fillColor(WHITE)
+    .font("Helvetica-Bold")
+    .fontSize(26)
+    .text("Estimate", PAGE_W - M - 140, 44, {
+      width: 140,
+      align: "right",
+      lineBreak: false,
+    });
+
+  doc
+    .save()
+    .moveTo(M, 84)
+    .lineTo(M + W, 84)
+    .strokeColor("#29466F")
+    .lineWidth(0.75)
+    .stroke()
+    .restore();
+
+  const metaCols = [
+    ["Estimate no.", estimateNumber],
+    ["Date issued", createdAt || "—"],
+    ["Valid until", validUntil || "—"],
+    ["Job type", jobType],
+  ];
+
+  const colW = W / 4;
+
+  metaCols.forEach(([label, value], i) => {
+    const cx = M + colW * i;
+
+    doc
+      .fillColor("#A9BAD8")
+      .font("Helvetica-Bold")
+      .fontSize(7)
+      .text(label.toUpperCase(), cx, 96, {
+        width: colW - 8,
+        characterSpacing: 1,
+        lineBreak: false,
+      });
+
+    doc
+      .fillColor("#F8FBFF")
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .text(value, cx, 111, {
+        width: colW - 8,
+        lineBreak: false,
+      });
+  });
+
+  let y = HEADER_H + 36;
+
+  // From / prepared for
+  const halfW = (W - 1) / 2;
+
+  eyebrow("From", M, y, halfW);
+
+doc
+  .fillColor(NAVY_MID)
+  .font("Helvetica-Bold")
+  .fontSize(12)
+  .text(traderName, M, y + 16, {
+    width: halfW,
+    lineBreak: false,
+  });
+
+const businessAddress = cleanAddress(profile.business_address);
+
+const fromLines = [
+  safeText(profile.business_phone),
+  safeText(profile.business_email),
+  businessAddress,
+  profile.vat_number ? `VAT No. ${safeText(profile.vat_number)}` : "",
+]
   .filter(Boolean)
-  .join(" • ");
-  drawLines(doc, customerBlock || "—", x + 16, y + 50, colW - 32, 4, 12, "center");
-
-  const jobX = x + colW + gap;
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(12);
-  drawLines(doc, jobNumber, jobX + 16, y + 36, colW - 32, 1, 16, "center");
-
-  doc.fillColor(INK).font("Helvetica").fontSize(10);
-  drawLines(doc, jobType, jobX + 16, y + 62, colW - 32, 2, 12, "center");
-
-  y += infoH + 16;
-
-  // Summary
- const summaryH = customerMessage ? 92 : 76;
-  roundedBox(x, y, w, summaryH, 18, CARD_BG, SOFT_BORDER);
-
-  label("Estimate summary", x + 16, y + 16);
-
-  doc.fillColor(NAVY).font("Helvetica-Bold").fontSize(24);
-  drawLines(doc, money(total), x + 16, y + 42, w - 32, 1, 26);
-
-
-
-  if (customerMessage) {
-    doc.fillColor(MUTED).font("Helvetica").fontSize(10);
-    drawLines(
-      doc,
-      customerMessage,
-      validUntil ? x + 150 : x + 16,
-      validUntil ? y + 76 : y + 72,
-      validUntil ? w - 166 : w - 32,
-      1,
-      12
-    );
-  }
-
-  y += summaryH + 14;
-
-  // Job details
-  if (description) {
-    const detailsH = 96;
-    roundedBox(x, y, w, detailsH, 18, CARD_BG, SOFT_BORDER);
-
-    label("Job details", x + 16, y + 16);
-
-    doc.fillColor(INK).font("Helvetica").fontSize(10);
-    drawLines(doc, description, x + 16, y + 38, w - 32, 4, 12);
-
-    y += detailsH + 14;
-  }
-
-  // Price breakdown
-  const rowH = 24;
-  const breakdownH = 48 + breakdown.length * rowH;
-  roundedBox(x, y, w, breakdownH, 18, CARD_BG, SOFT_BORDER);
-
-  label("Price breakdown", x + 16, y + 16);
-
-  let rowY = y + 40;
-  breakdown.forEach((line) => {
-    const qty = Number((line as any).qty || 0);
-    const name = qty > 1 ? `${line.label} × ${qty}` : line.label;
-
-    doc.fillColor(MUTED).font("Helvetica").fontSize(11);
-    drawLines(doc, name, x + 16, rowY, w - 160, 1, 12);
-
-    doc.fillColor(INK).font("Helvetica-Bold").fontSize(11);
-    drawLines(doc, money(line.value), x + 16, rowY, w - 32, 1, 12, "right");
-
-    rowY += rowH;
-  });
-
-  y += breakdownH + 14;
-
-  // Totals
-const totalsH = vat > 0 ? 120 : 92;
-roundedBox(x, y, w, totalsH, 18, SOFT_BOX, SOFT_BORDER);
-
-label("Totals", x + 16, y + 16);
-
-doc.fillColor(MUTED).font("Helvetica").fontSize(11);
-drawLines(doc, "Subtotal", x + 16, y + 40, w - 160, 1, 12);
-
-doc.fillColor(INK).font("Helvetica-Bold").fontSize(11);
-drawLines(doc, money(subtotal), x + 16, y + 40, w - 32, 1, 12, "right");
-
-if (vat > 0) {
-  doc.fillColor(MUTED).font("Helvetica").fontSize(11);
-  drawLines(doc, "VAT", x + 16, y + 60, w - 160, 1, 12);
-
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(11);
-  drawLines(doc, money(vat), x + 16, y + 60, w - 32, 1, 12, "right");
-
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(14);
-  drawLines(doc, "Total", x + 16, y + 82, w - 160, 1, 16);
-
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(18);
-  drawLines(doc, money(total), x + 16, y + 78, w - 32, 1, 20, "right");
-} else {
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(14);
-  drawLines(doc, "Total", x + 16, y + 62, w - 160, 1, 16);
-
-  doc.fillColor(INK).font("Helvetica-Bold").fontSize(18);
-  drawLines(doc, money(total), x + 16, y + 58, w - 32, 1, 20, "right");
-}
-
-y += totalsH + 12;
-
-// Certificates & trust
-const footerTop = PAGE_H - 62;
-
-if (certificates.length > 0 && footerTop - y >= 84) {
-  const certRows = certificates.slice(0, 3);
-  const certH = 50 + certRows.length * 18;
-
-  roundedBox(x, y, w, certH, 18, SOFT_BOX, SOFT_BORDER);
-
-  label("Certificates & trust", x + 16, y + 16);
-
-  let certY = y + 38;
-
-  certRows.forEach((c) => {
-    const certName = safeText(c.name);
-    const certNo = safeText(c.certificate_number);
-    const expiry = shortDate(c.expiry_date);
-
-    const line = [
-      certName ? `✓ ${certName}` : "",
-      certNo ? `No. ${certNo}` : "",
-      expiry ? `Valid until ${expiry}` : "",
-    ]
-      .filter(Boolean)
-      .join(" • ");
-
-    doc.fillColor(INK).font("Helvetica").fontSize(10);
-    drawLines(doc, line, x + 16, certY, w - 32, 1, 12);
-
-    certY += 18;
-  });
-
-  y += certH + 12;
-}
-
-// Optional notes — only include if there is room
-const remaining = footerTop - y;
-
-
-  if (includedNotes && remaining >= 74) {
-    const incH = 62;
-    roundedBox(x, y, w, incH, 18, SOFT_BOX, SOFT_BORDER);
-
-    label("What's included", x + 16, y + 16);
-
-    doc.fillColor(INK).font("Helvetica").fontSize(10);
-    drawLines(doc, includedNotes, x + 16, y + 36, w - 32, 1, 12);
-
-    y += incH + 12;
-  }
-
-  if (excludedNotes && footerTop - y >= 74) {
-    const excH = 62;
-    roundedBox(x, y, w, excH, 18, SOFT_BOX, SOFT_BORDER);
-
-    label("What's excluded", x + 16, y + 16);
-
-    doc.fillColor(INK).font("Helvetica").fontSize(10);
-    drawLines(doc, excludedNotes, x + 16, y + 36, w - 32, 1, 12);
-  }
-
+  .join("\n");
 
 doc
   .fillColor(MUTED)
   .font("Helvetica")
-  .fontSize(8);
+  .fontSize(9)
+  .text(fromLines || "Contact details available on request", M, y + 34, {
+    width: halfW,
+    lineGap: 2,
+  });
 
-drawLines(
-  doc,
-  "This estimate is based on the details provided and may change if the scope changes after inspection.",
-  x,
-  PAGE_H - 28,
-  w,
-  1,
-  10,
-  "center"
-);
+  eyebrow("Prepared for", M + halfW + 1, y, halfW, "right");
 
-doc.end();
-return await done;
+  doc
+    .fillColor(NAVY_MID)
+    .font("Helvetica-Bold")
+    .fontSize(12)
+    .text(customerName, M + halfW + 1, y + 16, {
+      width: halfW,
+      align: "right",
+      lineBreak: false,
+    });
+
+const toLines = [
+  address,
+  addressIncludesPostcode(address, postcode) ? "" : postcode,
+  customerEmail,
+  customerPhone,
+]
+  .filter(Boolean)
+  .join("\n");
+
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica")
+    .fontSize(9)
+    .text(toLines || "—", M + halfW + 1, y + 33, {
+      width: halfW,
+      align: "right",
+      lineGap: 2,
+    });
+
+  doc
+    .save()
+    .moveTo(M + halfW, y)
+    .lineTo(M + halfW, y + 80)
+    .strokeColor(BORDER)
+    .lineWidth(0.75)
+    .stroke()
+    .restore();
+
+  y += 100;
+
+  // Hero total
+  rBox(M, y, W, 80, 14, SOFT_BLUE, "#C7D9FF", 0.75);
+
+  eyebrow("Estimate total", M + 20, y + 16, 160);
+
+  doc
+    .fillColor(NAVY)
+    .font("Helvetica-Bold")
+    .fontSize(34)
+    .text(money(total), M + 20, y + 30, {
+      width: 260,
+      lineBreak: false,
+    });
+
+  const heroDesc = customerMessage || description || jobType;
+
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica")
+    .fontSize(9)
+    .text(heroDesc, M + 20, y + 64, {
+      width: W - 180,
+      lineBreak: false,
+    });
+
+const badge = statusLabel(estimate.status);
+
+if (badge) {
+  rBox(M + W - 156, y + 26, 138, 28, 14, NAVY, NAVY, 0);
+
+  doc
+    .fillColor(WHITE)
+    .font("Helvetica-Bold")
+    .fontSize(8)
+    .text(badge, M + W - 150, y + 36, {
+      width: 126,
+      align: "center",
+      characterSpacing: 0.5,
+      lineBreak: false,
+    });
+  }
+
+  y += 104;
+
+  // Price breakdown
+  eyebrow("Price breakdown", M, y, W);
+  y += 18;
+
+  const ROW_H = 44;
+  const HEAD_H = 26;
+  const TABLE_H = HEAD_H + breakdown.length * ROW_H;
+
+  rBox(M, y, W, TABLE_H, 10, WHITE, BORDER);
+
+  doc.save();
+  doc.roundedRect(M, y, W, TABLE_H, 10).clip();
+  doc.rect(M, y, W, HEAD_H).fillColor(SOFT).fill();
+  doc.restore();
+
+  doc
+    .fillColor(FAINT)
+    .font("Helvetica-Bold")
+    .fontSize(7)
+    .text("DESCRIPTION", M + 16, y + 10, {
+      width: W - 130,
+      characterSpacing: 1,
+      lineBreak: false,
+    });
+
+  doc.text("QTY", M + W - 110, y + 10, {
+    width: 30,
+    align: "center",
+    characterSpacing: 1,
+    lineBreak: false,
+  });
+
+  doc.text("AMOUNT", M + W - 70, y + 10, {
+    width: 54,
+    align: "right",
+    characterSpacing: 1,
+    lineBreak: false,
+  });
+
+  hRule(y + HEAD_H);
+
+  breakdown.forEach((item, i) => {
+    const ry = y + HEAD_H + i * ROW_H;
+
+    if (i > 0) hRule(ry, BORDER, 0.5);
+
+    doc
+      .fillColor(NAVY_MID)
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text(item.label, M + 16, ry + 12, {
+        width: W - 140,
+        lineBreak: false,
+      });
+
+    if (item.description) {
+      doc
+        .fillColor(FAINT)
+        .font("Helvetica")
+        .fontSize(8)
+        .text(item.description, M + 16, ry + 27, {
+          width: W - 140,
+          lineBreak: false,
+        });
+    }
+
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(9)
+      .text(String(item.qty || 1), M + W - 110, ry + 16, {
+        width: 30,
+        align: "center",
+        lineBreak: false,
+      });
+
+    doc
+      .fillColor(INK)
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text(money(item.value), M + W - 74, ry + 16, {
+        width: 58,
+        align: "right",
+        lineBreak: false,
+      });
+  });
+
+  y += TABLE_H + 24;
+
+  // Totals
+  const totX = M + W - 200;
+  const totW = 200;
+  const labW = 100;
+  const valX = totX + labW;
+  const valW = 100;
+
+  doc
+    .fillColor(MUTED)
+    .font("Helvetica-Bold")
+    .fontSize(9)
+    .text("Subtotal", totX, y, {
+      width: labW,
+      lineBreak: false,
+    });
+
+  doc
+    .fillColor(NAVY_MID)
+    .font("Helvetica-Bold")
+    .fontSize(10)
+    .text(money(subtotal), valX, y, {
+      width: valW,
+      align: "right",
+      lineBreak: false,
+    });
+
+  y += 20;
+
+  if (vat > 0) {
+    hRule(y - 5, BORDER, 0.5);
+
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica-Bold")
+      .fontSize(9)
+      .text("VAT", totX, y, {
+        width: labW,
+        lineBreak: false,
+      });
+
+    doc
+      .fillColor(NAVY_MID)
+      .font("Helvetica-Bold")
+      .fontSize(10)
+      .text(money(vat), valX, y, {
+        width: valW,
+        align: "right",
+        lineBreak: false,
+      });
+
+    y += 24;
+  }
+
+  hRule(y - 6, BORDER);
+
+  doc
+    .fillColor(INK)
+    .font("Helvetica-Bold")
+    .fontSize(11)
+    .text("Total", totX, y, {
+      width: labW,
+      lineBreak: false,
+    });
+
+  doc
+    .fillColor(NAVY)
+    .font("Helvetica-Bold")
+    .fontSize(20)
+    .text(money(total), totX, y - 4, {
+      width: totW,
+      align: "right",
+      lineBreak: false,
+    });
+
+  y += 36;
+
+// Approve guide
+if (y < PAGE_H - 110) {
+  rBox(M, y, W, 66, 14, NAVY, NAVY, 0);
+
+  doc
+    .fillColor(WHITE)
+    .font("Helvetica-Bold")
+    .fontSize(11)
+    .text("Happy to go ahead?", M + 20, y + 16, {
+      width: W - 40,
+      lineBreak: false,
+    });
+
+  doc
+    .fillColor("#C9D8F0")
+    .font("Helvetica")
+    .fontSize(8.5)
+    .text(
+      "Please return to your email and use the approval button to accept this estimate.",
+      M + 20,
+      y + 36,
+      {
+        width: W - 40,
+        lineBreak: false,
+      }
+    );
+
+  y += 88;
+}
+
+  // Notes
+  const notes = includedNotes || customerMessage || description;
+
+  if (notes && y < PAGE_H - 150) {
+    rBox(M, y, W, 68, 12, SOFT, BORDER);
+
+    eyebrow("Notes", M + 16, y + 14, W - 32);
+
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(8.8)
+      .text(notes, M + 16, y + 32, {
+        width: W - 32,
+        height: 26,
+        ellipsis: true,
+      });
+
+    y += 84;
+  }
+
+  if (excludedNotes && y < PAGE_H - 120) {
+    rBox(M, y, W, 52, 12, SOFT, BORDER);
+
+    eyebrow("Exclusions", M + 16, y + 13, W - 32);
+
+    doc
+      .fillColor(MUTED)
+      .font("Helvetica")
+      .fontSize(8.6)
+      .text(excludedNotes, M + 16, y + 30, {
+        width: W - 32,
+        height: 16,
+        ellipsis: true,
+      });
+
+    y += 68;
+  }
+
+  // Certificates
+  if (certificates.length > 0 && y < PAGE_H - 100) {
+    let pillX = M;
+    const pillY = y;
+
+    certificates.slice(0, 3).forEach((c) => {
+      const name = safeText(c.name);
+      const certNo = safeText(c.certificate_number);
+      const expiry = shortDate(c.expiry_date);
+
+      const parts = [
+        name,
+        certNo ? `No. ${certNo}` : "",
+        expiry ? `Exp ${expiry}` : "",
+      ].filter(Boolean);
+
+      const label = parts.join("  ·  ");
+      const pillW = Math.min(240, Math.max(130, label.length * 5.4 + 28));
+
+      rBox(pillX, pillY, pillW, 24, 12, WHITE, BORDER);
+
+
+      doc
+        .fillColor(NAVY_MID)
+        .font("Helvetica-Bold")
+        .fontSize(7.5)
+        .text(label, pillX + 22, pillY + 8, {
+          width: pillW - 30,
+          lineBreak: false,
+        });
+
+      pillX += pillW + 8;
+    });
+  }
+
+  // Footer
+  hRule(PAGE_H - 52, BORDER, 0.75);
+
+  doc
+    .fillColor("#B0BAC9")
+    .font("Helvetica-Bold")
+    .fontSize(8)
+    .text("Powered by FixFlow", M, PAGE_H - 36, {
+      width: 160,
+      lineBreak: false,
+    });
+
+
+doc
+  .fillColor("#C8D3E0")
+  .font("Helvetica")
+  .fontSize(7.5)
+  .text(
+    "This estimate is based on details provided and may change if the scope changes after inspection.",
+    PAGE_W - M - 420,
+    PAGE_H - 36,
+    {
+      width: 420,
+      align: "right",
+      lineBreak: false,
+    }
+  );
+
+  doc.end();
+  return await done;
 }

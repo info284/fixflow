@@ -401,13 +401,13 @@ const replyTo = `enquiries+${finalRequestId}@send.thefixflowapp.com`;
 
 const subject = subjectIn || `Your estimate from ${traderName}`;
 
-    const appUrl =
+const appUrl =
   process.env.NEXT_PUBLIC_SITE_URL ||
   process.env.NEXT_PUBLIC_APP_URL ||
   process.env.APP_URL ||
   "https://thefixflowapp.com";
 
-    const acceptUrl = `${appUrl.replace(/\/$/, "")}/estimate/${estimate.id}/accept`;
+const acceptUrl = `${appUrl.replace(/\/$/, "")}/api/estimates/${estimate.id}/accept`;
 
     const itemRowsHtml = (items || [])
       .map((item: any) => {

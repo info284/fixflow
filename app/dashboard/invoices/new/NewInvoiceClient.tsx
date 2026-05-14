@@ -1,5 +1,7 @@
 "use client";
 
+import "@/app/dashboard/shared-flow.css";
+
 import React, { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -52,16 +54,16 @@ const FF = {
   card: "#FFFFFF",
   border: "#E6ECF5",
   text: "#0B1320",
-  muted: "#5C6B84",
-  navySoft: "#1F355C",
+  muted: "#64748B",
+  navySoft: "#0B2A55",
   blue: "#245BFF",
-  blueSoft: "#EAF1FF",
-  blueSoft2: "#F4F7FF",
-  redSoft: "#FFF1F1",
+  blueSoft: "#EEF4FF",
+  blueSoft2: "#F8FBFF",
+  redSoft: "#FEF2F2",
   amberSoft: "#FFF7ED",
   greenSoft: "#ECFDF3",
   blueLine:
-    "linear-gradient(90deg, rgba(36,91,255,1) 0%, rgba(31,111,255,0.35) 55%, rgba(11,42,85,0.15) 100%)",
+    "linear-gradient(90deg, #0B2A55 0%, #245BFF 55%, rgba(36,91,255,0.15) 100%)",
 };
 
 /* ================================
@@ -1469,7 +1471,7 @@ return (
   }
 
   .ff-heroTitle {
-    font-size: 28px;
+    font-size: 34px;
     line-height: 1.05;
     letter-spacing: -0.02em;
     font-weight: 950;
@@ -1486,7 +1488,7 @@ return (
 
   .ff-sub {
     margin-top: 2px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 600;
     color: ${FF.muted};
   }
@@ -1583,7 +1585,7 @@ return (
     min-height: 0;
     display: grid;
     gap: 14px;
-    grid-template-columns: 360px minmax(0, 1fr);
+    grid-template-columns: 390px minmax(0, 1fr);
   }
 
   .ff-grid > * {
@@ -1835,7 +1837,7 @@ return (
     gap: 8px;
     margin: 0;
     color: #1f355c;
-    font-size: 20px;
+    font-size: 18px;
     line-height: 1;
     font-weight: 950;
     letter-spacing: -0.03em;

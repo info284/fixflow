@@ -4855,7 +4855,8 @@ useEffect(() => {
 
   if (!selectedRow && !loading && filteredRows.length === 0) {
     return (
-      <div className="ff-page">
+     <div className="ff-appShell">
+     <div className="ff-page">
         <div className="ff-wrap">
           <div className="ff-top">
             <div className="ff-hero">
@@ -4870,6 +4871,7 @@ useEffect(() => {
                 </div>
               </div>
             </div>
+          </div>
           </div>
 
           <div className="ff-card">
@@ -4892,6 +4894,7 @@ useEffect(() => {
 
   return (
     <>
+     <div className="ff-appShell"></div>
       <div className="ff-page">
         <div className="ff-wrap">
           <div className="ff-top">
@@ -4907,6 +4910,7 @@ useEffect(() => {
                     and never lose a job because something slipped through.
                   </div>
                 </div>
+                
 
                 <div className="ff-heroStats">
                   <div className="ff-statCard">

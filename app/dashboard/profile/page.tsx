@@ -22,7 +22,7 @@ type ProfileRow = {
   business_description: string | null;
   trading_address: string | null;
   years_in_business: number | null;
-  insurance_cover: number | null;
+ insurance_cover: string | null;
   vat_number: string | null;
   bank_name: string | null;
   bank_account_name: string | null;
@@ -232,6 +232,7 @@ const [tradingAddress, setTradingAddress] = useState("");
     null
   );
   const lastLocationLookedUp = useRef<string>("");
+  const certFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [trades, setTrades] = useState<Trade[]>([]);
   const [tradesLoading, setTradesLoading] = useState(false);
@@ -624,9 +625,7 @@ await Promise.all([
         years_in_business: yearsInBusiness
   ? Number(yearsInBusiness)
   : null,
-  insurance_cover: insuranceCover
-  ? Number(insuranceCover)
-  : null,
+insurance_cover: insuranceCover.trim() || null,
   trading_address: tradingAddress.trim() || null,
         notify_email: notifyEmail.trim() || null,
         business_phone: businessPhone.trim() || null,
@@ -655,9 +654,7 @@ await Promise.all([
       years_in_business: yearsInBusiness
   ? Number(yearsInBusiness)
   : null,
-  insurance_cover: insuranceCover
-  ? Number(insuranceCover)
-  : null,
+insurance_cover: insuranceCover.trim() || null,
   trading_address: tradingAddress.trim() || null,
   business_phone: businessPhone.trim() || null,
       vat_number: vatNumber.trim() || null,
@@ -1199,8 +1196,15 @@ const resetCertificateForm = () => {
   setCertFile(null);
 };
 
-const addCertificate = async (e: FormEvent) => {
+const addCertificate = async (e: any) => {
   e.preventDefault();
+  console.log("ADD CERTIFICATE CLICKED", {
+  userId,
+  certName,
+  certNumber,
+  certExpiry,
+  certFile,
+});
   if (!userId) return;
 
   setCertificateMsg(null);
@@ -1254,30 +1258,39 @@ if (editingCertId) {
 }
   let fileUrl: string | null = null;
 
-  try {
-    if (certFile) {
-      const ext = certFile.name.split(".").pop() || "pdf";
-      const fileName = `${Date.now()}-${certName
-        .trim()
-        .replace(/[^a-zA-Z0-9]/g, "-")}.${ext}`;
+try {
+  if (certFile) {
+    const ext = certFile.name.split(".").pop() || "pdf";
 
-      const path = `certificates/${userId}/${fileName}`;
+    const fileName = `${Date.now()}-${certName
+      .trim()
+      .replace(/[^a-zA-Z0-9]/g, "-")}.${ext}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from("quote-files")
-        .upload(path, certFile, {
-          cacheControl: "3600",
-          upsert: false,
-        });
+    const path = `certificates/${userId}/${fileName}`;
 
-      if (uploadError) throw uploadError;
+    console.log("Uploading certificate:", {
+      bucket: "quote-files",
+      path,
+      type: certFile.type,
+      size: certFile.size,
+    });
 
-      const { data } = supabase.storage
-        .from("quote-files")
-        .getPublicUrl(path);
+    const { error: uploadError } = await supabase.storage
+      .from("quote-files")
+      .upload(path, certFile, {
+        cacheControl: "3600",
+        upsert: false,
+      });
 
-      fileUrl = data.publicUrl;
-    }
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from("quote-files")
+      .getPublicUrl(path);
+
+    fileUrl = data.publicUrl;
+  }
+
 
     const { data, error } = await supabase
       .from("trader_certificates")
@@ -1302,7 +1315,14 @@ if (editingCertId) {
     resetCertificateForm();
     setCertificateMsg("Certificate added ✅");
   } catch (err: any) {
-    setCertificateMsg(err?.message || "Could not add certificate.");
+console.error("CERT ERROR:", err);
+
+setCertificateMsg(
+  err?.message ||
+  err?.error_description ||
+  JSON.stringify(err) ||
+  "Could not add certificate."
+);
     setCertFile(null);
   }
 
@@ -1657,11 +1677,8 @@ const certificateWarnings = useMemo(() => {
   <input
     className="ff-input"
     value={insuranceCover}
-    onChange={(e) =>
-      setInsuranceCover(e.target.value.replace(/[^\d]/g, ""))
-    }
-    placeholder="e.g. 2000000"
-    inputMode="numeric"
+    onChange={(e) => setInsuranceCover(e.target.value)}
+    placeholder="e.g. £2m public liability cover"
     disabled={loading}
   />
   <div className="ff-help">
@@ -1993,30 +2010,48 @@ const certificateWarnings = useMemo(() => {
     </div>
 <div className="ff-field" style={{ marginTop: 14 }}>
   <label className="ff-label">Certificate file</label>
+
   <input
-    className="ff-input"
+    ref={certFileInputRef}
     type="file"
     accept=".pdf,image/*"
     onChange={(e) => setCertFile(e.target.files?.[0] || null)}
     disabled={certificateBusy || loading}
+    style={{ display: "none" }}
   />
+
+<button
+  className="ff-btn ff-btnSoftPrimary"
+  type="button"
+  onClick={() => certFileInputRef.current?.click()}
+  disabled={certificateBusy || loading}
+>
+Choose PDF / image
+</button>
+
+  {certFile ? (
+    <div className="ff-helpOk">
+      Selected: {certFile.name}
+    </div>
+  ) : (
+    <div className="ff-help">
+      No file selected yet.
+    </div>
+  )}
+
   <div className="ff-help">
-    Upload the actual certificate PDF or image for your records.
+   Choose a file first, then click Save certificate.
   </div>
 </div>
 
 <div className="ff-footerRow">
-  <button
-    className="ff-btn ff-btnSoftPrimary"
-    type="submit"
-    disabled={certificateBusy || loading}
-  >
-    {certificateBusy
-      ? "Saving…"
-      : editingCertId
-      ? "Save certificate"
-      : "Add certificate"}
-  </button>
+<button
+  className="ff-btn ff-btnSoftPrimary"
+  type="submit"
+  disabled={certificateBusy || loading}
+>
+  {certificateBusy ? "Saving…" : "Save certificate"}
+</button>
 
 {editingCertId && (
   <button

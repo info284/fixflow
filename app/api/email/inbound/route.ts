@@ -1,497 +1,602 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import OpenAI from "openai";
 
 const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+process.env.NEXT_PUBLIC_SUPABASE_URL!,
+process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+const openai = new OpenAI({
+apiKey: process.env.OPENAI_API_KEY,
+});
+
 function extractEmailAddress(value: string) {
-  const match = value.match(/<([^>]+)>/);
-  if (match?.[1]) return match[1].trim().toLowerCase();
+const match = value.match(/<([^>]+)>/);
+if (match?.[1]) return match[1].trim().toLowerCase();
 
-  const plainEmailMatch = value.match(
-    /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i
-  );
+const plainEmailMatch = value.match(
+/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i
+);
 
-  if (plainEmailMatch?.[0]) return plainEmailMatch[0].trim().toLowerCase();
+if (plainEmailMatch?.[0]) return plainEmailMatch[0].trim().toLowerCase();
 
-  return value.trim().toLowerCase();
+return value.trim().toLowerCase();
 }
 
 function extractNameFromHeader(value: string) {
-  const angleMatch = value.match(/^(.+?)\s*<[^>]+>$/);
+const angleMatch = value.match(/^(.+?)\s*<[^>]+>$/);
 
-  if (angleMatch?.[1]) {
-    return angleMatch[1].replace(/(^"|"$)/g, "").trim();
-  }
+if (angleMatch?.[1]) {
+return angleMatch[1].replace(/(^"|"$)/g, "").trim();
+}
 
-  const email = extractEmailAddress(value);
-  const local = email.split("@")[0] || "";
+const email = extractEmailAddress(value);
+const local = email.split("@")[0] || "";
 
-  return (
-    local
-      .replace(/[._-]+/g, " ")
-      .replace(/\b\w/g, (c) => c.toUpperCase())
-      .trim() || null
-  );
+return (
+local
+.replace(/[._-]+/g, " ")
+.replace(/\b\w/g, (c) => c.toUpperCase())
+.trim() || null
+);
 }
 
 function extractRequestIdFromTo(toEmail: string) {
-  const match = toEmail.match(/\+([0-9a-fA-F-]{36})@/);
-  return match?.[1] || null;
+const match = toEmail.match(/\+([0-9a-fA-F-]{36})@/);
+return match?.[1] || null;
 }
 
 function cleanBody(text: string) {
-  return text
-    .replace(/\r/g, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+return String(text || "")
+.replace(/\r/g, "")
+.replace(/\n{3,}/g, "\n\n")
+.trim();
 }
 
 function stripHtml(html: string) {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .trim();
+return String(html || "")
+.replace(/<br\s*\/?>/gi, "\n")
+.replace(/<\/p>/gi, "\n")
+.replace(/<\/div>/gi, "\n")
+.replace(/<[^>]+>/g, "")
+.replace(/&lt;/g, "<")
+.replace(/&gt;/g, ">")
+.replace(/&amp;/g, "&")
+.replace(/&quot;/g, '"')
+.replace(/&#39;/g, "'")
+.trim();
+}
+
+function cleanJsonBlock(text: string) {
+return String(text || "")
+.replace(/^```json\s*/i, "")
+.replace(/^```\s*/i, "")
+.replace(/```$/i, "")
+.trim();
 }
 
 function parseForwardedOriginal(text: string) {
-  const cleaned = stripHtml(text || "").replace(/\r/g, "");
+const cleaned = stripHtml(text || "").replace(/\r/g, "");
 
-  const fromMatch =
-    cleaned.match(/(?:^|\n)\s*From:\s*(.+)/i) ||
-    cleaned.match(/(?:^|\n)\s*Sender:\s*(.+)/i);
+const fromMatch =
+cleaned.match(/(?:^|\n)\s*From:\s*(.+)/i) ||
+cleaned.match(/(?:^|\n)\s*Sender:\s*(.+)/i);
 
-  const replyToMatch = cleaned.match(/(?:^|\n)\s*Reply-To:\s*(.+)/i);
-  const subjectMatch = cleaned.match(/(?:^|\n)\s*Subject:\s*(.+)/i);
+const replyToMatch = cleaned.match(/(?:^|\n)\s*Reply-To:\s*(.+)/i);
+const subjectMatch = cleaned.match(/(?:^|\n)\s*Subject:\s*(.+)/i);
 
-  const originalFromRaw = fromMatch?.[1]?.trim() || null;
-  const originalReplyToRaw = replyToMatch?.[1]?.trim() || null;
-  const originalSubject = subjectMatch?.[1]?.trim() || null;
+const originalFromRaw = fromMatch?.[1]?.trim() || null;
+const originalReplyToRaw = replyToMatch?.[1]?.trim() || null;
+const originalSubject = subjectMatch?.[1]?.trim() || null;
 
-  const bestSource = originalReplyToRaw || originalFromRaw;
+const bestSource = originalReplyToRaw || originalFromRaw;
 
-  const customerEmail = bestSource ? extractEmailAddress(bestSource) : null;
-  const customerName = bestSource ? extractNameFromHeader(bestSource) : null;
+const customerEmail = bestSource ? extractEmailAddress(bestSource) : null;
+const customerName = bestSource ? extractNameFromHeader(bestSource) : null;
 
-  let details = cleaned;
-
-  const forwardedStart = cleaned.search(
-    /---------- Forwarded message ----------|Begin forwarded message:|(?:^|\n)\s*From:\s*/i
-  );
-
-  if (forwardedStart >= 0) {
-    const forwardedBlock = cleaned.slice(forwardedStart);
-
-    const subjectLine = forwardedBlock.match(/(?:^|\n)\s*Subject:\s*.+/i);
-
-    if (subjectLine?.index != null) {
-      const afterSubject = forwardedBlock.slice(subjectLine.index + subjectLine[0].length);
-
-      details = afterSubject
-        .replace(/^\s*To:\s*.+$/gim, "")
-        .replace(/^\s*Date:\s*.+$/gim, "")
-        .replace(/^\s*Cc:\s*.+$/gim, "")
-        .replace(/^\s*From:\s*.+$/gim, "")
-        .replace(/^\s*Reply-To:\s*.+$/gim, "");
-    } else {
-      details = forwardedBlock
-        .replace(/^.*?From:\s*.+$/ims, "")
-        .replace(/^\s*To:\s*.+$/gim, "")
-        .replace(/^\s*Date:\s*.+$/gim, "")
-        .replace(/^\s*Subject:\s*.+$/gim, "");
-    }
-  }
-
-  return {
-    customerEmail,
-    customerName,
-    originalSubject,
-    details: cleanBody(details),
-  };
+return {
+customerEmail,
+customerName,
+originalSubject,
+details: cleanBody(cleaned),
+};
 }
 
 function detectJobType(text: string) {
-  const t = text.toLowerCase();
+const t = text.toLowerCase();
 
-  if (t.includes("boiler")) return "boiler";
-  if (t.includes("bathroom") || t.includes("shower") || t.includes("toilet")) return "bathroom";
-  if (t.includes("kitchen") || t.includes("tap") || t.includes("sink")) return "kitchen";
-  if (t.includes("leak") || t.includes("pipe")) return "leak";
+if (t.includes("boiler")) return "boiler";
+if (t.includes("bathroom") || t.includes("shower") || t.includes("toilet"))
+return "bathroom";
+if (t.includes("kitchen") || t.includes("tap") || t.includes("sink"))
+return "kitchen";
+if (t.includes("leak") || t.includes("pipe")) return "leak";
 
-  return null;
+return null;
 }
 
 function detectUrgency(text: string) {
-  const t = text.toLowerCase();
+const t = text.toLowerCase();
 
-  if (
-    t.includes("urgent") ||
-    t.includes("asap") ||
-    t.includes("emergency") ||
-    t.includes("no heating") ||
-    t.includes("no hot water") ||
-    t.includes("leak")
-  ) {
-    return "asap";
-  }
+if (
+t.includes("urgent") ||
+t.includes("asap") ||
+t.includes("emergency") ||
+t.includes("no heating") ||
+t.includes("no hot water") ||
+t.includes("leak")
+) {
+return "asap";
+}
 
-  if (t.includes("this week")) return "this-week";
-  if (t.includes("next week")) return "next-week";
+if (t.includes("this week")) return "this-week";
+if (t.includes("next week")) return "next-week";
 
-  return "flexible";
+return "flexible";
+}
+
+async function extractForwardedEnquiryWithAI(params: {
+rawFrom: string;
+rawTo: string;
+rawSubject: string;
+rawText: string;
+}) {
+try {
+const response = await openai.responses.create({
+model: "gpt-5",
+input: [
+{
+role: "system",
+content: [
+{
+type: "input_text",
+text: `
+You extract customer enquiry details from messy forwarded emails.
+
+Important:
+- The email was forwarded by a trader into FixFlow.
+- NEVER treat the forwarding trader as the customer.
+- Ignore trader signatures, trader email addresses, app text, disclaimers and previous forwarding noise.
+- Find the original customer, their email if present, and what they actually asked for.
+- If you cannot find the original customer email, return null.
+- If job type is unclear, return null.
+- Return valid JSON only. No markdown.
+`,
+},
+],
+},
+{
+role: "user",
+content: [
+{
+type: "input_text",
+text: `
+Forwarded by:
+${params.rawFrom}
+
+Sent to:
+${params.rawTo}
+
+Inbound subject:
+${params.rawSubject}
+
+Full email body:
+${params.rawText}
+
+Return this JSON shape exactly:
+
+{
+"customer_name": string | null,
+"customer_email": string | null,
+"original_subject": string | null,
+"job_type": string | null,
+"urgency": "asap" | "this-week" | "next-week" | "flexible",
+"details": string
+}
+`,
+},
+],
+},
+],
+});
+
+const raw = cleanJsonBlock(response.output_text || "{}");
+const parsed = JSON.parse(raw);
+
+return {
+customer_name:
+typeof parsed?.customer_name === "string" && parsed.customer_name.trim()
+? parsed.customer_name.trim()
+: null,
+customer_email:
+typeof parsed?.customer_email === "string" &&
+parsed.customer_email.includes("@")
+? extractEmailAddress(parsed.customer_email)
+: null,
+original_subject:
+typeof parsed?.original_subject === "string" &&
+parsed.original_subject.trim()
+? parsed.original_subject.trim()
+: null,
+job_type:
+typeof parsed?.job_type === "string" && parsed.job_type.trim()
+? parsed.job_type.trim().toLowerCase()
+: null,
+urgency:
+parsed?.urgency === "asap" ||
+parsed?.urgency === "this-week" ||
+parsed?.urgency === "next-week" ||
+parsed?.urgency === "flexible"
+? parsed.urgency
+: "flexible",
+details:
+typeof parsed?.details === "string" && parsed.details.trim()
+? parsed.details.trim()
+: "",
+};
+} catch (error) {
+console.error("AI forwarded email extraction failed:", error);
+return null;
+}
 }
 
 async function findExistingEnquiry(params: {
-  plumberId: string;
-  customerEmail: string | null;
-  subject: string;
-  details: string;
+plumberId: string;
+customerEmail: string | null;
+subject: string;
+details: string;
 }) {
-  if (!params.customerEmail) return null;
+if (!params.customerEmail) return null;
 
-  const { data, error } = await supabaseAdmin
-    .from("quote_requests")
-    .select("id, customer_name, customer_email, stage, job_type, details, created_at")
-    .eq("plumber_id", params.plumberId)
-    .eq("customer_email", params.customerEmail)
-    .order("created_at", { ascending: false })
-    .limit(5);
+const { data, error } = await supabaseAdmin
+.from("quote_requests")
+.select("id, customer_name, customer_email, stage, job_type, details, created_at")
+.eq("plumber_id", params.plumberId)
+.eq("customer_email", params.customerEmail)
+.order("created_at", { ascending: false })
+.limit(5);
 
-  if (error) {
-    console.error("Find existing enquiry error:", error);
-    throw new Error("Failed to check existing enquiries");
-  }
+if (error) {
+console.error("Find existing enquiry error:", error);
+throw new Error("Failed to check existing enquiries");
+}
 
-  const rows = data || [];
+const openRows = (data || []).filter((row) => {
+const stage = String(row.stage || "").toLowerCase();
+return !["won", "lost", "completed", "cancelled"].includes(stage);
+});
 
-  // Only consider open enquiries
-  const openRows = rows.filter((row) => {
-    const stage = String(row.stage || "").toLowerCase();
-    return !["won", "lost", "completed", "cancelled"].includes(stage);
-  });
+if (!openRows.length) return null;
 
-  if (!openRows.length) return null;
+const newest = openRows[0];
+const createdAt = new Date(newest.created_at).getTime();
+const daysOld = (Date.now() - createdAt) / (1000 * 60 * 60 * 24);
 
-  const newest = openRows[0];
+if (daysOld > 30) return null;
 
-  // Ignore if too old (over 30 days)
-  const createdAt = new Date(newest.created_at).getTime();
-  const daysOld = (Date.now() - createdAt) / (1000 * 60 * 60 * 24);
+const oldText = `${newest.job_type || ""} ${newest.details || ""}`.toLowerCase();
+const newText = `${params.subject || ""} ${params.details || ""}`.toLowerCase();
 
-  if (daysOld > 30) return null;
+const sharedWords = newText
+.split(/\W+/)
+.filter((word) => word.length > 4 && oldText.includes(word));
 
-  // Compare text similarity
-  const oldText = `${newest.job_type || ""} ${newest.details || ""}`.toLowerCase();
-  const newText = `${params.subject || ""} ${params.details || ""}`.toLowerCase();
-
-  const sharedWords = newText
-    .split(/\W+/)
-    .filter((word) => word.length > 4 && oldText.includes(word));
-
-  // If similar enough → treat as same enquiry
-  if (sharedWords.length >= 2) {
-    return newest;
-  }
-
-  return null;
+return sharedWords.length >= 2 ? newest : null;
 }
 
 async function triggerAiForEnquiry(enquiryId: string) {
-  try {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3000";
+try {
+const baseUrl =
+process.env.NEXT_PUBLIC_SITE_URL ||
+process.env.NEXT_PUBLIC_APP_URL ||
+"http://localhost:3000";
 
-    await fetch(`${baseUrl.replace(/\/$/, "")}/api/ai/run-enquiry`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ enquiryId }),
-    });
-  } catch (aiError) {
-    console.error("Failed to trigger AI after inbound email:", aiError);
-  }
+await fetch(`${baseUrl.replace(/\/$/, "")}/api/ai/run-enquiry`, {
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+},
+body: JSON.stringify({ enquiryId }),
+});
+} catch (aiError) {
+console.error("Failed to trigger AI after inbound email:", aiError);
+}
 }
 
 export async function POST(req: Request) {
-  try {
-    const payload = await req.json();
-
- const emailData = payload?.data || payload;
+try {
+const payload = await req.json();
+const emailData = payload?.data || payload;
 
 const rawFrom = (emailData?.from || emailData?.sender || "").toString();
 const rawTo = (emailData?.to || emailData?.recipient || "").toString();
 const inboundSubject = (emailData?.subject || "").toString().trim();
 
 const rawText = (
-  emailData?.text ||
-  emailData?.body_text ||
-  emailData?.plain ||
-  stripHtml(emailData?.html || "") ||
-  ""
+emailData?.text ||
+emailData?.body_text ||
+emailData?.plain ||
+stripHtml(emailData?.html || "") ||
+""
 ).toString();
 
-console.log("INBOUND EMAIL DEBUG START");
-console.log("EMAIL DATA:", JSON.stringify(emailData, null, 2));
-console.log("RAW TEXT:", rawText);
+const to = extractEmailAddress(rawTo);
+const requestId = extractRequestIdFromTo(to);
+const forwardedByEmail = extractEmailAddress(rawFrom).toLowerCase().trim();
 
-    const to = extractEmailAddress(rawTo);
-    const requestId = extractRequestIdFromTo(to);
-    const forwardedByEmail = extractEmailAddress(rawFrom)
-  .toLowerCase()
-  .trim();
+console.log("INBOUND EMAIL:", {
+rawFrom,
+rawTo,
+forwardedByEmail,
+inboundSubject,
+rawTextPreview: rawText.slice(0, 1000),
+});
 
-    /*
-      Case 1:
-      Customer replies to:
-      enquiries+<requestId>@send.thefixflowapp.com
+/*
+Case 1:
+Customer replies to enquiries+<requestId>@...
+*/
+if (requestId) {
+const { data: enquiry, error: enquiryError } = await supabaseAdmin
+.from("quote_requests")
+.select("id, plumber_id")
+.eq("id", requestId)
+.single();
 
-      This should go straight into the existing enquiry thread.
-    */
-    if (requestId) {
-      const { data: enquiry, error: enquiryError } = await supabaseAdmin
-        .from("quote_requests")
-        .select("id, plumber_id")
-        .eq("id", requestId)
-        .single();
+if (enquiryError || !enquiry) {
+return NextResponse.json(
+{ ok: false, error: "Enquiry not found for reply address" },
+{ status: 404 }
+);
+}
 
-      if (enquiryError || !enquiry) {
-        return NextResponse.json(
-          { ok: false, error: "Enquiry not found for reply address" },
-          { status: 404 }
-        );
-      }
+const { error: messageError } = await supabaseAdmin
+.from("enquiry_messages")
+.insert({
+request_id: requestId,
+plumber_id: enquiry.plumber_id,
+direction: "in",
+channel: "email",
+subject: inboundSubject || "Customer reply",
+body_text: cleanBody(rawText),
+from_email: forwardedByEmail,
+to_email: to,
+});
 
-      const { error: messageError } = await supabaseAdmin
-        .from("enquiry_messages")
-        .insert({
-          request_id: requestId,
-          plumber_id: enquiry.plumber_id,
-          direction: "in",
-          channel: "email",
-          subject: inboundSubject || "Customer reply",
-          body_text: cleanBody(rawText),
-          from_email: forwardedByEmail,
-          to_email: to,
-        });
+if (messageError) {
+console.error("Create inbound thread message error:", messageError);
 
-      if (messageError) {
-        console.error("Create inbound thread message error:", messageError);
+return NextResponse.json(
+{ ok: false, error: messageError.message },
+{ status: 500 }
+);
+}
 
-        return NextResponse.json(
-          { ok: false, error: messageError.message },
-          { status: 500 }
-        );
-      }
+await supabaseAdmin
+.from("quote_requests")
+.update({
+ai_last_customer_message_at: new Date().toISOString(),
+ai_thread_status: "customer_replied",
+})
+.eq("id", requestId);
 
-      await supabaseAdmin
-        .from("quote_requests")
-        .update({
-          ai_last_customer_message_at: new Date().toISOString(),
-          ai_thread_status: "customer_replied",
-        })
-        .eq("id", requestId);
+await triggerAiForEnquiry(requestId);
 
-      await triggerAiForEnquiry(requestId);
+return NextResponse.json({
+ok: true,
+mode: "existing-thread-by-address",
+enquiryId: requestId,
+});
+}
 
-      return NextResponse.json({
-        ok: true,
-        mode: "existing-thread-by-address",
-        enquiryId: requestId,
-      });
-    }
-
-    /*
-      Case 2:
-      Trader forwards an outside customer email into FixFlow.
-      We match trader by notify_email and either attach to an existing enquiry
-      or create a new one.
-    */
-
-
-console.log("EMAIL LOOKUP:", forwardedByEmail);
-console.log("SUPABASE URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-
+/*
+Case 2:
+Trader forwards an outside customer email into FixFlow.
+*/
 const { data: profile, error: profileError } = await supabaseAdmin
-  .from("profiles")
-  .select("id, notify_email")
-  .ilike("notify_email", forwardedByEmail)
-  .maybeSingle();
+.from("profiles")
+.select("id, notify_email")
+.ilike("notify_email", forwardedByEmail)
+.maybeSingle();
 
-    if (profileError) {
-      console.error("Profile lookup error:", profileError);
+if (profileError) {
+console.error("Profile lookup error:", profileError);
 
-      return NextResponse.json(
-        { ok: false, error: "Could not look up trader profile" },
-        { status: 500 }
-      );
-    }
+return NextResponse.json(
+{ ok: false, error: "Could not look up trader profile" },
+{ status: 500 }
+);
+}
 
-    if (!profile?.id) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "No FixFlow trader found for this forwarding email",
-          forwardedByEmail,
-        },
-        { status: 404 }
-      );
-    }
+if (!profile?.id) {
+return NextResponse.json(
+{
+ok: false,
+error: "No FixFlow trader found for this forwarding email",
+forwardedByEmail,
+},
+{ status: 404 }
+);
+}
 
-    const parsed = parseForwardedOriginal(rawText);
+const parsed = parseForwardedOriginal(rawText);
 
+const aiExtracted = await extractForwardedEnquiryWithAI({
+rawFrom,
+rawTo,
+rawSubject: inboundSubject,
+rawText,
+});
 
-const customerEmail = parsed.customerEmail || null;
+const customerEmail =
+aiExtracted?.customer_email ||
+parsed.customerEmail ||
+null;
 
 const customerName =
-  parsed.customerName ||
-  "Customer";
-  console.log("FORWARDED PARSED:", {
-  rawFrom,
-  forwardedByEmail,
-  parsedCustomerEmail: parsed.customerEmail,
-  parsedCustomerName: parsed.customerName,
-  rawTextPreview: rawText.slice(0, 1000),
+aiExtracted?.customer_name ||
+parsed.customerName ||
+"Customer";
+
+const details =
+cleanBody(aiExtracted?.details || parsed.details || rawText) ||
+"Forwarded email received.";
+
+const finalSubject =
+aiExtracted?.original_subject ||
+parsed.originalSubject ||
+inboundSubject ||
+"Forwarded email";
+
+const detectedJobType =
+aiExtracted?.job_type ||
+detectJobType(`${finalSubject} ${details}`);
+
+const detectedUrgency =
+aiExtracted?.urgency ||
+detectUrgency(`${finalSubject} ${details}`);
+
+console.log("FORWARDED EXTRACTION RESULT:", {
+forwardedByEmail,
+customerEmail,
+customerName,
+finalSubject,
+detectedJobType,
+detectedUrgency,
+detailsPreview: details.slice(0, 1000),
 });
 
-const details = parsed.details || cleanBody(rawText);
-    const finalSubject =
-      parsed.originalSubject || inboundSubject || "Forwarded email";
-
-    let enquiryId: string;
-    let createdNewEnquiry = false;
-
-const detectedJobType = detectJobType(`${finalSubject} ${details}`);
-const detectedUrgency = detectUrgency(details);
+let enquiryId: string;
+let createdNewEnquiry = false;
 
 const existingEnquiry = await findExistingEnquiry({
-  plumberId: profile.id,
-  customerEmail,
-  subject: finalSubject,
-  details,
+plumberId: profile.id,
+customerEmail,
+subject: finalSubject,
+details,
 });
 
-    if (existingEnquiry?.id) {
-      enquiryId = existingEnquiry.id;
-    } else {
-      const { data: enquiry, error: enquiryError } = await supabaseAdmin
-        .from("quote_requests")
+if (existingEnquiry?.id) {
+enquiryId = existingEnquiry.id;
+} else {
+const { data: enquiry, error: enquiryError } = await supabaseAdmin
+.from("quote_requests")
 .insert({
-  plumber_id: profile.id,
-  customer_name: customerName || "Customer",
-  customer_email: customerEmail,
-
-  details: details || "Customer emailed an enquiry.",
-
-  status: "requested",   // ✅ FIXED
-  stage: "requested",    // ✅ SAFE MATCH
-
+plumber_id: profile.id,
+customer_name: customerName,
+customer_email: customerEmail,
+details,
+status: "requested",
+stage: "requested",
 job_type: detectedJobType,
 urgency: detectedUrgency,
 postcode: null,
 address: null,
 property_type: null,
 problem_location:
-  detectedJobType === "bathroom" || detectedJobType === "kitchen"
-    ? detectedJobType
-    : null,
-
-  ai_thread_status: "customer_replied",
-  ai_last_customer_message_at: new Date().toISOString(),
+detectedJobType === "bathroom" || detectedJobType === "kitchen"
+? detectedJobType
+: null,
+ai_thread_status: "customer_replied",
+ai_last_customer_message_at: new Date().toISOString(),
 })
-        .select("id, customer_name, customer_email, created_at")
-        .single();
+.select("id, customer_name, customer_email, created_at")
+.single();
 
-      if (enquiryError) {
-        console.error("Create enquiry error:", enquiryError);
+if (enquiryError) {
+console.error("Create enquiry error:", enquiryError);
 
 return NextResponse.json(
-  { ok: false, error: enquiryError.message },
-  { status: 500 }
+{ ok: false, error: enquiryError.message },
+{ status: 500 }
 );
-      }
+}
 
-      enquiryId = enquiry.id;
-      createdNewEnquiry = true;
-    }
+enquiryId = enquiry.id;
+createdNewEnquiry = true;
+}
 
-    const { error: messageError } = await supabaseAdmin
-      .from("enquiry_messages")
-      .insert({
-        request_id: enquiryId,
-        plumber_id: profile.id,
-        direction: "in",
-        channel: "email",
-        subject: finalSubject,
-        body_text: details || cleanBody(rawText),
-from_email: customerEmail,
+const { error: messageError } = await supabaseAdmin
+.from("enquiry_messages")
+.insert({
+request_id: enquiryId,
+plumber_id: profile.id,
+direction: "in",
+channel: "email",
+subject: finalSubject,
+body_text: details,
+from_email: customerEmail || "unknown@customer.local",
 to_email: to,
-      });
+});
 
-    if (messageError) {
-      console.error("Create enquiry message error:", messageError);
+if (messageError) {
+console.error("Create enquiry message error:", messageError);
 
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Enquiry matched/created but failed to log message",
-          enquiryId,
-        },
-        { status: 500 }
-      );
-    }
+return NextResponse.json(
+{
+ok: false,
+error: "Enquiry matched/created but failed to log message",
+enquiryId,
+},
+{ status: 500 }
+);
+}
 
-    if (!createdNewEnquiry) {
-      const updates: Record<string, string> = {
-        ai_last_customer_message_at: new Date().toISOString(),
-        ai_thread_status: "customer_replied",
-      };
+if (!createdNewEnquiry) {
+const updates: Record<string, any> = {
+ai_last_customer_message_at: new Date().toISOString(),
+ai_thread_status: "customer_replied",
+};
 
 if (customerName && customerName !== "Customer") {
-  updates.customer_name = customerName;
+updates.customer_name = customerName;
 }
 
 if (customerEmail && customerEmail !== forwardedByEmail) {
-  updates.customer_email = customerEmail;
+updates.customer_email = customerEmail;
 }
 
-      const { error: updateError } = await supabaseAdmin
-        .from("quote_requests")
-        .update(updates)
-        .eq("id", enquiryId);
+if (details) {
+updates.details = details;
+}
 
-      if (updateError) {
-        console.error("Update existing enquiry error:", updateError);
-      }
-    }
+if (detectedJobType) {
+updates.job_type = detectedJobType;
+}
 
-    await triggerAiForEnquiry(enquiryId);
+if (detectedUrgency) {
+updates.urgency = detectedUrgency;
+}
 
-    return NextResponse.json({
-      ok: true,
-      mode: createdNewEnquiry ? "new-enquiry" : "existing-enquiry",
-      enquiryId,
-      customerName,
-      customerEmail,
-      forwardedByEmail,
-    });
-  } catch (error) {
-    console.error("Inbound email error:", error);
+const { error: updateError } = await supabaseAdmin
+.from("quote_requests")
+.update(updates)
+.eq("id", enquiryId);
 
-    return NextResponse.json(
-      { ok: false, error: "Failed to process inbound email" },
-      { status: 500 }
-    );
-  }
+if (updateError) {
+console.error("Update existing enquiry error:", updateError);
+}
+}
+
+await triggerAiForEnquiry(enquiryId);
+
+return NextResponse.json({
+ok: true,
+mode: createdNewEnquiry ? "new-enquiry" : "existing-enquiry",
+enquiryId,
+customerName,
+customerEmail,
+forwardedByEmail,
+detectedJobType,
+detectedUrgency,
+});
+} catch (error: any) {
+console.error("Inbound email error:", error);
+
+return NextResponse.json(
+{ ok: false, error: error?.message || "Failed to process inbound email" },
+{ status: 500 }
+);
+}
 }

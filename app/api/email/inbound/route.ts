@@ -340,7 +340,7 @@ async function triggerAiForEnquiry(enquiryId: string) {
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
       process.env.NEXT_PUBLIC_APP_URL ||
-     "https://thefixflowapp.com";
+     "https://fixflow-vx1t-ten.vercel.app";
 
     await fetch(`${baseUrl.replace(/\/$/, "")}/api/ai/run-enquiry`, {
       method: "POST",
@@ -531,11 +531,14 @@ console.log(
 
     const bodyName = extractNameFromBody(cleanCustomerMessage);
 
+const parsedEmailIsReal =
+  parsed.customerEmail &&
+  parsed.customerEmail.includes("@") &&
+  parsed.customerEmail !== forwardedByEmail;
+
 const customerEmail =
   aiExtracted?.customer_email ||
-  (parsed.customerEmail && parsed.customerEmail !== forwardedByEmail
-    ? parsed.customerEmail
-    : null);
+  (parsedEmailIsReal ? parsed.customerEmail : null);
 
     const customerName =
       bodyName ||

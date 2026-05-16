@@ -236,9 +236,12 @@ ${params.rawText}
     const raw = cleanJsonBlock(
       response.choices?.[0]?.message?.content || "{}"
     );
-
+console.log("AI RAW RESPONSE:", raw);
     const parsed = JSON.parse(raw);
-
+console.log(
+  "AI PARSED:",
+  JSON.stringify(parsed, null, 2)
+);
     return {
       customer_name:
         typeof parsed?.customer_name === "string" && parsed.customer_name.trim()
@@ -369,6 +372,7 @@ export async function POST(req: Request) {
     let fullReceivedEmail: any = null;
 
     if (receivedEmailId) {
+      console.log("RECEIVED EMAIL ID:", receivedEmailId);
       const { data, error } = await resend.emails.receiving.get(receivedEmailId);
 
       if (error) {
@@ -376,6 +380,19 @@ export async function POST(req: Request) {
       } else {
         fullReceivedEmail = data;
       }
+      console.log(
+  "FULL RECEIVED EMAIL:",
+  JSON.stringify(fullReceivedEmail, null, 2)
+);
+
+console.log(
+  "RAW TEXT PREVIEW:",
+  (
+    fullReceivedEmail?.text ||
+    stripHtml(fullReceivedEmail?.html || "") ||
+    "NO TEXT"
+  ).slice(0, 4000)
+);
     }
 
     const rawFrom = (

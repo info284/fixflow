@@ -181,22 +181,42 @@ async function extractForwardedEnquiryWithAI(params: {
   rawText: string;
 }) {
   try {
-const response = await openai.chat.completions.create({
-  model: "gpt-4o-mini",
-  messages: [
-    {
-      role: "system",
-      content: `
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.1,
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `
 You extract customer enquiry details from forwarded emails.
 
 NEVER use the forwarding trader as the customer.
 
-Return ONLY valid JSON.
+Return ONLY valid JSON with exactly these fields:
+{
+  "customer_name": string | null,
+  "customer_email": string | null,
+  "original_subject": string | null,
+  "job_type": string | null,
+  "urgency": "asap" | "this-week" | "next-week" | "flexible",
+  "details": string,
+  "phone": string | null,
+  "postcode": string | null,
+  "address": string | null
+}
+
+Rules:
+- customer_name should be the real person asking for the job.
+- If the body says "My name is Claire Watkins", use Claire Watkins.
+- customer_email should be the original sender if available.
+- Do not use the forwarding trader email.
+- details should only describe the customer’s job/problem.
 `,
-    },
-    {
-      role: "user",
-      content: `
+        },
+        {
+          role: "user",
+          content: `
 Forwarded by:
 ${params.rawFrom}
 
@@ -209,15 +229,14 @@ ${params.rawSubject}
 Email:
 ${params.rawText}
 `,
-    },
-  ],
-  temperature: 0.1,
-});
+        },
+      ],
+    });
 
+    const raw = cleanJsonBlock(
+      response.choices?.[0]?.message?.content || "{}"
+    );
 
-   const raw = cleanJsonBlock(
-  response.choices?.[0]?.message?.content || "{}"
-);
     const parsed = JSON.parse(raw);
 
     return {
@@ -495,10 +514,11 @@ export async function POST(req: Request) {
 
     const bodyName = extractNameFromBody(cleanCustomerMessage);
 
-    const customerEmail =
-      parsed.customerEmail && parsed.customerEmail !== forwardedByEmail
-        ? parsed.customerEmail
-        : aiExtracted?.customer_email || null;
+const customerEmail =
+  aiExtracted?.customer_email ||
+  (parsed.customerEmail && parsed.customerEmail !== forwardedByEmail
+    ? parsed.customerEmail
+    : null);
 
     const customerName =
       bodyName ||

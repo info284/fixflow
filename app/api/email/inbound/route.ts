@@ -181,26 +181,22 @@ async function extractForwardedEnquiryWithAI(params: {
   rawText: string;
 }) {
   try {
-    const response = await openai.responses.create({
-      model: "gpt-4o-mini",
-      input: `
-Extract the real customer enquiry from this forwarded email.
+const response = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [
+    {
+      role: "system",
+      content: `
+You extract customer enquiry details from forwarded emails.
 
 NEVER use the forwarding trader as the customer.
 
-Return ONLY valid JSON:
-{
-  "customer_name": string | null,
-  "customer_email": string | null,
-  "original_subject": string | null,
-  "job_type": string | null,
-  "urgency": "asap" | "this-week" | "next-week" | "flexible",
-  "details": string,
-  "phone": string | null,
-  "postcode": string | null,
-  "address": string | null
-}
-
+Return ONLY valid JSON.
+`,
+    },
+    {
+      role: "user",
+      content: `
 Forwarded by:
 ${params.rawFrom}
 
@@ -213,9 +209,15 @@ ${params.rawSubject}
 Email:
 ${params.rawText}
 `,
-    });
+    },
+  ],
+  temperature: 0.1,
+});
 
-    const raw = cleanJsonBlock(response.output_text || "{}");
+
+   const raw = cleanJsonBlock(
+  response.choices?.[0]?.message?.content || "{}"
+);
     const parsed = JSON.parse(raw);
 
     return {
@@ -316,7 +318,7 @@ async function triggerAiForEnquiry(enquiryId: string) {
     const baseUrl =
       process.env.NEXT_PUBLIC_SITE_URL ||
       process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3000";
+     "https://thefixflowapp.com";
 
     await fetch(`${baseUrl.replace(/\/$/, "")}/api/ai/run-enquiry`, {
       method: "POST",

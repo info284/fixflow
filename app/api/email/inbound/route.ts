@@ -103,6 +103,26 @@ originalSubject,
 details: cleanBody(cleaned),
 };
 }
+function extractNameFromBody(text: string) {
+  const match =
+    text.match(/\bmy name is\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})/i) ||
+    text.match(/\bi am\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})/i) ||
+    text.match(/\bi'm\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,3})/i);
+
+  return match?.[1]?.trim() || null;
+}
+
+function extractCustomerMessage(text: string) {
+  const cleaned = cleanBody(text);
+
+  const marker = cleaned.match(/\n\s*Hi,?\s*\n/i);
+
+  if (marker?.index != null) {
+    return cleanBody(cleaned.slice(marker.index));
+  }
+
+  return cleaned;
+}
 
 function detectJobType(text: string) {
 const t = text.toLowerCase();
@@ -495,14 +515,18 @@ aiExtracted?.customer_email ||
 parsed.customerEmail ||
 null;
 
+const cleanCustomerMessage = extractCustomerMessage(rawText);
+const bodyName = extractNameFromBody(cleanCustomerMessage);
+
 const customerName =
-aiExtracted?.customer_name ||
-parsed.customerName ||
-"Customer";
+  bodyName ||
+  aiExtracted?.customer_name ||
+  parsed.customerName ||
+  "Customer";
 
 const details =
-cleanBody(aiExtracted?.details || parsed.details || rawText) ||
-"Forwarded email received.";
+  cleanBody(aiExtracted?.details || cleanCustomerMessage || parsed.details || rawText) ||
+  "Forwarded email received.";
 
 const finalSubject =
 aiExtracted?.original_subject ||
@@ -511,8 +535,8 @@ inboundSubject ||
 "Forwarded email";
 
 const detectedJobType =
-aiExtracted?.job_type ||
-detectJobType(`${finalSubject} ${details}`);
+  aiExtracted?.job_type ||
+  detectJobType(`${finalSubject} ${cleanCustomerMessage}`);
 
 const detectedUrgency =
 aiExtracted?.urgency ||

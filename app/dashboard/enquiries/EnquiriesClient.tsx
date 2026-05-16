@@ -3569,7 +3569,11 @@ const res = await fetch("/api/ai/analyse-enquiry", {
     }, 2200);
   } catch (error) {
     console.error("AI analyse error:", error);
-    alert("Something went wrong analysing this enquiry");
+    alert(
+  error instanceof Error
+    ? error.message
+    : "Something went wrong analysing this enquiry"
+);
   } finally {
     setAiLoadingId(null);
   }

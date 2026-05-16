@@ -203,7 +203,8 @@ Return ONLY valid JSON with exactly these fields:
   "details": string,
   "phone": string | null,
   "postcode": string | null,
-  "address": string | null
+"address": string | null,
+"budget": string | null
 }
 
 Rules:
@@ -212,6 +213,7 @@ Rules:
 - customer_email should be the original sender if available.
 - Do not use the forwarding trader email.
 - details should only describe the customer’s job/problem.
+- Extract budget if mentioned, for example "£150-300", "under £500", or "not sure".
 `,
         },
         {
@@ -284,6 +286,11 @@ console.log(
         typeof parsed?.address === "string" && parsed.address.trim()
           ? parsed.address.trim()
           : null,
+
+          budget:
+  typeof parsed?.budget === "string" && parsed.budget.trim()
+    ? parsed.budget.trim()
+    : null,
     };
   } catch (error) {
     console.error("AI forwarded email extraction failed:", error);
@@ -576,6 +583,9 @@ const customerEmail =
       aiExtracted?.address ||
       extractAddress(cleanCustomerMessage);
 
+      const detectedBudget =
+  aiExtracted?.budget || null;
+
     console.log("FORWARDED EXTRACTION RESULT:", {
       forwardedByEmail,
       customerEmail,
@@ -586,6 +596,7 @@ const customerEmail =
       detectedPhone,
       detectedPostcode,
       detectedAddress,
+      detectedBudget,
       detailsPreview: details.slice(0, 1000),
     });
 
@@ -608,10 +619,11 @@ const customerEmail =
           plumber_id: profile.id,
           customer_name: customerName,
           customer_email: customerEmail,
-          customer_phone: detectedPhone,
-          postcode: detectedPostcode,
-          address: detectedAddress,
-          details,
+         customer_phone: detectedPhone,
+postcode: detectedPostcode,
+address: detectedAddress,
+budget: detectedBudget,
+details,
           status: "requested",
           stage: "requested",
           job_type: detectedJobType,
@@ -685,6 +697,7 @@ const customerEmail =
       if (detectedPostcode) updates.postcode = detectedPostcode;
       if (detectedAddress) updates.address = detectedAddress;
       if (detectedJobType) updates.job_type = detectedJobType;
+      if (detectedBudget) updates.budget = detectedBudget;
       if (detectedUrgency) updates.urgency = detectedUrgency;
 
       const { error: updateError } = await supabaseAdmin

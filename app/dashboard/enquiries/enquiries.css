@@ -5663,7 +5663,7 @@ body {
 }
 
 .ff-leftPane {
-  height: auto;
+  height: 100%;
   max-height: none;
   overflow: visible;
 }
@@ -5679,7 +5679,7 @@ body {
     position: sticky;
     top: 14px;
     height: auto;
-    max-height: none;
+    max-height: 100%;
     overflow: hidden;
     display: flex;
     flex-direction: column;

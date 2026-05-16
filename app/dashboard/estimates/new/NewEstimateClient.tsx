@@ -24,6 +24,8 @@ type FileItem = {
  url: string | null;
 };
 
+type VatRate = "0" | "5" | "20";
+
 const BUCKET = "quote-files";
 
 // Customer uploads live here:
@@ -131,7 +133,7 @@ export default function NewEstimatePage() {
 
  // Estimate form (simple starter like your screenshot)
  const [customerEmail, setCustomerEmail] = useState("");
- const [vatRate, setVatRate] = useState<number>(20);
+const [vatRate, setVatRate] = useState<VatRate>("20");
  const [subtotal, setSubtotal] = useState<string>("");
  const [note, setNote] = useState("");
  const [jobDetails, setJobDetails] = useState("");
@@ -520,13 +522,15 @@ export default function NewEstimatePage() {
 
  <div className="col-span-12 md:col-span-5">
  <div className="text-xs font-medium text-gray-600 mb-1">VAT rate (%)</div>
- <input
- value={String(vatRate)}
- onChange={(e) => setVatRate(Number(e.target.value || 0))}
- className="h-10 w-full rounded-md border px-3 text-sm"
- inputMode="decimal"
- placeholder="20"
- />
+<select
+ value={vatRate}
+ onChange={(e) => setVatRate(e.target.value as VatRate)}
+ className="h-10 w-full rounded-md border px-3 text-sm bg-white"
+>
+ <option value="20">20%</option>
+ <option value="5">5%</option>
+ <option value="0">0%</option>
+</select>
  <div className="mt-1 text-[11px] text-gray-400">Use 0 if you’re not VAT registered.</div>
  </div>
 
@@ -597,7 +601,7 @@ export default function NewEstimatePage() {
  type="button"
  onClick={() => {
  setSubtotal("");
- setVatRate(20);
+ setVatRate("20");
  setNote("");
  setJobDetails(row?.details || "");
  setMsg(null);

@@ -49,15 +49,29 @@ function cleanBody(text: string) {
     .trim();
 }
 
+function stripHtml(html: string) {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
+
 function parseForwardedOriginal(text: string) {
-  const cleaned = text.replace(/\r/g, "");
+  const cleaned = stripHtml(text || "").replace(/\r/g, "");
 
   const fromMatch =
-    cleaned.match(/^From:\s*(.+)$/im) ||
-    cleaned.match(/^Sender:\s*(.+)$/im);
+    cleaned.match(/(?:^|\n)\s*From:\s*(.+)/i) ||
+    cleaned.match(/(?:^|\n)\s*Sender:\s*(.+)/i);
 
-  const replyToMatch = cleaned.match(/^Reply-To:\s*(.+)$/im);
-  const subjectMatch = cleaned.match(/^Subject:\s*(.+)$/im);
+  const replyToMatch = cleaned.match(/(?:^|\n)\s*Reply-To:\s*(.+)/i);
+  const subjectMatch = cleaned.match(/(?:^|\n)\s*Subject:\s*(.+)/i);
 
   const originalFromRaw = fromMatch?.[1]?.trim() || null;
   const originalReplyToRaw = replyToMatch?.[1]?.trim() || null;
@@ -70,18 +84,30 @@ function parseForwardedOriginal(text: string) {
 
   let details = cleaned;
 
-  const forwardedSeparatorPatterns = [
-    /---------- Forwarded message ----------/i,
-    /Begin forwarded message:/i,
-    /^From:\s.+$/im,
-  ];
+  const forwardedStart = cleaned.search(
+    /---------- Forwarded message ----------|Begin forwarded message:|(?:^|\n)\s*From:\s*/i
+  );
 
-  for (const pattern of forwardedSeparatorPatterns) {
-    const match = cleaned.match(pattern);
+  if (forwardedStart >= 0) {
+    const forwardedBlock = cleaned.slice(forwardedStart);
 
-    if (match?.index != null) {
-      details = cleaned.slice(match.index);
-      break;
+    const subjectLine = forwardedBlock.match(/(?:^|\n)\s*Subject:\s*.+/i);
+
+    if (subjectLine?.index != null) {
+      const afterSubject = forwardedBlock.slice(subjectLine.index + subjectLine[0].length);
+
+      details = afterSubject
+        .replace(/^\s*To:\s*.+$/gim, "")
+        .replace(/^\s*Date:\s*.+$/gim, "")
+        .replace(/^\s*Cc:\s*.+$/gim, "")
+        .replace(/^\s*From:\s*.+$/gim, "")
+        .replace(/^\s*Reply-To:\s*.+$/gim, "");
+    } else {
+      details = forwardedBlock
+        .replace(/^.*?From:\s*.+$/ims, "")
+        .replace(/^\s*To:\s*.+$/gim, "")
+        .replace(/^\s*Date:\s*.+$/gim, "")
+        .replace(/^\s*Subject:\s*.+$/gim, "");
     }
   }
 
@@ -208,14 +234,25 @@ const rawFrom = (emailData?.from || emailData?.sender || "").toString();
 const rawTo = (emailData?.to || emailData?.recipient || "").toString();
 const inboundSubject = (emailData?.subject || "").toString().trim();
 
-const rawText =
-  (
-    emailData?.text ||
-    emailData?.body_text ||
-    emailData?.plain ||
-    emailData?.html ||
-    ""
-  ).toString();
+const rawText = (
+  emailData?.text ||
+  emailData?.body_text ||
+  emailData?.plain ||
+  stripHtml(emailData?.html || "") ||
+  ""
+).toString();
+
+console.log("INBOUND EMAIL DEBUG:", {
+  keys: Object.keys(emailData || {}),
+  rawFrom,
+  rawTo,
+  subject: inboundSubject,
+  textPreview: String(emailData?.text || "").slice(0, 2000),
+  bodyTextPreview: String(emailData?.body_text || "").slice(0, 2000),
+  plainPreview: String(emailData?.plain || "").slice(0, 2000),
+  htmlPreview: String(emailData?.html || "").slice(0, 2000),
+  rawTextPreview: rawText.slice(0, 2000),
+});
 
     const to = extractEmailAddress(rawTo);
     const requestId = extractRequestIdFromTo(to);
@@ -322,15 +359,19 @@ const { data: profile, error: profileError } = await supabaseAdmin
 
     const parsed = parseForwardedOriginal(rawText);
 
-const isForwardedEmail = !!parsed.customerEmail;
 
-const customerEmail = isForwardedEmail
-  ? parsed.customerEmail
-  : forwardedByEmail;
+const customerEmail = parsed.customerEmail || null;
 
-const customerName = isForwardedEmail
-  ? parsed.customerName
-  : extractNameFromHeader(rawFrom);
+const customerName =
+  parsed.customerName ||
+  "Customer";
+  console.log("FORWARDED PARSED:", {
+  rawFrom,
+  forwardedByEmail,
+  parsedCustomerEmail: parsed.customerEmail,
+  parsedCustomerName: parsed.customerName,
+  rawTextPreview: rawText.slice(0, 1000),
+});
 
 const details = parsed.details || cleanBody(rawText);
     const finalSubject =
@@ -339,7 +380,7 @@ const details = parsed.details || cleanBody(rawText);
     let enquiryId: string;
     let createdNewEnquiry = false;
 
-const detectedJobType = detectJobType(details);
+const detectedJobType = detectJobType(`${finalSubject} ${details}`);
 const detectedUrgency = detectUrgency(details);
 
 const existingEnquiry = await findExistingEnquiry({
@@ -402,8 +443,8 @@ return NextResponse.json(
         channel: "email",
         subject: finalSubject,
         body_text: details || cleanBody(rawText),
-        from_email: customerEmail || forwardedByEmail,
-        to_email: forwardedByEmail,
+from_email: customerEmail,
+to_email: to,
       });
 
     if (messageError) {
@@ -425,9 +466,13 @@ return NextResponse.json(
         ai_thread_status: "customer_replied",
       };
 
-      if (customerName) updates.customer_name = customerName;
-      if (customerEmail) updates.customer_email = customerEmail;
-      if (details) updates.details = details;
+if (customerName && customerName !== "Customer") {
+  updates.customer_name = customerName;
+}
+
+if (customerEmail && customerEmail !== forwardedByEmail) {
+  updates.customer_email = customerEmail;
+}
 
       const { error: updateError } = await supabaseAdmin
         .from("quote_requests")

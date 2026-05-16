@@ -110,6 +110,7 @@ type JobStatus =
   | "invoiced"
   | "paid";
 
+  type VatRate = "0" | "5" | "20";
 /* ================================
    DESIGN CONSTS
 ================================ */
@@ -756,7 +757,7 @@ const [callNote, setCallNote] = useState("");
   const [workDescription, setWorkDescription] = useState("");
   const [traderRef, setTraderRef] = useState("");
   const [subtotal, setSubtotal] = useState("");
-  const [vatRate, setVatRate] = useState<"0" | "20">("20");
+  const [vatRate, setVatRate] = useState<VatRate>("20");
   const [vatRegistered, setVatRegistered] = useState(true);
 
   const [notes, setNotes] = useState("");
@@ -1865,7 +1866,8 @@ const userId = session?.user?.id ?? null;
     setTraderRef(selectedQuote?.trader_ref || "");
     setSubtotal(selectedQuote?.subtotal != null ? String(selectedQuote.subtotal) : "");
     setVatRegistered(Number(selectedQuote?.vat_rate || 0) > 0);
-    setVatRate(Number(selectedQuote?.vat_rate || 0) > 0 ? "20" : "0");
+    const vr = Number(selectedQuote?.vat_rate || 0);
+setVatRate(vr === 5 || vr === 20 ? (String(vr) as VatRate) : "0");
   }, [selectedRequest?.id, selectedQuote?.id]);
 
   useEffect(() => {

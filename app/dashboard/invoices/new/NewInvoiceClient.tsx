@@ -162,11 +162,22 @@ export default function InvoicesPage() {
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
 
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
+const [loading, setLoading] = useState(true);
+const [busy, setBusy] = useState(false);
+
+const toastTimerRef = React.useRef<number | null>(null);
+
 const [toast, setToast] = useState<{
   text: string;
   type?: "success" | "error";
+} | null>(null);
+
+const [confirmModal, setConfirmModal] = useState<{
+  title: string;
+  message: string;
+  confirmText: string;
+  tone?: "danger" | "normal";
+  onConfirm: () => void;
 } | null>(null);
 
 const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
@@ -184,9 +195,11 @@ const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("draft");
   const [notes, setNotes] = useState("");
   const [vatRegistered, setVatRegistered] = useState(true);
-const [vatRate, setVatRate] = useState<"0" | "20">("20");
+type VatRate = "0" | "5" | "20";
+
+const [vatRate, setVatRate] = useState<VatRate>("20");
+const [detailVatRate, setDetailVatRate] = useState<VatRate>("20");
 const [detailVatRegistered, setDetailVatRegistered] = useState(true);
-const [detailVatRate, setDetailVatRate] = useState<"0" | "20">("20");
 const [detailSubtotal, setDetailSubtotal] = useState("0");
   // right detail form
   const [detailToEmail, setDetailToEmail] = useState("");
@@ -243,7 +256,9 @@ useEffect(() => {
       : String(selectedInvoice.amount ?? 0)
   );
   setDetailVatRegistered(vr > 0);
-  setDetailVatRate(vr > 0 ? (String(vr) as "0" | "20") : "0");
+ setDetailVatRate(
+vr === 5 || vr === 20 ? (String(vr) as VatRate) : "0"
+);
   setDetailDueAt(
     selectedInvoice.due_at
       ? new Date(selectedInvoice.due_at).toISOString().slice(0, 10)
@@ -254,8 +269,15 @@ useEffect(() => {
 
 function pushToast(text: string, type: "success" | "error" = "success") {
   setToast({ text, type });
-  window.clearTimeout((pushToast as any)._t);
-  (pushToast as any)._t = window.setTimeout(() => setToast(null), 2400);
+
+  if (toastTimerRef.current) {
+    window.clearTimeout(toastTimerRef.current);
+  }
+
+  toastTimerRef.current = window.setTimeout(() => {
+    setToast(null);
+    toastTimerRef.current = null;
+  }, 2400);
 }
 
   async function loadAll() {
@@ -512,45 +534,55 @@ async function saveInvoice() {
     pushToast("Updated ✓", "success");
     setBusy(false);
   }
-    async function deleteInvoice(id: string) {
-    if (!userId) return;
+async function deleteInvoice(id: string) {
+  setConfirmModal({
+    title: "Delete invoice?",
+    message: "This invoice will be permanently removed from FixFlow.",
+    confirmText: "Delete invoice",
+    tone: "danger",
+    onConfirm: () => runDeleteInvoice(id),
+  });
+}
 
-    const ok = confirm("Delete this invoice?");
-    if (!ok) return;
 
-    setBusy(true);
-    setToast(null);
 
-    const { error } = await supabase
-      .from("invoices")
-      .delete()
-      .eq("id", id)
-      .eq("user_id", userId);
+async function runDeleteInvoice(id: string) {
+  if (!userId) return;
 
-    if (error) {
-      pushToast(`Delete error: ${error.message}`, "error");
-      setBusy(false);
-      return;
-    }
+  setBusy(true);
+  setToast(null);
 
-    const remaining = invoices.filter((i) => i.id !== id);
-    setInvoices(remaining);
+  const { error } = await supabase
+    .from("invoices")
+    .delete()
+    .eq("id", id)
+    .eq("user_id", userId);
 
-    if (selectedInvoiceId === id) {
-      const nextId = remaining[0]?.id || null;
-      setSelectedInvoiceId(nextId);
-      if (nextId) {
-        router.replace(
-          `/dashboard/invoices?invoiceId=${encodeURIComponent(nextId)}`
-        );
-      } else {
-        router.replace("/dashboard/invoices");
-      }
-    }
-
-   pushToast("Deleted ✓", "success");
+  if (error) {
+    pushToast(`Delete error: ${error.message}`, "error");
     setBusy(false);
+    return;
   }
+
+  const remaining = invoices.filter((i) => i.id !== id);
+  setInvoices(remaining);
+
+  if (selectedInvoiceId === id) {
+    const nextId = remaining[0]?.id || null;
+    setSelectedInvoiceId(nextId);
+
+    if (nextId) {
+      router.replace(
+        `/dashboard/invoices?invoiceId=${encodeURIComponent(nextId)}`
+      );
+    } else {
+      router.replace("/dashboard/invoices");
+    }
+  }
+
+  pushToast("Deleted ✓", "success");
+  setBusy(false);
+}
 
   async function downloadInvoicePdf(inv: InvoiceRow) {
   if (!inv?.id) return;
@@ -852,12 +884,13 @@ return (
                       <select
                         className="ff-inputWide"
                         value={vatRate}
-                        onChange={(e) => setVatRate(e.target.value as "0" | "20")}
+                        onChange={(e) => setVatRate(e.target.value as VatRate)}
                         disabled={busy || loading}
                         style={{ maxWidth: 120 }}
                       >
-                        <option value="20">20%</option>
-                        <option value="0">0%</option>
+                      <option value="20">20%</option>
+<option value="5">5%</option>
+<option value="0">0%</option>
                       </select>
                     ) : (
                       <div className="ff-detailSub">No VAT applied</div>
@@ -961,7 +994,7 @@ return (
                     <div className="ff-leftItemInner">
                       <div className="ff-leftItemTop">
                         <div className="ff-jobNumber">
-                          {inv.invoice_number || `INV-${inv.id.slice(0, 6).toUpperCase()}`}
+                          {inv.invoice_number || "Generating..."}
                         </div>
 
                         <div className="ff-leftDate">{niceDateOnly(inv.created_at)}</div>
@@ -1023,7 +1056,7 @@ return (
                 <div className="ff-enquiryHeader">
                   <div className="ff-enquiryHeaderLeft">
                     <div className="ff-enquiryTitle">
-                      {selectedInvoice.invoice_number || `INV-${selectedInvoice.id.slice(0, 6).toUpperCase()}`}
+                      {selectedInvoice.invoice_number || "Generating..."}
                     </div>
 
                     <div className="ff-enquiryMeta">
@@ -1235,11 +1268,12 @@ return (
                               <select
                                 className="ff-inputWide"
                                 value={detailVatRate}
-                                onChange={(e) => setDetailVatRate(e.target.value as "0" | "20")}
+                                onChange={(e) => setDetailVatRate(e.target.value as VatRate)}
                                 style={{ maxWidth: 140 }}
                               >
-                                <option value="20">20%</option>
-                                <option value="0">0%</option>
+                               <option value="20">20%</option>
+<option value="5">5%</option>
+<option value="0">0%</option>
                               </select>
                             ) : (
                               <div className="ff-detailSub">VAT will not be added.</div>
@@ -1406,8 +1440,83 @@ return (
     </div>
   </div>
 </div>
+{confirmModal ? (
+<div className="ff-modalOverlay">
+<div className="ff-modalCard">
+<div className="ff-modalTitle">{confirmModal.title}</div>
+<div className="ff-modalText">{confirmModal.message}</div>
+
+<div className="ff-modalActions">
+<button
+type="button"
+className="ff-btnGhost"
+onClick={() => setConfirmModal(null)}
+>
+Cancel
+</button>
+
+<button
+type="button"
+className={
+confirmModal.tone === "danger"
+? "ff-btnDanger"
+: "ff-btnPrimary"
+}
+onClick={() => {
+const action = confirmModal.onConfirm;
+setConfirmModal(null);
+action();
+}}
+>
+{confirmModal.confirmText}
+</button>
+</div>
+</div>
+</div>
+) : null}
 
 <style jsx>{`
+
+.ff-modalOverlay {
+position: fixed;
+inset: 0;
+z-index: 9999;
+display: grid;
+place-items: center;
+padding: 18px;
+background: rgba(15, 23, 42, 0.42);
+backdrop-filter: blur(8px);
+}
+
+.ff-modalCard {
+width: min(420px, 100%);
+border-radius: 24px;
+background: #ffffff;
+border: 1px solid rgba(230, 236, 245, 0.95);
+box-shadow: 0 24px 80px rgba(15, 23, 42, 0.22);
+padding: 20px;
+}
+
+.ff-modalTitle {
+color: #0b1320;
+font-size: 18px;
+font-weight: 950;
+margin-bottom: 8px;
+}
+
+.ff-modalText {
+color: #64748b;
+font-size: 14px;
+line-height: 1.5;
+margin-bottom: 18px;
+}
+
+.ff-modalActions {
+display: flex;
+justify-content: flex-end;
+gap: 10px;
+}
+
   .ff-controls {
     display: flex;
     flex-wrap: wrap;
@@ -1704,7 +1813,7 @@ return (
 
     .ff-backMobile {
       display: inline-block;
-    }
+}
 
     .ff-headerBtnRow {
       grid-template-columns: 1fr;

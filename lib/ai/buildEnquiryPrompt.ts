@@ -6,6 +6,11 @@ type BuildEnquiryPromptArgs = {
   visit: any | null;
 };
 
+function safe(value: any, fallback: string) {
+  if (value === null || value === undefined || value === "") return fallback;
+  return value;
+}
+
 export function buildEnquiryPrompt({
   enquiry,
   messages,
@@ -13,6 +18,26 @@ export function buildEnquiryPrompt({
   quickEstimate,
   visit,
 }: BuildEnquiryPromptArgs) {
+  const safeEnquiry = {
+    ...enquiry,
+    customer_name: safe(enquiry?.customer_name, "Customer"),
+    customer_email: safe(enquiry?.customer_email, "No customer email captured"),
+    customer_phone: safe(enquiry?.customer_phone, "No phone captured"),
+    job_type: safe(enquiry?.job_type, "Other"),
+    urgency: safe(enquiry?.urgency, "Flexible"),
+    details: safe(enquiry?.details, "No enquiry details provided"),
+    address: safe(enquiry?.address, "No address captured"),
+    postcode: safe(enquiry?.postcode, "No postcode captured"),
+  };
+
+  const safeMessages = (messages || []).map((m) => ({
+    ...m,
+    from_email: safe(m?.from_email, "unknown@customer.local"),
+    to_email: safe(m?.to_email, "unknown@fixflow.local"),
+    subject: safe(m?.subject, "No subject"),
+    body_text: safe(m?.body_text, "No message body"),
+  }));
+
   return `
 You are FixFlow AI, an enquiry handling assistant for a UK trades business.
 
@@ -20,8 +45,6 @@ You must return ONE valid JSON object only.
 Do not return markdown.
 Do not return code fences.
 Do not return explanation text.
-
-Use exactly this shape:
 
 Use exactly this shape:
 
@@ -53,7 +76,8 @@ Rules:
 - If enough information exists for a remote quote, set ready_to_quote true.
 - If the job likely needs seeing in person, set visit_required true.
 - Always fill every field.
-- draft_message MUST NOT be empty unless needs_human is true
+- draft_message MUST NOT be empty unless needs_human is true.
+- If no customer email was captured, do not fail. Analyse the enquiry from the details/messages only.
 
 Human tone rules:
 - Sound like a real UK tradesperson, not a chatbot.
@@ -67,18 +91,18 @@ Human tone rules:
 - Do not mention AI or FixFlow.
 
 Enquiry:
-${JSON.stringify(enquiry, null, 2)}
+${JSON.stringify(safeEnquiry, null, 2)}
 
 Messages:
-${JSON.stringify(messages, null, 2)}
+${JSON.stringify(safeMessages, null, 2)}
 
 Estimate:
-${JSON.stringify(estimate, null, 2)}
+${JSON.stringify(estimate || null, null, 2)}
 
 Quick Estimate:
-${JSON.stringify(quickEstimate, null, 2)}
+${JSON.stringify(quickEstimate || null, null, 2)}
 
 Visit:
-${JSON.stringify(visit, null, 2)}
+${JSON.stringify(visit || null, null, 2)}
 `;
 }

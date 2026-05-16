@@ -242,17 +242,9 @@ const rawText = (
   ""
 ).toString();
 
-console.log("INBOUND EMAIL DEBUG:", {
-  keys: Object.keys(emailData || {}),
-  rawFrom,
-  rawTo,
-  subject: inboundSubject,
-  textPreview: String(emailData?.text || "").slice(0, 2000),
-  bodyTextPreview: String(emailData?.body_text || "").slice(0, 2000),
-  plainPreview: String(emailData?.plain || "").slice(0, 2000),
-  htmlPreview: String(emailData?.html || "").slice(0, 2000),
-  rawTextPreview: rawText.slice(0, 2000),
-});
+console.log("INBOUND EMAIL DEBUG START");
+console.log("EMAIL DATA:", JSON.stringify(emailData, null, 2));
+console.log("RAW TEXT:", rawText);
 
     const to = extractEmailAddress(rawTo);
     const requestId = extractRequestIdFromTo(to);

@@ -77,21 +77,13 @@ function extractNameFromBody(text: string) {
 function extractCustomerMessage(text: string) {
   const cleaned = cleanBody(text);
 
-  const starts = [
-    cleaned.search(/\n\s*Hi,?\s*\n/i),
-    cleaned.search(/I got your details/i),
-    cleaned.search(/I('|’)m having/i),
-    cleaned.search(/My name is/i),
-    cleaned.search(/You can reach me/i),
-  ].filter((n) => n >= 0);
+  const forwardedStart =
+    cleaned.search(/Hi,/i) >= 0
+      ? cleaned.search(/Hi,/i)
+      : cleaned.search(/Hello,/i);
 
-  if (starts.length) {
-    return cleanBody(cleaned.slice(Math.min(...starts)));
-  }
-
-  const forwardedIndex = cleaned.search(/Begin forwarded message:/i);
-  if (forwardedIndex >= 0) {
-    return cleanBody(cleaned.slice(forwardedIndex));
+  if (forwardedStart >= 0) {
+    return cleanBody(cleaned.slice(forwardedStart));
   }
 
   return cleaned;
@@ -173,6 +165,11 @@ function parseForwardedOriginal(text: string) {
     details: cleaned,
   };
 }
+function extractForwardedHeaderEmail(text: string) {
+  const match = text.match(/(?:^|\n)\s*From:\s*.+?<([^>]+)>/i);
+  return match?.[1]?.trim().toLowerCase() || null;
+}
+
 
 async function extractForwardedEnquiryWithAI(params: {
   rawFrom: string;
@@ -529,14 +526,17 @@ console.log(
     const parsed = parseForwardedOriginal(rawText);
     const cleanCustomerMessage = extractCustomerMessage(rawText);
 
-    const aiExtracted = await extractForwardedEnquiryWithAI({
-      rawFrom,
-      rawTo,
-      rawSubject: inboundSubject,
-      rawText: cleanCustomerMessage.slice(0, 12000),
-    });
+const aiExtracted = await extractForwardedEnquiryWithAI({
+  rawFrom,
+  rawTo,
+  rawSubject: inboundSubject,
+  rawText: rawText.slice(0, 12000),
+});
 
     const bodyName = extractNameFromBody(cleanCustomerMessage);
+
+const forwardedHeaderEmail =
+  extractForwardedHeaderEmail(rawText);
 
 const parsedEmailIsReal =
   parsed.customerEmail &&
@@ -545,8 +545,11 @@ const parsedEmailIsReal =
 
 const customerEmail =
   aiExtracted?.customer_email ||
+  (forwardedHeaderEmail &&
+  forwardedHeaderEmail !== forwardedByEmail
+    ? forwardedHeaderEmail
+    : null) ||
   (parsedEmailIsReal ? parsed.customerEmail : null);
-
     const customerName =
       bodyName ||
       aiExtracted?.customer_name ||

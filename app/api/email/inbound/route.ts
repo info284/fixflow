@@ -115,10 +115,13 @@ function extractNameFromBody(text: string) {
 function extractCustomerMessage(text: string) {
   const cleaned = cleanBody(text);
 
-  const marker = cleaned.match(/\n\s*Hi,?\s*\n/i);
+  const start =
+    cleaned.search(/\n\s*Hi,?\s*\n/i) >= 0
+      ? cleaned.search(/\n\s*Hi,?\s*\n/i)
+      : cleaned.search(/I got your details|I('|’)m having|My name is/i);
 
-  if (marker?.index != null) {
-    return cleanBody(cleaned.slice(marker.index));
+  if (start >= 0) {
+    return cleanBody(cleaned.slice(start));
   }
 
   return cleaned;
@@ -510,22 +513,21 @@ const aiExtracted = await extractForwardedEnquiryWithAI({
   rawText: rawText.slice(0, 12000),
 });
 
-const customerEmail =
-aiExtracted?.customer_email ||
-parsed.customerEmail ||
-null;
-
 const cleanCustomerMessage = extractCustomerMessage(rawText);
 const bodyName = extractNameFromBody(cleanCustomerMessage);
+
+const customerEmail =
+  parsed.customerEmail && parsed.customerEmail !== forwardedByEmail
+    ? parsed.customerEmail
+    : aiExtracted?.customer_email || null;
 
 const customerName =
   bodyName ||
   aiExtracted?.customer_name ||
-  parsed.customerName ||
   "Customer";
 
 const details =
-  cleanBody(aiExtracted?.details || cleanCustomerMessage || parsed.details || rawText) ||
+  cleanBody(cleanCustomerMessage || aiExtracted?.details || parsed.details || rawText) ||
   "Forwarded email received.";
 
 const finalSubject =
@@ -535,8 +537,9 @@ inboundSubject ||
 "Forwarded email";
 
 const detectedJobType =
+  detectJobType(`${finalSubject} ${cleanCustomerMessage}`) ||
   aiExtracted?.job_type ||
-  detectJobType(`${finalSubject} ${cleanCustomerMessage}`);
+  null;
 
 const detectedUrgency =
 aiExtracted?.urgency ||

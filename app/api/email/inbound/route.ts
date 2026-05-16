@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import OpenAI from "openai";
 
+import { Resend } from "resend";
 const supabaseAdmin = createClient(
 process.env.NEXT_PUBLIC_SUPABASE_URL!,
 process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -10,7 +11,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY!
 const openai = new OpenAI({
 apiKey: process.env.OPENAI_API_KEY,
 });
-
+const resend = new Resend(process.env.RESEND_API_KEY);
 function extractEmailAddress(value: string) {
 const match = value.match(/<([^>]+)>/);
 if (match?.[1]) return match[1].trim().toLowerCase();
@@ -309,26 +310,47 @@ try {
 const payload = await req.json();
 const emailData = payload?.data || payload;
 
+const receivedEmailId =
+  emailData?.email_id ||
+  emailData?.id ||
+  payload?.data?.email_id ||
+  null;
+
+let fullReceivedEmail: any = null;
+
+if (receivedEmailId) {
+  const { data, error } = await resend.emails.receiving.get(receivedEmailId);
+
+  if (error) {
+    console.error("Failed to fetch received email:", error);
+  } else {
+    fullReceivedEmail = data;
+  }
+}
+
 const rawFrom = (
+  fullReceivedEmail?.headers?.from ||
+  fullReceivedEmail?.from ||
   emailData?.from ||
   emailData?.sender ||
   emailData?.headers?.from ||
-  emailData?.email?.from ||
   ""
 ).toString();
 
 const rawTo = (
-  emailData?.to ||
-  emailData?.recipient ||
-  emailData?.headers?.to ||
-  emailData?.email?.to ||
-  ""
+  Array.isArray(fullReceivedEmail?.to)
+    ? fullReceivedEmail.to.join(", ")
+    : fullReceivedEmail?.to ||
+      emailData?.to ||
+      emailData?.recipient ||
+      emailData?.headers?.to ||
+      ""
 ).toString();
 
 const inboundSubject = (
+  fullReceivedEmail?.subject ||
   emailData?.subject ||
   emailData?.headers?.subject ||
-  emailData?.email?.subject ||
   ""
 )
   .toString()
@@ -336,14 +358,12 @@ const inboundSubject = (
 
 const rawText = cleanBody(
   [
+    fullReceivedEmail?.text,
+    stripHtml(fullReceivedEmail?.html || ""),
     emailData?.text,
     emailData?.body_text,
     emailData?.plain,
-    emailData?.body?.text,
-    emailData?.email?.text,
     stripHtml(emailData?.html || ""),
-    stripHtml(emailData?.body?.html || ""),
-    stripHtml(emailData?.email?.html || ""),
   ]
     .filter(Boolean)
     .join("\n\n")

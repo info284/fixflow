@@ -313,13 +313,16 @@ const rawFrom = (emailData?.from || emailData?.sender || "").toString();
 const rawTo = (emailData?.to || emailData?.recipient || "").toString();
 const inboundSubject = (emailData?.subject || "").toString().trim();
 
-const rawText = (
-emailData?.text ||
-emailData?.body_text ||
-emailData?.plain ||
-stripHtml(emailData?.html || "") ||
-""
-).toString();
+const rawText = cleanBody(
+  [
+    emailData?.text,
+    emailData?.body_text,
+    emailData?.plain,
+    stripHtml(emailData?.html || ""),
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+);
 
 const to = extractEmailAddress(rawTo);
 const requestId = extractRequestIdFromTo(to);
@@ -423,10 +426,10 @@ forwardedByEmail,
 const parsed = parseForwardedOriginal(rawText);
 
 const aiExtracted = await extractForwardedEnquiryWithAI({
-rawFrom,
-rawTo,
-rawSubject: inboundSubject,
-rawText,
+  rawFrom,
+  rawTo,
+  rawSubject: inboundSubject,
+  rawText: rawText.slice(0, 12000),
 });
 
 const customerEmail =

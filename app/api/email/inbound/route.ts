@@ -309,20 +309,58 @@ try {
 const payload = await req.json();
 const emailData = payload?.data || payload;
 
-const rawFrom = (emailData?.from || emailData?.sender || "").toString();
-const rawTo = (emailData?.to || emailData?.recipient || "").toString();
-const inboundSubject = (emailData?.subject || "").toString().trim();
+const rawFrom = (
+  emailData?.from ||
+  emailData?.sender ||
+  emailData?.headers?.from ||
+  emailData?.email?.from ||
+  ""
+).toString();
+
+const rawTo = (
+  emailData?.to ||
+  emailData?.recipient ||
+  emailData?.headers?.to ||
+  emailData?.email?.to ||
+  ""
+).toString();
+
+const inboundSubject = (
+  emailData?.subject ||
+  emailData?.headers?.subject ||
+  emailData?.email?.subject ||
+  ""
+)
+  .toString()
+  .trim();
 
 const rawText = cleanBody(
   [
     emailData?.text,
     emailData?.body_text,
     emailData?.plain,
+    emailData?.body?.text,
+    emailData?.email?.text,
     stripHtml(emailData?.html || ""),
+    stripHtml(emailData?.body?.html || ""),
+    stripHtml(emailData?.email?.html || ""),
   ]
     .filter(Boolean)
     .join("\n\n")
 );
+
+console.log("EMAIL PAYLOAD SHAPE:", {
+  topLevelKeys: Object.keys(emailData || {}),
+  emailKeys: Object.keys(emailData?.email || {}),
+  bodyKeys: Object.keys(emailData?.body || {}),
+  hasText: !!emailData?.text,
+  hasHtml: !!emailData?.html,
+  hasEmailText: !!emailData?.email?.text,
+  hasEmailHtml: !!emailData?.email?.html,
+  hasBodyText: !!emailData?.body?.text,
+  hasBodyHtml: !!emailData?.body?.html,
+  rawTextPreview: rawText.slice(0, 2000),
+});
 
 const to = extractEmailAddress(rawTo);
 const requestId = extractRequestIdFromTo(to);

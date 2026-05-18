@@ -6141,14 +6141,7 @@ onClick={() => {
 )}
 
 
-
-{selectedRow.ai_suggested_reply &&
-  !thread.some(
-    (m: EnquiryMessageRow) =>
-      m.direction === "out" &&
-      (m.body_text || "").trim().toLowerCase() ===
-        selectedRow.ai_suggested_reply?.trim().toLowerCase()
-  ) && (
+{selectedRow.ai_suggested_reply ? (
   <div className="ff-aiReplyBox">
     <div className="ff-aiLabel">Suggested reply</div>
 
@@ -6189,11 +6182,10 @@ onClick={() => {
       </button>
     </div>
   </div>
-)}
-  
-        </div>
-      </div>
-    ) : null}
+) : null}
+    </div>
+  </div>
+) : null}
 
     <div className="ff-overviewTopGrid" style={{ marginBottom: 4 }}>
       <div className="ff-overviewMiniCard">

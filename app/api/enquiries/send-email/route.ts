@@ -187,12 +187,12 @@ const replyTo = `enquiries+${requestId}@send.thefixflowapp.com`;
           <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
             ${buildFixFlowSectionLabel("Message preview")}
             <div style="
-              font-size:15px;
-              line-height:1.7;
+              font-size:16px;
+              line-height:1.8;
               color:#0B1320;
               white-space:pre-wrap;
-              text-align:center;
-              max-width:420px;
+              text-align:left;
+              max-width:520px;
               margin:0 auto;
             ">
               ${safePreview}

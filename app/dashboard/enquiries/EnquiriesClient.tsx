@@ -4587,8 +4587,10 @@ if (autoFollowUpsEnabled && row.customer_email) {
   await supabase
     .from("quote_requests")
     .update({
-      ai_suggested_reply: message,
-      ai_thread_status: "awaiting_trader_review",
+      ai_suggested_reply: null,
+      ai_recommended_action: "low_priority",
+      ai_last_processed_at: new Date().toISOString(),
+      ai_thread_status: "awaiting_customer_reply",
       ai_follow_up_count: followUpCount,
     })
     .eq("id", row.id);

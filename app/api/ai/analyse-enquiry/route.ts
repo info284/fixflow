@@ -197,33 +197,53 @@ export async function POST(req: Request) {
       throw new Error("AI returned invalid JSON");
     }
 
-    const decision = normaliseDecision(parsed);
-    console.log("AI decision for enquiry", enquiryId, decision);
+ const decision = normaliseDecision(parsed);
+console.log("AI decision for enquiry", enquiryId, decision);
 
-    const nowIso = new Date().toISOString();
+const normaliseText = (value: string) =>
+  value.trim().replace(/\s+/g, " ").toLowerCase();
 
-    const { data: updatedRow, error: updateError } = await supabaseAdmin
-      .from("quote_requests")
-      .update({
-        ai_summary: decision.summary,
-        ai_recommended_action: decision.recommended_action,
-        ai_suggested_reply: decision.draft_message,
-        ai_last_processed_at: nowIso,
-        ai_state: decision.state,
-        ai_status: "active",
-        ai_confidence: decision.confidence,
-        ai_needs_human: decision.needs_human,
-        ai_missing_fields: decision.missing_fields,
-        ai_ready_to_quote: decision.ready_to_quote,
-        ai_quote_type: decision.quote_type,
-        ai_visit_required: decision.visit_required,
-        ai_customer_sentiment: decision.customer_sentiment,
-        ai_last_action: decision.automation_reason,
-        ai_last_action_at: nowIso,
-      })
-      .eq("id", enquiryId)
-      .select("*")
-      .single();
+const previousOutboundMessages = (messages || [])
+  .filter((m: any) => m.direction === "out")
+  .map((m: any) => normaliseText(String(m.body_text || "")))
+  .filter(Boolean);
+
+const draftAlreadySent =
+  decision.draft_message &&
+  previousOutboundMessages.includes(
+    normaliseText(decision.draft_message)
+  );
+
+const safeSuggestedReply = draftAlreadySent
+  ? ""
+  : decision.draft_message;
+
+const nowIso = new Date().toISOString();
+
+const { data: updatedRow, error: updateError } = await supabaseAdmin
+  .from("quote_requests")
+  .update({
+    ai_summary: decision.summary,
+    ai_recommended_action: draftAlreadySent
+      ? "low_priority"
+      : decision.recommended_action,
+    ai_suggested_reply: safeSuggestedReply,
+    ai_last_processed_at: nowIso,
+    ai_state: decision.state,
+    ai_status: "active",
+    ai_confidence: decision.confidence,
+    ai_needs_human: decision.needs_human,
+    ai_missing_fields: decision.missing_fields,
+    ai_ready_to_quote: decision.ready_to_quote,
+    ai_quote_type: decision.quote_type,
+    ai_visit_required: decision.visit_required,
+    ai_customer_sentiment: decision.customer_sentiment,
+    ai_last_action: decision.automation_reason,
+    ai_last_action_at: nowIso,
+  })
+  .eq("id", enquiryId)
+  .select("*")
+  .single();
 
     if (updateError) {
       console.error("quote_requests update failed:", updateError);

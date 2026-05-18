@@ -6139,7 +6139,16 @@ onClick={() => {
     </div>
   </div>
 )}
-{selectedRow.ai_suggested_reply && (
+
+
+
+{selectedRow.ai_suggested_reply &&
+  !thread.some(
+    (m: EnquiryMessageRow) =>
+      m.direction === "out" &&
+      (m.body_text || "").trim().toLowerCase() ===
+        selectedRow.ai_suggested_reply?.trim().toLowerCase()
+  ) && (
   <div className="ff-aiReplyBox">
     <div className="ff-aiLabel">Suggested reply</div>
 

@@ -5669,15 +5669,17 @@ body {
 }
 .ff-leftReplyAlert {
   margin-top: 10px;
-  width: fit-content;
-  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
   border-radius: 999px;
-  background: #eef4ff;
-  border: 1px solid #c9d8ff;
-  color: #12305f;
-  font-size: 12px;
-  font-weight: 900;
-  box-shadow: 0 8px 18px rgba(36, 91, 255, 0.12);
+  background: rgba(36, 91, 255, 0.08);
+  border: 1px solid rgba(36, 91, 255, 0.16);
+  color: #1e3a78;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
 }
 .ff-leftList {
   max-height: none;

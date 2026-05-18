@@ -5496,7 +5496,7 @@ className={`ff-leftItem
   </button>
 ) : null}
 
-{followUp && (
+{followUp && latestMessage?.direction !== "in" && (
   <button
     type="button"
     onClick={(e) => {

@@ -32,11 +32,33 @@ export function buildEnquiryPrompt({
 
   const safeMessages = (messages || []).map((m) => ({
     ...m,
+    direction: safe(m?.direction, "unknown"),
     from_email: safe(m?.from_email, "unknown@customer.local"),
     to_email: safe(m?.to_email, "unknown@fixflow.local"),
     subject: safe(m?.subject, "No subject"),
     body_text: safe(m?.body_text, "No message body"),
+    created_at: safe(m?.created_at, "No date"),
   }));
+
+  const latestCustomerMessage =
+    [...safeMessages].reverse().find((m) => m.direction === "in") || null;
+
+  const latestTraderMessage =
+    [...safeMessages].reverse().find((m) => m.direction === "out") || null;
+
+  const previousTraderReplies = safeMessages
+    .filter((m) => m.direction === "out")
+    .map((m) => String(m.body_text || "").trim())
+    .filter(Boolean);
+
+  const previousCustomerMessages = safeMessages
+    .filter((m) => m.direction === "in")
+    .map((m) => String(m.body_text || "").trim())
+    .filter(Boolean);
+
+  const lastMessage = safeMessages.length
+    ? safeMessages[safeMessages.length - 1]
+    : null;
 
   return `
 You are FixFlow AI, an enquiry handling assistant for a UK trades business.
@@ -66,7 +88,7 @@ Use exactly this shape:
   "automation_reason": "string"
 }
 
-Rules:
+Main rules:
 - Be practical, short, calm and human.
 - Never sound robotic or corporate.
 - Do not promise exact bookings or times.
@@ -90,21 +112,39 @@ Human tone rules:
 - Never over-explain.
 - Do not mention AI or FixFlow.
 
-Conversation rules:
-- Treat Messages as the full conversation history.
-- The most recent inbound/customer message is the message you are replying to.
-- draft_message must directly answer or continue from the most recent inbound/customer message.
-- Do not restart the conversation if the trader has already replied before.
-- Do not repeat any previous outbound/trader message.
+Critical conversation rules:
+- You are NOT writing a first reply unless there are no previous trader replies.
+- The latest inbound/customer message is the main message to respond to.
+- draft_message must directly continue from the latest inbound/customer message.
+- Do not restart the conversation.
+- Do not repeat any previous outbound/trader reply.
 - Do not ask for information the customer has already provided.
 - If the customer has answered a question, move the job forward.
-- If the last message is outbound/trader and the customer has not replied yet, suggest a follow-up only if enough time appears to have passed. Otherwise set recommended_action to low_priority.
-- If previous outbound messages already asked for photos/details/availability, do not ask the same thing again unless the customer ignored it.
+- If the latest message is from the trader, do not write another normal reply. Only suggest a follow-up if appropriate.
+- If the customer has given availability, suggest confirming or booking a visit.
+- If the customer has sent photos/details, suggest the next step: estimate, visit, or one final missing detail.
+- If the trader already asked for photos/details/availability, do not ask again unless the customer ignored it.
+- If draft_message would be similar to a previous trader reply, write a different next-step message instead.
+
+Latest customer message to reply to:
+${JSON.stringify(latestCustomerMessage, null, 2)}
+
+Latest trader message already sent:
+${JSON.stringify(latestTraderMessage, null, 2)}
+
+Last message in conversation:
+${JSON.stringify(lastMessage, null, 2)}
+
+Previous customer messages:
+${JSON.stringify(previousCustomerMessages, null, 2)}
+
+Previous trader replies - DO NOT REPEAT THESE:
+${JSON.stringify(previousTraderReplies, null, 2)}
 
 Enquiry:
 ${JSON.stringify(safeEnquiry, null, 2)}
 
-Messages:
+Full message history:
 ${JSON.stringify(safeMessages, null, 2)}
 
 Estimate:

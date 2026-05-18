@@ -199,12 +199,24 @@ const replyTo = `enquiries+${requestId}@send.thefixflowapp.com`;
             </div>
           </div>
 
-          <div style="padding:16px 18px;">
-            ${buildFixFlowSectionLabel("Reply link")}
-            <div style="font-size:14px; line-height:1.7; color:#1F355C; word-break:break-word;">
-              ${messageUrl}
-            </div>
-          </div>
+<div style="padding:16px 18px;">
+  ${buildFixFlowSectionLabel("Reply")}
+
+  <div style="margin-top:12px;">
+    ${buildFixFlowButton("Reply to message", messageUrl)}
+  </div>
+
+  <div style="
+    margin-top:14px;
+    font-size:12px;
+    line-height:1.5;
+    color:#94A3B8;
+    word-break:break-all;
+    overflow-wrap:anywhere;
+  ">
+    ${messageUrl}
+  </div>
+</div>
         `)}
 
         <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">

@@ -5369,17 +5369,8 @@ className={`ff-leftItem
 <div className="ff-leftAddress">
   {r.address || formatPostcode(r.postcode) || "No address"}
 </div>
-<div
-  style={{
-    color: "red",
-    fontSize: "18px",
-    fontWeight: 800,
-    padding: "8px 0",
-    background: "yellow",
-    display: "block",
-  }}
->
-  TEST PREVIEW IS SHOWING
+<div className="ff-leftPreview">
+  {cardPreview}
 </div>
 
 

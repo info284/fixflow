@@ -5667,7 +5667,17 @@ body {
   max-height: none;
   overflow: visible;
 }
-
+.ff-leftPreview {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #64748b;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .ff-leftList {
   max-height: none;
   overflow: visible;

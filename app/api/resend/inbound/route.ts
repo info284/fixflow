@@ -77,9 +77,15 @@ export async function POST(req: Request) {
 
     const currentStage = String(enquiry.stage || "").toLowerCase();
 
-    const updatePayload: Record<string, any> = {
-      read_at: null,
-    };
+const updatePayload: Record<string, any> = {
+  read_at: null,
+  ai_thread_status: "customer_replied",
+  ai_last_customer_message_at: new Date().toISOString(),
+  ai_needs_human: true,
+  ai_recommended_action: "reply_now",
+  ai_last_action: "customer_reply_received",
+  ai_last_action_at: new Date().toISOString(),
+};
 
     if (currentStage === "lost") {
       updatePayload.stage = "contacted";

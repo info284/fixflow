@@ -1088,10 +1088,7 @@ export default function EnquiriesClient() {
     if (!s || s === "null" || s === "undefined") return "";
     return s;
   };
-const getCustomerFirstName = (name?: string | null) => {
-  if (!name) return "there";
-  return titleCase(name).split(" ")[0];
-};
+
   const requestIdFromUrl = cleanId(requestIdParam);
   const urlTab = cleanId(tabParam);
 
@@ -1491,7 +1488,7 @@ function createMessageWithPrice() {
 
 const price = pricingInsight?.suggested ?? 0;
 
-const name = titleCase(selectedRow?.customer_name) || "there";
+const name = getCustomerFirstName(selectedRow.customer_name);
 const job = selectedRow?.job_type || "job";
 
 // 💰 derive tone from value
@@ -3032,6 +3029,10 @@ function findNextActionRow(currentId?: string) {
   /* ================================
      LOCAL HELPERS
   ================================= */
+function getCustomerFirstName(name?: string | null) {
+  const first = String(name || "").trim().split(/\s+/)[0];
+  return first ? titleCase(first) : "there";
+}
 
 function pushToast(text: string, type: "success" | "error" = "success") {
   setToast({ text, type });
@@ -3321,14 +3322,13 @@ for (const row of (data || []) as any[]) {
     }
   }
 
- async function loadThread(requestId: string, userId: string) {
+async function loadThread(requestId: string, userId: string) {
   setThreadLoading(true);
 
   const { data, error } = await supabase
     .from("enquiry_messages")
     .select("*")
     .eq("request_id", requestId)
-    .eq("plumber_id", userId)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -3340,6 +3340,8 @@ for (const row of (data || []) as any[]) {
 
   const messages = (data || []) as EnquiryMessageRow[];
 
+  console.log("THREAD MESSAGES:", messages);
+
   setThread(messages);
   setThreadMap((prev) => ({
     ...prev,
@@ -3349,10 +3351,10 @@ for (const row of (data || []) as any[]) {
   setThreadLoading(false);
 
   requestAnimationFrame(() => {
-threadBottomRef.current?.scrollIntoView({
-  behavior: "auto",
-  block: "nearest",
-});
+    threadBottomRef.current?.scrollIntoView({
+      behavior: "auto",
+      block: "nearest",
+    });
   });
 }
 
@@ -3367,12 +3369,11 @@ threadBottomRef.current?.scrollIntoView({
 
   const requestIds = requests.map((r) => r.id);
 
-  const { data, error } = await supabase
-    .from("enquiry_messages")
-    .select("*")
-    .eq("plumber_id", userId)
-    .in("request_id", requestIds)
-    .order("created_at", { ascending: true });
+const { data, error } = await supabase
+  .from("enquiry_messages")
+  .select("*")
+  .in("request_id", requestIds)
+  .order("created_at", { ascending: true });
 
   if (error) {
     console.error("loadThreadMapForRows error:", error?.message, error);
@@ -5197,6 +5198,13 @@ salesPulse.valueWaiting > 0 || salesPulse.needsAction > 0
   const estimate = estimateMap[r.id];
   const visit = visitMap[r.id] || null;
   const messages = threadMap[r.id] || [];
+  const latestMessage = messages[messages.length - 1];
+
+const cardPreview =
+  latestMessage?.body_text ||
+  r.ai_summary ||
+  r.details ||
+  "No message yet";
 const email = r.customer_email?.toLowerCase().trim();
 const history = email ? customerHistoryMap[email] : null;
 const repeatCount = history ? history.count - 1 : 0;
@@ -5358,9 +5366,23 @@ className={`ff-leftItem
                             {titleCase(r.customer_name || "Customer")}
                           </div>
 
-                          <div className="ff-leftAddress">
-                            {r.address || formatPostcode(r.postcode) || "No address"}
-                          </div>
+<div className="ff-leftAddress">
+  {r.address || formatPostcode(r.postcode) || "No address"}
+</div>
+<div
+  style={{
+    color: "red",
+    fontSize: "18px",
+    fontWeight: 800,
+    padding: "8px 0",
+    background: "yellow",
+    display: "block",
+  }}
+>
+  TEST PREVIEW IS SHOWING
+</div>
+
+
                         </div>
 
 <div className="ff-leftMetaRow">
@@ -5550,6 +5572,13 @@ className={`ff-leftItem
                     const estimate = estimateMap[r.id];
                     const visit = visitMap[r.id] || null;
                     const messages = threadMap[r.id] || [];
+                    const latestMessage = messages[messages.length - 1];
+
+const cardPreview =
+  latestMessage?.body_text ||
+  r.ai_summary ||
+  r.details ||
+  "No message yet";
 const email = r.customer_email?.toLowerCase().trim();
 const history = email ? customerHistoryMap[email] : null;
 const repeatCount = history ? history.count - 1 : 0;
@@ -5692,6 +5721,18 @@ onClick={() => selectEnquiry(r.id, "details")}
                           <div className="ff-leftAddress">
                             {r.address || formatPostcode(r.postcode) || "No address"}
                           </div>
+<div
+  style={{
+    color: "red",
+    fontSize: "18px",
+    fontWeight: 800,
+    padding: "8px 0",
+    background: "yellow",
+    display: "block",
+  }}
+>
+  TEST PREVIEW IS SHOWING
+</div>
                         </div>
 
                         <div className="ff-leftMetaRow">
@@ -6496,7 +6537,7 @@ Edit first
                 className="ff-btn ff-btnGhost ff-btnSm"
                 onClick={() => {
                   const customerName =
-                    titleCase(selectedRow?.customer_name) || "there";
+                    getCustomerFirstName(selectedRow.customer_name) || "there";
 
                   const text = `Hi ${customerName}, could you please send:\n- ${selectedMissingInfo.join(
                     "\n- "
@@ -8133,7 +8174,7 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
               className="ff-quickReplyBtn"
               onClick={() =>
                 setReplyBody(
-                  `Hi ${titleCase(selectedRow?.customer_name) || ""}, just checking in to see if you'd like to go ahead with this.`
+                  `Hi ${ getCustomerFirstName(selectedRow.customer_name)|| ""}, just checking in to see if you'd like to go ahead with this.`
                 )
               }
             >
@@ -8146,7 +8187,7 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
                 className="ff-quickReplyBtn"
                 onClick={() =>
                   setReplyBody(
-                    `Hi ${titleCase(selectedRow?.customer_name) || ""}, just following up on the estimate I sent over. Let me know if you'd like to move forward.`
+                    `Hi ${getCustomerFirstName(selectedRow.customer_name) || ""}, just following up on the estimate I sent over. Let me know if you'd like to move forward.`
                   )
                 }
               >
@@ -8159,7 +8200,7 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
               className="ff-quickReplyBtn"
               onClick={() =>
                 setReplyBody(
-                  `Hi ${titleCase(selectedRow?.customer_name) || ""}, just checking whether you'd still like me to quote for this job.`
+                  `Hi ${getCustomerFirstName(selectedRow.customer_name) || ""}, just checking whether you'd still like me to quote for this job.`
                 )
               }
             >

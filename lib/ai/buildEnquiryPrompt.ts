@@ -90,6 +90,17 @@ Human tone rules:
 - Never over-explain.
 - Do not mention AI or FixFlow.
 
+Conversation rules:
+- Treat Messages as the full conversation history.
+- The most recent inbound/customer message is the message you are replying to.
+- draft_message must directly answer or continue from the most recent inbound/customer message.
+- Do not restart the conversation if the trader has already replied before.
+- Do not repeat any previous outbound/trader message.
+- Do not ask for information the customer has already provided.
+- If the customer has answered a question, move the job forward.
+- If the last message is outbound/trader and the customer has not replied yet, suggest a follow-up only if enough time appears to have passed. Otherwise set recommended_action to low_priority.
+- If previous outbound messages already asked for photos/details/availability, do not ask the same thing again unless the customer ignored it.
+
 Enquiry:
 ${JSON.stringify(safeEnquiry, null, 2)}
 

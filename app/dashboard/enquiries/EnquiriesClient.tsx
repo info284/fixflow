@@ -6138,46 +6138,46 @@ onClick={() => {
   </div>
 )}
 {selectedRow.ai_suggested_reply && (
-<div className="ff-aiReplyBox">
-<div className="ff-aiLabel">Suggested reply</div>
+  <div className="ff-aiReplyBox">
+    <div className="ff-aiLabel">Suggested reply</div>
 
-<p className="ff-aiReplyText">
-{selectedRow.ai_suggested_reply}
-</p>
+    <p className="ff-aiReplyText">
+      {selectedRow.ai_suggested_reply}
+    </p>
 
-<div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-<button
-type="button"
-className="ff-btn ff-btnPrimary ff-btnSm"
-onClick={() => {
-syncRightTab("messages");
-setReplyBody(selectedRow.ai_suggested_reply || "");
+    <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+      <button
+        type="button"
+        className="ff-btn ff-btnPrimary ff-btnSm"
+        onClick={() => {
+          syncRightTab("messages");
+          setReplyBody(selectedRow.ai_suggested_reply || "");
 
-if (!replySubject.trim()) {
-setReplySubject(
-`Re: ${titleCase(selectedRow.job_type || "Enquiry")}`
-);
-}
+          if (!replySubject.trim()) {
+            setReplySubject(
+              `Re: ${titleCase(selectedRow.job_type || "Enquiry")}`
+            );
+          }
 
-setScrollToComposerPending(true);
-}}
->
-Send this
-</button>
+          setScrollToComposerPending(true);
+        }}
+      >
+        Use reply
+      </button>
 
-<button
-type="button"
-className="ff-btn ff-btnGhost ff-btnSm"
-onClick={() => {
-syncRightTab("messages");
-setReplyBody(selectedRow.ai_suggested_reply || "");
-setScrollToComposerPending(true);
-}}
->
-Edit first
-</button>
-</div>
-</div>
+      <button
+        type="button"
+        className="ff-btn ff-btnGhost ff-btnSm"
+        onClick={() => {
+          syncRightTab("messages");
+          setReplyBody("");
+          setScrollToComposerPending(true);
+        }}
+      >
+        Write different reply
+      </button>
+    </div>
+  </div>
 )}
   
         </div>

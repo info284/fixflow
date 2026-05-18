@@ -5369,9 +5369,11 @@ className={`ff-leftItem
 <div className="ff-leftAddress">
   {r.address || formatPostcode(r.postcode) || "No address"}
 </div>
-<div className="ff-leftPreview">
-  {cardPreview}
-</div>
+{latestMessage?.direction === "in" ? (
+  <div className="ff-leftReplyAlert">
+    ⚡ Customer replied — reply now
+  </div>
+) : null}
 
 
                         </div>

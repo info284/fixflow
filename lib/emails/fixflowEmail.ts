@@ -32,7 +32,7 @@ closingHtml = `
 }: FixFlowEmailOptions) {
   return `
     <div style="margin:0; padding:24px; background:#F6F8FC; font-family:Arial, sans-serif; color:#0B1320;">
-      <div style="max-width:640px; margin:0 auto; background:#FFFFFF; border:1px solid #E6ECF5; border-radius:22px; overflow:hidden;">
+      <div style="max-width:640px; margin:0 auto; background:#FFFFFF; border:1px solid #E6ECF5; border-radius:22px;">
         
         <div style="background:#0B2A55; padding:24px 24px 20px 24px;">
           <div style="font-size:12px; font-weight:800; letter-spacing:0.1em; text-transform:uppercase; color:#C9D8FF; margin-bottom:10px;">
@@ -44,7 +44,7 @@ closingHtml = `
           <div style="width:170px; height:4px;  border-radius:999px;"></div>
         </div>
 
-        <div style="padding:24px;">
+       <div style="padding:24px; background:#FFFFFF;">
           ${introHtml}
           ${bodyHtml}
           ${ctaHtml ? `<div style="margin:24px 0;">${ctaHtml}</div>` : ""}
@@ -70,7 +70,7 @@ export function buildFixFlowButton(label: string, href: string) {
 
 export function buildFixFlowInfoCard(innerHtml: string) {
   return `
-    <div style="border:1px solid #E6ECF5; border-radius:18px; overflow:hidden; margin-bottom:20px; background:#F4F7FF;">
+   <div style="border:1px solid #E6ECF5; border-radius:18px; margin-bottom:20px; background:#F4F7FF;">
       ${innerHtml}
     </div>
   `;

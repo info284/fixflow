@@ -5681,6 +5681,14 @@ body {
   font-weight: 800;
   letter-spacing: 0.01em;
 }
+.ff-detailedEstimateBtn {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.25;
+}
 .ff-leftList {
   max-height: none;
   overflow: visible;

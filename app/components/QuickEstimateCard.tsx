@@ -674,7 +674,7 @@ if (nextStatus === "sent") {
               window.location.href = `/dashboard/estimates?requestId=${selectedQuote?.id}`;
             }}
           >
-            Need a proper quote? Create detailed estimate →
+           Create detailed estimate →
           </button>
         </>
       )}

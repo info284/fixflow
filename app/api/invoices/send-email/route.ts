@@ -307,30 +307,39 @@ export async function POST(req: Request) {
             </div>
           </div>
 
-          <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
-            <div style="display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #E6ECF5;">
-              <span style="color:#5C6B84; font-size:14px;">Subtotal</span>
-              <span style="font-weight:700; font-size:14px; color:#0B1320;">${escapeEmailHtml(
-                formatMoney(subtotalAmount, currency)
-              )}</span>
-            </div>
+         <div style="padding:18px; border-bottom:1px solid #E6ECF5;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+    <tr>
+      <td style="padding:10px 0; border-bottom:1px solid #E6ECF5; color:#5C6B84; font-size:14px;">
+        Subtotal
+      </td>
 
-            <div style="display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #E6ECF5;">
-              <span style="color:#5C6B84; font-size:14px;">VAT${
-                vatRate > 0 ? ` (${vatRate}%)` : ""
-              }</span>
-              <span style="font-weight:700; font-size:14px; color:#0B1320;">${escapeEmailHtml(
-                formatMoney(vatAmount, currency)
-              )}</span>
-            </div>
+      <td align="right" style="padding:10px 0; border-bottom:1px solid #E6ECF5; font-weight:700; font-size:14px; color:#0B1320; white-space:nowrap;">
+        ${escapeEmailHtml(formatMoney(subtotalAmount, currency))}
+      </td>
+    </tr>
 
-            <div style="display:flex; justify-content:space-between; gap:12px; padding:14px 0 4px;">
-              <span style="color:#0B1320; font-size:18px; font-weight:800;">Total due</span>
-              <span style="color:#0B1320; font-size:22px; font-weight:900;">${escapeEmailHtml(
-                formatMoney(totalAmount, currency)
-              )}</span>
-            </div>
-          </div>
+    <tr>
+      <td style="padding:10px 0; border-bottom:1px solid #E6ECF5; color:#5C6B84; font-size:14px;">
+        VAT${vatRate > 0 ? ` (${vatRate}%)` : ""}
+      </td>
+
+      <td align="right" style="padding:10px 0; border-bottom:1px solid #E6ECF5; font-weight:700; font-size:14px; color:#0B1320; white-space:nowrap;">
+        ${escapeEmailHtml(formatMoney(vatAmount, currency))}
+      </td>
+    </tr>
+
+    <tr>
+      <td style="padding:16px 0 4px; color:#0B1320; font-size:18px; font-weight:800;">
+        Total due
+      </td>
+
+      <td align="right" style="padding:16px 0 4px; color:#0B1320; font-size:22px; font-weight:900; white-space:nowrap;">
+        ${escapeEmailHtml(formatMoney(totalAmount, currency))}
+      </td>
+    </tr>
+  </table>
+</div>
 
           <div style="padding:18px;">
             ${buildFixFlowSectionLabel("Due date")}
@@ -347,11 +356,11 @@ export async function POST(req: Request) {
             </td>
           </tr>
           <tr>
-            <td style="border:1px solid #E6ECF5; border-radius:16px; background:#F4F7FF; padding:22px 24px; text-align:center;">
-              <div style="max-width:340px; margin:0 auto; font-size:15px; line-height:1.7; color:#0B1320;">
-                ${safeNotes}
-              </div>
-            </td>
+<td style="border:1px solid #E6ECF5; border-radius:16px; background:#F4F7FF; padding:24px; text-align:left;">
+  <div style="font-size:15px; line-height:1.8; color:#0B1320; white-space:pre-wrap; text-align:left;">
+    ${safeNotes}
+  </div>
+</td>
           </tr>
         </table>
 

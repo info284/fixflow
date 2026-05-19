@@ -119,9 +119,9 @@ export async function POST(req: Request) {
     </div>
   `)}
 
-  <div style="margin:24px 0 12px; text-align:center; font-size:14px; color:#5C6B84;">
-    Happy with this estimate?
-  </div>
+<div style="margin:24px 0 12px; text-align:left; font-size:14px; color:#5C6B84;">
+  Happy with this estimate?
+</div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px; border-collapse:collapse;">
           <tr>
             <td style="font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#5C6B84; padding:0 0 10px 0;">

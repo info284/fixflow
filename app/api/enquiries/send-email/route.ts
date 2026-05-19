@@ -192,8 +192,7 @@ const replyTo = `enquiries+${requestId}@send.thefixflowapp.com`;
               color:#0B1320;
               white-space:pre-wrap;
               text-align:left;
-              max-width:520px;
-              margin:0 auto;
+             
             ">
               ${safePreview}
             </div>

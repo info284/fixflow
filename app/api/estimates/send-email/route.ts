@@ -418,36 +418,39 @@ const acceptUrl = `${appUrl.replace(/\/$/, "")}/api/estimates/${estimate.id}/acc
         const lineTotal =
           Number(item.line_total || 0) || quantity * unitPrice;
 
-        return `
-          <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
-            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-start;">
-              <div style="min-width:0; flex:1;">
-                <div style="font-size:14px; font-weight:800; color:#0B1320;">
-                  ${escapeEmailHtml(title)}
-                </div>
-                ${
-                  description
-                    ? `<div style="font-size:12px; line-height:1.6; color:#5C6B84; margin-top:4px;">
-                        ${escapeEmailHtml(description)}
-                      </div>`
-                    : ""
-                }
-                ${
-                  quantity
-                    ? `<div style="font-size:12px; color:#5C6B84; margin-top:4px;">
-                        Qty: ${escapeEmailHtml(String(quantity))}${
-                        unitPrice ? ` · ${escapeEmailHtml(money(unitPrice))} each` : ""
-                      }
-                      </div>`
-                    : ""
-                }
-              </div>
-              <div style="font-size:14px; font-weight:800; color:#0B1320; white-space:nowrap;">
-                ${escapeEmailHtml(money(lineTotal))}
-              </div>
-            </div>
+return `
+  <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+      <tr>
+        <td style="min-width:0; vertical-align:top; padding-right:12px;">
+          <div style="font-size:14px; font-weight:800; color:#0B1320;">
+            ${escapeEmailHtml(title)}
           </div>
-        `;
+          ${
+            description
+              ? `<div style="font-size:12px; line-height:1.6; color:#5C6B84; margin-top:4px;">
+                  ${escapeEmailHtml(description)}
+                </div>`
+              : ""
+          }
+          ${
+            quantity
+              ? `<div style="font-size:12px; color:#5C6B84; margin-top:4px;">
+                  Qty: ${escapeEmailHtml(String(quantity))}${
+                    unitPrice ? ` · ${escapeEmailHtml(money(unitPrice))} each` : ""
+                  }
+                </div>`
+              : ""
+          }
+        </td>
+
+        <td align="right" style="vertical-align:top; font-size:14px; font-weight:800; color:#0B1320; white-space:nowrap;">
+          ${escapeEmailHtml(money(lineTotal))}
+        </td>
+      </tr>
+    </table>
+  </div>
+`;
       })
       .join("");
 

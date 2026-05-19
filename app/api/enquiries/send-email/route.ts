@@ -186,6 +186,7 @@ bodyHtml: `
   ${buildFixFlowInfoCard(`
     <div style="padding:18px;">
       ${buildFixFlowSectionLabel("Message preview")}
+
       <div style="
         font-size:16px;
         line-height:1.8;
@@ -197,14 +198,22 @@ bodyHtml: `
       ">
         ${safePreview}
       </div>
+
+      <div style="
+        margin-top:24px;
+        font-size:15px;
+        line-height:1.7;
+        color:#5C6B84;
+      ">
+        Open the message below to view and reply.
+      </div>
+
+      <div style="margin-top:20px;">
+        ${buildFixFlowButton("View and reply", messageUrl)}
+      </div>
     </div>
   `)}
-
-  <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
-    Open the message below to view and reply.
-  </div>
 `,
-      ctaHtml: buildFixFlowButton("View and reply", messageUrl),
     });
 
 const subject = `New message from ${traderName}`;

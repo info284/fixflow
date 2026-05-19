@@ -97,29 +97,130 @@ export async function POST(req: Request) {
             </div>
           </div>
 
-          <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
-            <div style="display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #E6ECF5;">
-              <span style="color:#5C6B84; font-size:14px;">Labour</span>
-              <span style="font-weight:700; font-size:14px; color:#0B1320;">£${labour}</span>
-            </div>
+<div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
+  <table
+    role="presentation"
+    width="100%"
+    cellpadding="0"
+    cellspacing="0"
+    border="0"
+    style="border-collapse:collapse;"
+  >
+    <tr>
+      <td
+        style="
+          padding:10px 0;
+          border-bottom:1px solid #E6ECF5;
+          color:#5C6B84;
+          font-size:14px;
+        "
+      >
+        Labour
+      </td>
 
-            <div style="display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #E6ECF5;">
-              <span style="color:#5C6B84; font-size:14px;">Materials</span>
-              <span style="font-weight:700; font-size:14px; color:#0B1320;">£${materials}</span>
-            </div>
+      <td
+        align="right"
+        style="
+          padding:10px 0;
+          border-bottom:1px solid #E6ECF5;
+          font-weight:700;
+          font-size:14px;
+          color:#0B1320;
+          white-space:nowrap;
+        "
+      >
+        £${labour}
+      </td>
+    </tr>
 
-            <div style="display:flex; justify-content:space-between; gap:12px; padding:8px 0;">
-              <span style="color:#5C6B84; font-size:14px;">Other</span>
-              <span style="font-weight:700; font-size:14px; color:#0B1320;">£${other}</span>
-            </div>
-          </div>
+    <tr>
+      <td
+        style="
+          padding:10px 0;
+          border-bottom:1px solid #E6ECF5;
+          color:#5C6B84;
+          font-size:14px;
+        "
+      >
+        Materials
+      </td>
 
-          <div style="padding:18px;">
-            <div style="display:flex; justify-content:space-between; gap:12px; align-items:flex-end;">
-              <span style="color:#0B1320; font-size:18px; font-weight:800;">Estimated total</span>
-              <span style="color:#0B1320; font-size:22px; font-weight:900;">£${total}</span>
-            </div>
-          </div>
+      <td
+        align="right"
+        style="
+          padding:10px 0;
+          border-bottom:1px solid #E6ECF5;
+          font-weight:700;
+          font-size:14px;
+          color:#0B1320;
+          white-space:nowrap;
+        "
+      >
+        £${materials}
+      </td>
+    </tr>
+
+    <tr>
+      <td
+        style="
+          padding:10px 0;
+          color:#5C6B84;
+          font-size:14px;
+        "
+      >
+        Other
+      </td>
+
+      <td
+        align="right"
+        style="
+          padding:10px 0;
+          font-weight:700;
+          font-size:14px;
+          color:#0B1320;
+          white-space:nowrap;
+        "
+      >
+        £${other}
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div style="padding:20px 18px;">
+  <table
+    role="presentation"
+    width="100%"
+    cellpadding="0"
+    cellspacing="0"
+    border="0"
+    style="border-collapse:collapse;"
+  >
+    <tr>
+      <td
+        style="
+          color:#0B1320;
+          font-size:18px;
+          font-weight:800;
+        "
+      >
+        Estimated total
+      </td>
+
+      <td
+        align="right"
+        style="
+          color:#0B1320;
+          font-size:22px;
+          font-weight:900;
+          white-space:nowrap;
+        "
+      >
+        £${total}
+      </td>
+    </tr>
+  </table>
+</div>
         `)}
 
         <div style="margin:24px 0 12px; text-align:center; font-size:14px; color:#5C6B84;">
@@ -133,11 +234,11 @@ export async function POST(req: Request) {
             </td>
           </tr>
           <tr>
-            <td style="border:1px solid #E6ECF5; border-radius:16px; background:#F4F7FF; padding:22px 24px; text-align:center;">
-              <div style="max-width:320px; margin:0 auto; font-size:15px; line-height:1.7; color:#0B1320;">
-                ${safeNotesEsc}
-              </div>
-            </td>
+<td style="border:1px solid #E6ECF5; border-radius:16px; background:#F4F7FF; padding:24px; text-align:left;">
+  <div style="font-size:15px; line-height:1.8; color:#0B1320; white-space:pre-wrap; text-align:left;">
+    ${safeNotesEsc}
+  </div>
+</td>
           </tr>
         </table>
 

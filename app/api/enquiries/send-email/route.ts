@@ -182,46 +182,28 @@ const replyTo = `enquiries+${requestId}@send.thefixflowapp.com`;
           ${safeTraderName} sent you a message about <strong style="color:#0B1320;">${safeJobType}</strong>.
         </div>
       `,
-      bodyHtml: `
-        ${buildFixFlowInfoCard(`
-          <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
-            ${buildFixFlowSectionLabel("Message preview")}
-            <div style="
-              font-size:16px;
-              line-height:1.8;
-              color:#0B1320;
-              white-space:pre-wrap;
-              text-align:left;
-             
-            ">
-              ${safePreview}
-            </div>
-          </div>
+bodyHtml: `
+  ${buildFixFlowInfoCard(`
+    <div style="padding:18px;">
+      ${buildFixFlowSectionLabel("Message preview")}
+      <div style="
+        font-size:16px;
+        line-height:1.8;
+        color:#0B1320;
+        white-space:pre-wrap;
+        text-align:left;
+        width:100%;
+        word-break:break-word;
+      ">
+        ${safePreview}
+      </div>
+    </div>
+  `)}
 
-<div style="padding:16px 18px;">
-  ${buildFixFlowSectionLabel("Reply")}
-
-  <div style="margin-top:12px;">
-    ${buildFixFlowButton("Reply to message", messageUrl)}
+  <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+    Open the message below to view and reply.
   </div>
-
-  <div style="
-    margin-top:14px;
-    font-size:12px;
-    line-height:1.5;
-    color:#94A3B8;
-    word-break:break-all;
-    overflow-wrap:anywhere;
-  ">
-    ${messageUrl}
-  </div>
-</div>
-        `)}
-
-        <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
-          Open the message below to view and reply.
-        </div>
-      `,
+`,
       ctaHtml: buildFixFlowButton("View and reply", messageUrl),
     });
 

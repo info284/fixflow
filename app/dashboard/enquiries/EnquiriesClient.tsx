@@ -1137,7 +1137,10 @@ const [estimateDraftSaved, setEstimateDraftSaved] = useState(false);
   const [fileMsg, setFileMsg] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
  
-
+const [showDeclineModal, setShowDeclineModal] = useState(false);
+const [declineReason, setDeclineReason] = useState("too_busy");
+const [declineNote, setDeclineNote] = useState("");
+const [declineBusy, setDeclineBusy] = useState(false);
   const [siteVisit, setSiteVisit] = useState<SiteVisitRow | null>(null);
   const [siteVisitLoading, setSiteVisitLoading] = useState(false);
   const [visitMap, setVisitMap] = useState<Record<string, SiteVisitRow | null>>({});
@@ -3029,6 +3032,49 @@ function findNextActionRow(currentId?: string) {
   /* ================================
      LOCAL HELPERS
   ================================= */
+
+  function buildDeclineMessage(reason: string) {
+  const name = selectedRow?.customer_name || "there";
+  const traderName = traderProfile?.display_name || "the team";
+
+  if (reason === "too_busy") {
+    return `Hi ${name},
+
+Thanks for getting in touch.
+
+Unfortunately, we’re fully booked at the moment and won’t be able to take this job on.
+
+We really appreciate you contacting us and wish you the best getting the work sorted.
+
+Kind regards,
+${traderName}`;
+  }
+
+  if (reason === "outside_area") {
+    return `Hi ${name},
+
+Thanks for your enquiry.
+
+Unfortunately, this job is outside the area we currently cover, so we won’t be able to help on this occasion.
+
+We appreciate you getting in touch and hope you get it sorted quickly.
+
+Kind regards,
+${traderName}`;
+  }
+
+  return `Hi ${name},
+
+Thanks for your enquiry.
+
+After reviewing the job, we don’t think we’re the right fit for this particular work, so we won’t be progressing further.
+
+We appreciate you contacting us and wish you all the best.
+
+Kind regards,
+${traderName}`;
+}
+
 function getCustomerFirstName(name?: string | null) {
   const first = String(name || "").trim().split(/\s+/)[0];
   return first ? titleCase(first) : "there";
@@ -4095,7 +4141,61 @@ const rowId = selectedRow!.id;
     },
   });
 }
+async function handleDeclineEnquiry() {
+  if (!selectedRow || !uid) return;
 
+  try {
+    setDeclineBusy(true);
+
+    const message = buildDeclineMessage(declineReason);
+
+    // send message using your existing reply box flow
+setReplyBody(message);
+setReplyTo(selectedRow.customer_email || "");
+setReplySubject(`Re: ${selectedRow.job_type || "Your enquiry"}`);
+
+await sendReply();
+
+    const { error } = await supabase
+      .from("quote_requests")
+      .update({
+        status: "declined",
+        stage: "lost",
+        declined_at: new Date().toISOString(),
+        decline_reason: declineReason,
+        decline_note: declineNote || null,
+        ai_thread_status: "closed_declined",
+      })
+      .eq("id", selectedRow.id)
+      .eq("plumber_id", uid);
+
+    if (error) throw error;
+
+    setRows((prev) =>
+      prev.map((r) =>
+        r.id === selectedRow.id
+          ? {
+              ...r,
+              status: "declined",
+              stage: "lost",
+              declined_at: new Date().toISOString(),
+              decline_reason: declineReason,
+              decline_note: declineNote || null,
+              ai_thread_status: "closed_declined",
+            }
+          : r
+      )
+    );
+
+    setShowDeclineModal(false);
+    pushToast("Polite decline prepared", "success");
+  } catch (err) {
+    console.error(err);
+    pushToast("Couldn’t decline enquiry", "error");
+  } finally {
+    setDeclineBusy(false);
+  }
+}
 async function saveDetailedEstimate(
   status: "draft" | "sent" = "draft",
   opts?: { showToast?: boolean }
@@ -6997,6 +7097,29 @@ onClick={deleteEnquiry}
             Delete enquiry
           </button>
 
+
+<button
+  type="button"
+  className="ff-btn ff-btnGhost ff-btnSm"
+  onClick={() => markAsLost("Job cancelled")}
+>
+  Lost: Cancelled
+</button>
+
+<div style={{ marginTop: 10 }}>
+  <button
+    type="button"
+    className="ff-btn ff-btnGhost ff-btnSm"
+    onClick={() => {
+      setDeclineReason("too_busy");
+      setDeclineNote("");
+      setShowDeclineModal(true);
+    }}
+  >
+    Politely decline
+  </button>
+</div>
+
 <div style={{ marginTop: 10 }}>
   <button
     type="button"
@@ -8584,6 +8707,75 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
     </div>
   </div>
 )}
+{showDeclineModal && selectedRow ? (
+  <div className="ff-modalBackdrop">
+    <div className="ff-modal">
+      <div className="ff-modalTop">
+        <div>
+          <h2>Politely decline enquiry</h2>
+          <p>
+            Send the customer a respectful reply instead of leaving them waiting.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="ff-iconBtn"
+          onClick={() => setShowDeclineModal(false)}
+        >
+          ×
+        </button>
+      </div>
+
+      <div className="ff-field">
+        <label className="ff-label">Reason</label>
+        <select
+          className="ff-input"
+          value={declineReason}
+          onChange={(e) => setDeclineReason(e.target.value)}
+        >
+          <option value="too_busy">Too busy right now</option>
+          <option value="outside_area">Outside service area</option>
+          <option value="not_right_fit">Not the right fit</option>
+        </select>
+      </div>
+
+      <div className="ff-field">
+        <label className="ff-label">Optional note</label>
+        <textarea
+          className="ff-textarea"
+          value={declineNote}
+          onChange={(e) => setDeclineNote(e.target.value)}
+          placeholder="Optional internal note..."
+        />
+      </div>
+
+      <div className="ff-previewBox">
+        <strong>Message preview</strong>
+        <pre>{buildDeclineMessage(declineReason)}</pre>
+      </div>
+
+      <div className="ff-modalActions">
+        <button
+          type="button"
+          className="ff-btn ff-btnGhost"
+          onClick={() => setShowDeclineModal(false)}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          className="ff-btn ff-btnPrimary"
+          disabled={declineBusy}
+          onClick={handleDeclineEnquiry}
+        >
+          {declineBusy ? "Sending..." : "Send polite reply"}
+        </button>
+      </div>
+    </div>
+  </div>
+) : null}
    </>
   );
 }

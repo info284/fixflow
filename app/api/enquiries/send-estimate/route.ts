@@ -88,145 +88,40 @@ export async function POST(req: Request) {
           Here’s your estimate for your <strong style="color:#0B1320;">${safeJobTypeEsc.toLowerCase()}</strong>.
         </div>
       `,
-      bodyHtml: `
-        ${buildFixFlowInfoCard(`
-          <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
-            ${buildFixFlowSectionLabel("Reference")}
-            <div style="font-size:18px; font-weight:800; color:#1F355C;">
-              ${safeJobNumberEsc}
-            </div>
-          </div>
+     bodyHtml: `
+  ${buildFixFlowInfoCard(`
+    <div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
+      ${buildFixFlowSectionLabel("Reference")}
+      <div style="font-size:18px; font-weight:800; color:#1F355C;">
+        ${safeJobNumberEsc}
+      </div>
+    </div>
 
-<div style="padding:16px 18px; border-bottom:1px solid #E6ECF5;">
-  <table
-    role="presentation"
-    width="100%"
-    cellpadding="0"
-    cellspacing="0"
-    border="0"
-    style="border-collapse:collapse;"
-  >
-    <tr>
-      <td
-        style="
-          padding:10px 0;
-          border-bottom:1px solid #E6ECF5;
-          color:#5C6B84;
-          font-size:14px;
-        "
-      >
-        Labour
-      </td>
+    <div style="padding:18px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+        <tr>
+          <td style="padding:10px 0; border-bottom:1px solid #E6ECF5; color:#5C6B84; font-size:14px;">Labour</td>
+          <td align="right" style="padding:10px 0; border-bottom:1px solid #E6ECF5; font-weight:700; font-size:14px; color:#0B1320; white-space:nowrap;">£${labour}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; border-bottom:1px solid #E6ECF5; color:#5C6B84; font-size:14px;">Materials</td>
+          <td align="right" style="padding:10px 0; border-bottom:1px solid #E6ECF5; font-weight:700; font-size:14px; color:#0B1320; white-space:nowrap;">£${materials}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0; border-bottom:1px solid #E6ECF5; color:#5C6B84; font-size:14px;">Other</td>
+          <td align="right" style="padding:10px 0; border-bottom:1px solid #E6ECF5; font-weight:700; font-size:14px; color:#0B1320; white-space:nowrap;">£${other}</td>
+        </tr>
+        <tr>
+          <td style="padding:18px 0 4px; color:#0B1320; font-size:18px; font-weight:800;">Estimated total</td>
+          <td align="right" style="padding:18px 0 4px; color:#0B1320; font-size:22px; font-weight:900; white-space:nowrap;">£${total}</td>
+        </tr>
+      </table>
+    </div>
+  `)}
 
-      <td
-        align="right"
-        style="
-          padding:10px 0;
-          border-bottom:1px solid #E6ECF5;
-          font-weight:700;
-          font-size:14px;
-          color:#0B1320;
-          white-space:nowrap;
-        "
-      >
-        £${labour}
-      </td>
-    </tr>
-
-    <tr>
-      <td
-        style="
-          padding:10px 0;
-          border-bottom:1px solid #E6ECF5;
-          color:#5C6B84;
-          font-size:14px;
-        "
-      >
-        Materials
-      </td>
-
-      <td
-        align="right"
-        style="
-          padding:10px 0;
-          border-bottom:1px solid #E6ECF5;
-          font-weight:700;
-          font-size:14px;
-          color:#0B1320;
-          white-space:nowrap;
-        "
-      >
-        £${materials}
-      </td>
-    </tr>
-
-    <tr>
-      <td
-        style="
-          padding:10px 0;
-          color:#5C6B84;
-          font-size:14px;
-        "
-      >
-        Other
-      </td>
-
-      <td
-        align="right"
-        style="
-          padding:10px 0;
-          font-weight:700;
-          font-size:14px;
-          color:#0B1320;
-          white-space:nowrap;
-        "
-      >
-        £${other}
-      </td>
-    </tr>
-  </table>
-</div>
-
-<div style="padding:20px 18px;">
-  <table
-    role="presentation"
-    width="100%"
-    cellpadding="0"
-    cellspacing="0"
-    border="0"
-    style="border-collapse:collapse;"
-  >
-    <tr>
-      <td
-        style="
-          color:#0B1320;
-          font-size:18px;
-          font-weight:800;
-        "
-      >
-        Estimated total
-      </td>
-
-      <td
-        align="right"
-        style="
-          color:#0B1320;
-          font-size:22px;
-          font-weight:900;
-          white-space:nowrap;
-        "
-      >
-        £${total}
-      </td>
-    </tr>
-  </table>
-</div>
-        `)}
-
-        <div style="margin:24px 0 12px; text-align:center; font-size:14px; color:#5C6B84;">
-          Happy with this estimate?
-        </div>
-
+  <div style="margin:24px 0 12px; text-align:center; font-size:14px; color:#5C6B84;">
+    Happy with this estimate?
+  </div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px; border-collapse:collapse;">
           <tr>
             <td style="font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#5C6B84; padding:0 0 10px 0;">

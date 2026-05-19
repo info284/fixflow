@@ -281,7 +281,11 @@ export async function POST(req: Request) {
         ? inv.notes.trim()
         : "Please use the invoice reference when making payment.";
 
-    const safeCustomerName = escapeEmailHtml(customerName);
+    const firstName = String(customerName || "there")
+  .trim()
+  .split(" ")[0];
+
+const safeCustomerName = escapeEmailHtml(firstName);
     const safeTraderName = escapeEmailHtml(traderName);
     const safeInvoiceNumber = escapeEmailHtml(invoiceNumber);
     const safeDueDate = escapeEmailHtml(dueDateText);

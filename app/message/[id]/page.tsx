@@ -38,7 +38,7 @@ function isOutbound(direction?: string | null) {
 export default function CustomerMessagePage() {
   const params = useParams();
   const id = String(params?.id || "");
-
+const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [data, setData] = useState<MessagePageData | null>(null);
@@ -116,6 +116,41 @@ export default function CustomerMessagePage() {
       setSending(false);
     }
   }
+
+  async function uploadCustomerFiles(files: FileList | null) {
+  if (!id || !files?.length) return;
+
+  try {
+    setUploading(true);
+    setError(null);
+    setOkMsg(null);
+
+    for (const file of Array.from(files)) {
+      const form = new FormData();
+      form.append("requestId", id);
+      form.append("customerEmail", customerEmail.trim());
+      form.append("file", file);
+
+      const res = await fetch("/api/message-thread/upload-file", {
+        method: "POST",
+        body: form,
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(json?.error || "Upload failed");
+      }
+    }
+
+    setOkMsg("File uploaded");
+    await loadThread();
+  } catch (e: any) {
+    setError(e?.message || "Upload failed");
+  } finally {
+    setUploading(false);
+  }
+}
 
   const title = useMemo(() => {
     if (!data) return "Messages";
@@ -230,7 +265,33 @@ export default function CustomerMessagePage() {
             placeholder="Type your message…"
             style={textareaStyle}
           />
+<div style={{ marginTop: 12 }}>
+  <label
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "10px 14px",
+      borderRadius: 999,
+      border: "1px solid #dbe4f0",
+      background: "#f8fbff",
+      cursor: uploading ? "default" : "pointer",
+      fontSize: 13,
+      fontWeight: 700,
+      color: "#1f355c",
+    }}
+  >
+    {uploading ? "Uploading…" : "📎 Upload photos/files"}
 
+    <input
+      type="file"
+      multiple
+      hidden
+      onChange={(e) => uploadCustomerFiles(e.target.files)}
+      disabled={uploading}
+    />
+  </label>
+</div>
           {error ? (
             <div style={{ marginTop: 10, color: "#b91c1c", fontSize: 13 }}>{error}</div>
           ) : null}

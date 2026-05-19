@@ -454,7 +454,11 @@ return `
       })
       .join("");
 
-    const safeCustomerName = escapeEmailHtml(customerName);
+    const firstName = String(customerName || "there")
+  .trim()
+  .split(" ")[0];
+
+const safeCustomerName = escapeEmailHtml(firstName);
     const safeTraderName = escapeEmailHtml(traderName);
     const safeJobTypeText = escapeEmailHtml(jobTypeText);
     const safeJobHeader = escapeEmailHtml(

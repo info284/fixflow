@@ -39,6 +39,10 @@ type CalendarTokenRow = {
 };
 
 /* ---------------- helpers ---------------- */
+function getFirstName(name?: string | null) {
+  const first = String(name || "").trim().split(/\s+/)[0];
+  return first || "there";
+}
 
 function pad(n: number) {
   return String(n).padStart(2, "0");
@@ -311,6 +315,7 @@ async function sendBookingEmail(opts: {
   resendApiKey: string;
   startsAtLocal: string;
   mins: number;
+  traderName: string;
 }) {
   const resend = new Resend(opts.resendApiKey);
 
@@ -341,7 +346,7 @@ html: buildFixFlowEmail({
   title: "Site visit booked",
   introHtml: `
     <div style="font-size:16px; font-weight:700; margin-bottom:10px;">
-      Hi ${escapeEmailHtml(opts.enquiry.customer_name || "there")},
+      Hi ${escapeEmailHtml(getFirstName(opts.enquiry.customer_name))},
     </div>
 
     <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
@@ -386,18 +391,18 @@ html: buildFixFlowEmail({
   closingHtml: `
     <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
       Thanks,<br />
-      <span style="font-weight:800; color:#1F355C;">FixFlow</span>
+      <span style="font-weight:800; color:#1F355C;">${escapeEmailHtml(opts.traderName)}</span>
     </div>
   `,
 }),
     text:
-      `Hi ${opts.enquiry.customer_name || "there"},\n\n` +
+     `Hi ${getFirstName(opts.enquiry.customer_name)},\n\n` +
       `Your site visit has been booked.\n\n` +
       `Date/time: ${textParts.whenText}\n` +
       `Duration: ${textParts.durationText}\n` +
       `Address: ${cleanAddress}\n\n` +
       `Calendar invite attached (.ics).\n\n` +
-      `Thanks,\nFixFlow`,
+     `Thanks,\n${opts.traderName}`,
     attachments: [
       {
         filename: "site-visit.ics",
@@ -695,13 +700,25 @@ export async function POST(req: Request) {
       );
     }
 
-    const mailResult = await sendBookingEmail({
-      enquiry,
-      from: resendFrom,
-      resendApiKey,
-      startsAtLocal,
-      mins,
-    });
+    const { data: profile } = await supabase
+  .from("profiles")
+  .select("business_name, display_name")
+  .eq("id", ownerPlumberId)
+  .maybeSingle();
+
+const traderName =
+  String(profile?.business_name || "").trim() ||
+  String(profile?.display_name || "").trim() ||
+  "Your trader";
+
+const mailResult = await sendBookingEmail({
+  enquiry,
+  from: resendFrom,
+  resendApiKey,
+  startsAtLocal,
+  mins,
+  traderName,
+});
 
     if (!mailResult.ok) {
       return NextResponse.json(

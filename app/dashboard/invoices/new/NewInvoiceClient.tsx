@@ -44,6 +44,21 @@ type InvoiceRow = {
 };
 
 type RightTab = "details" | "status" | "notes";
+type EstimateRow = {
+  id: string;
+  request_id: string;
+  plumber_id: string;
+  status: string | null;
+  total: number | null;
+  subtotal: number | null;
+  vat: number | null;
+  labour: number | null;
+  materials: number | null;
+  callout: number | null;
+  parts: number | null;
+  other: number | null;
+  customer_message: string | null;
+};
 
 /* ================================
    CONSTS
@@ -161,6 +176,9 @@ export default function InvoicesPage() {
 
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+  const [estimateMap, setEstimateMap] = useState<Record<string, EstimateRow | null>>({});
+const [extras, setExtras] = useState("0");
+const [detailExtras, setDetailExtras] = useState("0");
 
 const [loading, setLoading] = useState(true);
 const [busy, setBusy] = useState(false);
@@ -234,7 +252,24 @@ const [dueAt, setDueAt] = useState("");
     setToEmail(email);
   }, [selectedRequest]);
 
- 
+ useEffect(() => {
+  if (!selectedRequest) return;
+
+  const estimate = estimateMap[selectedRequest.id];
+  if (!estimate) return;
+
+  const estimateBase =
+    Number(estimate.subtotal || 0) ||
+    Number(estimate.total || 0) ||
+    0;
+
+  setAmount(estimateBase.toFixed(2));
+  setExtras("0");
+  setNotes(
+    estimate.customer_message ||
+      `Invoice based on accepted estimate for ${selectedRequest.job_type || "job"}.`
+  );
+}, [selectedRequest?.id, estimateMap]);
 
   useEffect(() => {
     if (requestIdFromUrl) setRequestId(requestIdFromUrl);
@@ -334,6 +369,22 @@ function pushToast(text: string, type: "success" | "error" = "success") {
 }
     }
 
+    const { data: ests, error: estErr } = await supabase
+  .from("estimates")
+  .select("id, request_id, plumber_id, status, total, subtotal, vat, labour, materials, callout, parts, other, customer_message")
+  .eq("plumber_id", user.id)
+  .order("created_at", { ascending: false });
+
+if (!estErr) {
+  const map: Record<string, EstimateRow | null> = {};
+
+  for (const est of (ests || []) as EstimateRow[]) {
+    if (!est.request_id) continue;
+    if (!map[est.request_id]) map[est.request_id] = est;
+  }
+
+  setEstimateMap(map);
+}
     setLoading(false);
   }
 
@@ -836,17 +887,32 @@ return (
                   />
                 </div>
 
-                <div className="ff-field">
-                  <label className="ff-label">Amount</label>
-                  <input
-                    className="ff-inputWide"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    inputMode="decimal"
-                    placeholder="0"
-                    disabled={busy || loading}
-                  />
-                </div>
+             <div className="ff-field">
+  <label className="ff-label">Amount</label>
+  <input
+    className="ff-inputWide"
+    value={amount}
+    onChange={(e) => setAmount(e.target.value)}
+    inputMode="decimal"
+    placeholder="0"
+    disabled={busy || loading}
+  />
+</div>
+
+<div className="ff-field">
+  <label className="ff-label">Extras added on job</label>
+
+  <input
+    className="ff-inputWide"
+    value={extras}
+    onChange={(e) =>
+      setExtras(e.target.value.replace(/[^\d.]/g, ""))
+    }
+    inputMode="decimal"
+    placeholder="0.00"
+    disabled={busy || loading}
+  />
+</div>
 
                 <div className="ff-field">
                   <label className="ff-label">VAT</label>
@@ -899,10 +965,14 @@ return (
                 </div>
 
                 {(() => {
-                  const s = Number(amount || 0) || 0;
-                  const vr = vatRegistered ? Number(vatRate) : 0;
-                  const vatAmount = s * (vr / 100);
-                  const total = s + vatAmount;
+                 const base = Number(amount || 0) || 0;
+const extra = Number(extras || 0) || 0;
+
+const s = base + extra;
+
+const vr = vatRegistered ? Number(vatRate) : 0;
+const vatAmount = s * (vr / 100);
+const total = s + vatAmount;
 
                   return (
                     <div className="ff-field ff-fieldFull">

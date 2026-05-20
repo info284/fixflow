@@ -5,18 +5,15 @@ type RouteProps = {
   params: Promise<{ id: string }>;
 };
 
-export async function POST(_: Request, { params }: RouteProps) {
-  const { id } = await params;
-
-  if (!id) {
-    return NextResponse.json({ error: "Missing estimate id" }, { status: 400 });
-  }
-
-  const supabase = createClient(
+function getSupabase() {
+  return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+}
 
+async function acceptQuickEstimate(id: string) {
+  const supabase = getSupabase();
   const acceptedAt = new Date().toISOString();
 
   const { data: existing, error: loadError } = await supabase
@@ -25,13 +22,8 @@ export async function POST(_: Request, { params }: RouteProps) {
     .eq("id", id)
     .maybeSingle();
 
-  if (loadError) {
-    return NextResponse.json({ error: loadError.message }, { status: 500 });
-  }
-
-  if (!existing) {
-    return NextResponse.json({ error: "Estimate not found" }, { status: 404 });
-  }
+  if (loadError) throw new Error(loadError.message);
+  if (!existing) throw new Error("Estimate not found");
 
   const finalAcceptedAt = existing.accepted_at || acceptedAt;
 
@@ -43,9 +35,7 @@ export async function POST(_: Request, { params }: RouteProps) {
     })
     .eq("id", id);
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+  if (error) throw new Error(error.message);
 
   if (existing.request_id) {
     const { error: requestError } = await supabase
@@ -56,9 +46,7 @@ export async function POST(_: Request, { params }: RouteProps) {
       })
       .eq("id", existing.request_id);
 
-    if (requestError) {
-      return NextResponse.json({ error: requestError.message }, { status: 500 });
-    }
+    if (requestError) throw new Error(requestError.message);
 
     await supabase.from("enquiry_messages").insert({
       request_id: existing.request_id,
@@ -70,8 +58,50 @@ export async function POST(_: Request, { params }: RouteProps) {
     });
   }
 
-  return NextResponse.json({
-    ok: true,
-    accepted_at: finalAcceptedAt,
-  });
+  return finalAcceptedAt;
+}
+
+export async function GET(_: Request, { params }: RouteProps) {
+  const { id } = await params;
+
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://thefixflowapp.com";
+
+  try {
+    await acceptQuickEstimate(id);
+
+    return NextResponse.redirect(
+      `${siteUrl}/estimate/accepted?id=${id}`,
+      303
+    );
+  } catch {
+    return NextResponse.redirect(
+      `${siteUrl}/estimate/error?id=${id}`,
+      303
+    );
+  }
+}
+
+export async function POST(_: Request, { params }: RouteProps) {
+  try {
+    const { id } = await params;
+
+    if (!id) {
+      return NextResponse.json({ error: "Missing estimate id" }, { status: 400 });
+    }
+
+    const acceptedAt = await acceptQuickEstimate(id);
+
+    return NextResponse.json({
+      ok: true,
+      accepted_at: acceptedAt,
+    });
+  } catch (e: any) {
+    return NextResponse.json(
+      { error: e?.message || "Failed to accept quick estimate" },
+      { status: 500 }
+    );
+  }
 }

@@ -476,144 +476,52 @@ const safeCustomerName = escapeEmailHtml(firstName);
     const safeCreatedText = escapeEmailHtml(createdText);
     const safeValidUntilText = escapeEmailHtml(validUntilText);
 
-    const html = buildFixFlowEmail({
-      title: "Estimate ready",
-      introHtml: `
-        <div style="font-size:16px; font-weight:700; margin-bottom:10px;">
-          Hi ${safeCustomerName},
+const html = buildFixFlowEmail({
+  title: "Estimate ready",
+  introHtml: `
+    <div style="font-size:16px; font-weight:700; margin-bottom:10px;">
+      Hi ${safeCustomerName},
+    </div>
+
+    <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+      Here is your estimate for <strong style="color:#0B1320;">${safeJobTypeText.toLowerCase()}</strong>.
+    </div>
+  `,
+  bodyHtml: `
+    ${buildFixFlowInfoCard(`
+      <div style="padding:20px 22px;">
+        ${buildFixFlowSectionLabel("Estimate")}
+
+        <div style="font-size:18px; font-weight:800; color:#1F355C; margin-bottom:10px;">
+          ${safeJobHeader}
         </div>
 
-        <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
-          Here is your estimate for <strong style="color:#0B1320;">${safeJobTypeText.toLowerCase()}</strong>.
+        <div style="font-size:30px; font-weight:900; color:#0B1320; margin:18px 0;">
+          ${escapeEmailHtml(money(total))}
         </div>
-      `,
-      bodyHtml: `
-        ${buildFixFlowInfoCard(`
-          <div style="padding:18px 18px 16px 18px; border-bottom:1px solid #E6ECF5;">
-            ${buildFixFlowSectionLabel("Estimate")}
-            <div style="font-size:18px; font-weight:800; color:#1F355C; margin-bottom:6px;">
-              ${safeJobHeader}
-            </div>
-            ${
-              safeMeta
-                ? `<div style="font-size:13px; color:#5C6B84;">${safeMeta}</div>`
-                : ""
-            }
-            ${
-              safeCreatedText
-                ? `<div style="font-size:12px; font-weight:700; color:#5C6B84; margin-top:8px;">
-                    Created ${safeCreatedText}
-                  </div>`
-                : ""
-            }
-          </div>
 
-          <div style="padding:18px; border-bottom:1px solid #E6ECF5;">
-            <div style="font-size:22px; font-weight:900; color:#0B1320; margin-bottom:8px;">
-              ${escapeEmailHtml(money(total))}
-            </div>
-            ${
-              safeValidUntilText
-                ? `<div style="font-size:12px; font-weight:700; color:#5C6B84;">
-                    Valid until ${safeValidUntilText}
-                  </div>`
-                : ""
-            }
-            ${
-              safeCustomerMessage
-                ? `<div style="margin-top:12px; font-size:14px; line-height:1.7; color:#5C6B84; white-space:pre-wrap;">
-                    ${safeCustomerMessage}
-                  </div>`
-                : ""
-            }
-          </div>
-
-          ${
-            itemRowsHtml
-              ? `
-                <div style="padding:16px 18px 0 18px;">
-                  ${buildFixFlowSectionLabel("Included in this estimate")}
-                </div>
-                ${itemRowsHtml}
-              `
-              : ""
-          }
-
-<div style="padding:20px 22px;">
-  ${buildFixFlowSectionLabel("Price breakdown")}
-
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
-    <tr>
-      <td style="padding:10px 0; border-bottom:1px solid #E6ECF5; color:#5C6B84; font-size:14px;">
-        Subtotal
-      </td>
-      <td align="right" style="padding:10px 0; border-bottom:1px solid #E6ECF5; font-weight:700; font-size:14px; color:#0B1320;">
-        ${escapeEmailHtml(money(subtotal))}
-      </td>
-    </tr>
-
-    <tr>
-      <td style="padding:10px 0; border-bottom:1px solid #E6ECF5; color:#5C6B84; font-size:14px;">
-        VAT
-      </td>
-      <td align="right" style="padding:10px 0; border-bottom:1px solid #E6ECF5; font-weight:700; font-size:14px; color:#0B1320;">
-        ${escapeEmailHtml(money(vat))}
-      </td>
-    </tr>
-
-    <tr>
-      <td style="padding:16px 0 4px; color:#0B1320; font-size:18px; font-weight:800;">
-        Total
-      </td>
-      <td align="right" style="padding:16px 0 4px; color:#0B1320; font-size:22px; font-weight:900; white-space:nowrap;">
-        ${escapeEmailHtml(money(total))}
-      </td>
-    </tr>
-  </table>
-</div>
-        `)}
-
-        ${
-          safeEnquiryDetails
-            ? `
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:20px; border-collapse:collapse;">
-                <tr>
-                  <td style="font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#5C6B84; padding:0 0 10px 0;">
-                    Job details
-                  </td>
-                </tr>
-                <tr>
-<td style="border:1px solid #E6ECF5; border-radius:16px; background:#F4F7FF; padding:26px 24px; text-align:left;">
-  <div style="font-size:15px; line-height:1.8; color:#0B1320; white-space:pre-wrap; text-align:left;">
-    ${safeEnquiryDetails}
-  </div>
-</td>
-                </tr>
-              </table>
-            `
-            : ""
-        }
-
-<div style="font-size:15px; line-height:1.7; color:#5C6B84; margin:20px 0 16px;">
-  Your PDF estimate is attached to this email.
-</div>
-
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0 6px; border-collapse:collapse;">
-  <tr>
-    <td align="center">
-      ${buildFixFlowButton("Accept estimate", acceptUrl)}
-    </td>
-  </tr>
-</table>
-      `,
-      ctaHtml: "",
-      closingHtml: `
-        <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
-          Thanks,<br />
-          <span style="font-weight:800; color:#1F355C;">${safeTraderName}</span>
+        <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:18px;">
+          Your full PDF estimate is attached to this email.
         </div>
-      `,
-    });
+
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0 6px; border-collapse:collapse;">
+          <tr>
+            <td align="center">
+              ${buildFixFlowButton("Accept estimate", acceptUrl)}
+            </td>
+          </tr>
+        </table>
+      </div>
+    `)}
+  `,
+  ctaHtml: "",
+  closingHtml: `
+    <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
+      Thanks,<br />
+      <span style="font-weight:800; color:#1F355C;">${safeTraderName}</span>
+    </div>
+  `,
+});
 
     const textLines = [
       `Hi ${customerName},`,

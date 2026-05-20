@@ -21,6 +21,16 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", "&#039;");
 }
 
+function niceDateTime(value?: string | null) {
+  if (!value) return "—";
+  return new Date(value).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 async function acceptQuickEstimate(id: string) {
   const supabase = getSupabase();
   const acceptedAt = new Date().toISOString();
@@ -60,9 +70,7 @@ async function acceptQuickEstimate(id: string) {
   if (existing.request_id) {
     const { error: requestError } = await supabase
       .from("quote_requests")
-      .update({
-        stage: "won",
-      })
+      .update({ stage: "won" })
       .eq("id", existing.request_id);
 
     if (requestError) throw new Error(requestError.message);
@@ -73,7 +81,8 @@ async function acceptQuickEstimate(id: string) {
       direction: "out",
       channel: "status",
       subject: "Quick estimate accepted",
-      body_text: "Customer accepted the quick estimate. The trader can now arrange the next step.",
+      body_text:
+        "Customer accepted the quick estimate. The trader can now arrange the next step.",
     });
   }
 
@@ -83,8 +92,9 @@ async function acceptQuickEstimate(id: string) {
   };
 }
 
-function successHtml(traderName: string) {
+function successHtml(traderName: string, acceptedAt: string) {
   const safeTraderName = escapeHtml(traderName);
+  const safeAcceptedAt = escapeHtml(niceDateTime(acceptedAt));
 
   return `
 <!doctype html>
@@ -95,13 +105,17 @@ function successHtml(traderName: string) {
     <title>Estimate accepted</title>
   </head>
 
-  <body style="margin:0; font-family: Arial, sans-serif; background:linear-gradient(180deg,#EEF4FF 0%,#F8FAFC 100%); color:#0B1320;">
-    <div style="min-height:100vh; padding:28px 18px; box-sizing:border-box;">
+  <body style="margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; background:#F6F8FC; color:#0B1320;">
+    <div style="min-height:100vh; padding:28px 18px; box-sizing:border-box; background:
+      radial-gradient(circle at 18% 8%, rgba(36,91,255,0.16), transparent 28%),
+      radial-gradient(circle at 88% 12%, rgba(11,42,85,0.12), transparent 30%),
+      linear-gradient(180deg,#EEF4FF 0%,#F8FAFC 100%);
+    ">
       <div style="width:100%; max-width:760px; margin:0 auto;">
 
         <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:28px;">
           <div style="display:flex; align-items:center; gap:14px;">
-            <div style="width:54px; height:54px; border-radius:16px; background:#0B2A55; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:28px;">
+            <div style="width:54px; height:54px; border-radius:16px; background:linear-gradient(180deg,#245BFF,#0B2A55); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:28px; box-shadow:0 16px 36px rgba(36,91,255,0.28);">
               F
             </div>
 
@@ -115,7 +129,7 @@ function successHtml(traderName: string) {
             </div>
           </div>
 
-          <div style="background:#ffffff; border:1px solid #E6ECF5; color:#1F355C; border-radius:999px; padding:10px 18px; font-weight:900; font-size:15px;">
+          <div style="background:#ffffff; border:1px solid #E6ECF5; color:#1F355C; border-radius:999px; padding:10px 18px; font-weight:900; font-size:15px; box-shadow:0 10px 30px rgba(11,42,85,0.08);">
             Accepted
           </div>
         </div>
@@ -126,16 +140,28 @@ function successHtml(traderName: string) {
             Estimate review
           </div>
 
-          <h1 style="font-size:44px; line-height:1.08; margin:0 0 18px; color:#0B1320;">
+          <h1 style="font-size:44px; line-height:1.08; margin:0 0 18px; color:#0B1320; letter-spacing:-0.04em;">
             Estimate accepted
           </h1>
 
           <p style="font-size:19px; line-height:1.7; color:#5C6B84; margin:0 0 28px;">
-            Thanks — ${safeTraderName} has been notified and will be in touch shortly.
+            Thanks — ${safeTraderName} has been notified.
           </p>
 
           <div style="background:#ECFDF3; border:1px solid #BFEFD0; color:#087443; border-radius:999px; display:inline-block; padding:9px 16px; font-weight:900; font-size:14px; margin-bottom:24px;">
-            Accepted
+            ✓ Accepted
+          </div>
+
+          <div style="display:grid; gap:14px; margin-bottom:24px;">
+            <div style="border:1px solid #E6ECF5; border-radius:18px; padding:18px; background:#F8FAFC;">
+              <div style="font-size:14px; color:#5C6B84; font-weight:800; margin-bottom:8px;">Accepted at</div>
+              <div style="font-size:18px; color:#0B1320; font-weight:900;">${safeAcceptedAt}</div>
+            </div>
+
+            <div style="border:1px solid #E6ECF5; border-radius:18px; padding:18px; background:#F8FAFC;">
+              <div style="font-size:14px; color:#5C6B84; font-weight:800; margin-bottom:8px;">Status</div>
+              <div style="font-size:18px; color:#0B1320; font-weight:900;">Accepted</div>
+            </div>
           </div>
 
           <div style="border:1px solid #E6ECF5; border-radius:24px; padding:24px; background:#F4F7FF;">
@@ -167,7 +193,7 @@ function errorHtml(message: string) {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Could not accept estimate</title>
   </head>
-  <body style="margin:0; font-family: Arial, sans-serif; background:#F6F8FC; color:#0B1320;">
+  <body style="margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; background:#F6F8FC; color:#0B1320;">
     <div style="min-height:100vh; padding:28px 18px; display:flex; align-items:center; justify-content:center;">
       <div style="width:100%; max-width:560px; background:#ffffff; border:1px solid #FFD0D0; border-radius:28px; padding:28px;">
         <h1 style="margin:0 0 12px;">Could not accept estimate</h1>
@@ -185,7 +211,7 @@ export async function GET(_: Request, { params }: RouteProps) {
   try {
     const result = await acceptQuickEstimate(id);
 
-    return new Response(successHtml(result.traderName), {
+    return new Response(successHtml(result.traderName, result.accepted_at), {
       status: 200,
       headers: { "Content-Type": "text/html; charset=utf-8" },
     });

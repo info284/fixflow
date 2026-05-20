@@ -252,8 +252,8 @@ const id = searchParams.get("id") || "";
             <div className="ff-acceptLogo">F</div>
 
             <div className="ff-acceptBrandText">
-              <div className="ff-acceptBrand">FixFlow</div>
-              <div className="ff-acceptBrandSub">Customer estimate</div>
+            <div className="ff-acceptBrand">{traderDisplayName}</div>
+<div className="ff-acceptBrandSub">Estimate powered by FixFlow</div>
             </div>
           </div>
 
@@ -345,7 +345,7 @@ const id = searchParams.get("id") || "";
               <div className="ff-acceptTick">✓</div>
               <div className="ff-acceptSuccessText">Estimate accepted</div>
               <div className="ff-acceptSuccessSub">
-                Your trader has been notified and will be in touch shortly.
+               {traderDisplayName} has been notified and will be in touch shortly.
               </div>
 
               <div className="ff-acceptNextSteps">
@@ -354,7 +354,7 @@ const id = searchParams.get("id") || "";
                 <div className="ff-acceptNextStepList">
                   <div className="ff-acceptNextStepItem">
                     <span className="ff-acceptStepDot" />
-                    <span>Your acceptance is sent straight to the trader.</span>
+                    <span>Your acceptance is sent straight to {traderDisplayName}.</span>
                   </div>
 
                   <div className="ff-acceptNextStepItem">

@@ -64,8 +64,8 @@ async function acceptEstimate(id: string) {
       .from("quote_requests")
       .update({
         stage: "won",
-        status: "booked",
-        job_booked_at: acceptedAt,
+       status: "accepted",
+job_booked_at: null,
       })
       .eq("id", existing.request_id);
 
@@ -78,10 +78,10 @@ async function acceptEstimate(id: string) {
       .insert({
         request_id: existing.request_id,
         plumber_id: existing.plumber_id,
-        direction: "system",
+        direction: "out",
         channel: "status",
         subject: "Estimate accepted",
-        body_text: "Customer accepted the estimate. Job is now booked.",
+       body_text: "Customer accepted the estimate. Job is ready to be booked.",
       });
 
     if (messageError) {

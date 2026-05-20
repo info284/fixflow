@@ -53,14 +53,20 @@ export async function runEnquiryAiEngine(
     };
   }
 
-  const analysisRes = await fetch("http://localhost:3000/api/ai/analyse-enquiry", {
+const analysisRes = await fetch(
+  `${
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://thefixflowapp.com"
+  }/api/ai/analyse-enquiry`,
+  {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ enquiryId }),
     cache: "no-store",
-  });
+  }
+);
 
   let analysisJson: any = null;
 
@@ -196,7 +202,12 @@ async function sendAiMessage({
     decision,
   });
 
-  const sendRes = await fetch("http://localhost:3000/api/ai/send-customer-message", {
+const sendRes = await fetch(
+  `${
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://thefixflowapp.com"
+  }/api/ai/send-customer-message`,
+  {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -208,7 +219,8 @@ async function sendAiMessage({
       message: trimmedMessage,
     }),
     cache: "no-store",
-  });
+  }
+);
 
   let sendJson: any = null;
 

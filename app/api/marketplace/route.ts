@@ -110,16 +110,19 @@ export async function POST(req: Request) {
     }
 
     // Optional notification call (don’t fail if it fails)
-    try {
-      await fetch(
-        `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/notifications/new-quote`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ request: inserted }),
-        }
-      );
-    } catch {}
+try {
+  await fetch(
+    `${
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "https://thefixflowapp.com"
+    }/api/notifications/new-quote`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ request: inserted }),
+    }
+  );
+} catch {}
 
     return NextResponse.json({ ok: true, request: inserted });
   } catch (e: any) {

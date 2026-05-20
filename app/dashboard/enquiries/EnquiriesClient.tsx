@@ -7088,14 +7088,6 @@ onClick={() => {
     Lost: Cancelled
   </button>
 </div>
-        <div style={{ marginTop: 18 }}>
-          <button
-            type="button"
-            className="ff-btn ff-btnDanger ff-btnSm"
-onClick={deleteEnquiry}
-          >
-            Delete enquiry
-          </button>
 
 
 <button
@@ -7105,6 +7097,14 @@ onClick={deleteEnquiry}
 >
   Lost: Cancelled
 </button>
+        <div style={{ marginTop: 18 }}>
+          <button
+            type="button"
+            className="ff-btn ff-btnDanger ff-btnSm"
+onClick={deleteEnquiry}
+          >
+            Delete enquiry
+          </button>
 
 <div style={{ marginTop: 10 }}>
   <button

@@ -51,8 +51,9 @@ export async function POST(req: Request) {
       }
     }
 
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+const baseUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://thefixflowapp.com";
 
     const reviewUrl = `${baseUrl}/review/${token}`;
 

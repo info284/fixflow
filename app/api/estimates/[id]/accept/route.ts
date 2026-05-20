@@ -102,7 +102,7 @@ export async function GET(_: Request, { params }: RouteProps) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
-    "http://localhost:3000";
+    process.env.NEXT_PUBLIC_SITE_URL || "https://thefixflowapp.com";
 
   try {
     await acceptEstimate(id);

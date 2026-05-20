@@ -212,7 +212,7 @@ export async function POST(req: Request) {
     const appUrl =
       process.env.NEXT_PUBLIC_APP_URL ||
       process.env.APP_URL ||
-      "http://localhost:3000";
+    process.env.NEXT_PUBLIC_SITE_URL || "https://thefixflowapp.com";
 
     const enquiryUrl = `${appUrl}/dashboard/enquiries?enquiryId=${enquiry.id}`;
 

@@ -1,5 +1,5 @@
 export const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  process.env.NEXT_PUBLIC_APP_URL || "https://thefixflowapp.com";
 
 export const GOOGLE_REDIRECT_URI =
   process.env.GOOGLE_REDIRECT_URI ||

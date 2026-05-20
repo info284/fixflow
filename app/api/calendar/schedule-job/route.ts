@@ -35,7 +35,9 @@ export async function GET(req: Request) {
   const state = url.searchParams.get("state");
   const err = url.searchParams.get("error");
 
-  const appOrigin = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+const appOrigin =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://thefixflowapp.com";
 
   if (err) return NextResponse.redirect(new URL(`/dashboard/profile?cal=error`, appOrigin));
   if (!code || !state) return NextResponse.redirect(new URL(`/dashboard/profile?cal=missing`, appOrigin));

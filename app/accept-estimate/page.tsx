@@ -14,6 +14,8 @@ type Estimate = {
   first_viewed_at?: string | null;
   last_viewed_at?: string | null;
   accepted_at?: string | null;
+  trader_name?: string | null;
+business_name?: string | null;
 };
 
 function niceDateTime(value?: string | null) {
@@ -164,6 +166,11 @@ const id = searchParams.get("id") || "";
     }
   }
 
+   const traderDisplayName =
+    estimate?.business_name ||
+    estimate?.trader_name ||
+    "FixFlow";
+
   if (loading) {
     return (
       <div className="ff-acceptPage">
@@ -208,8 +215,12 @@ const id = searchParams.get("id") || "";
             <div className="ff-acceptBrandWrap">
               <div className="ff-acceptLogo">F</div>
               <div className="ff-acceptBrandText">
-                <div className="ff-acceptBrand">FixFlow</div>
-                <div className="ff-acceptBrandSub">Customer estimate</div>
+                <div className="ff-acceptBrand">
+{traderDisplayName}
+</div>
+<div className="ff-acceptBrandSub">
+  Estimate powered by FixFlow
+</div>
               </div>
             </div>
 
@@ -262,7 +273,7 @@ const id = searchParams.get("id") || "";
 
               <p className="ff-acceptSub">
                 {accepted
-                  ? "Thanks — your acceptance has been sent to the trader."
+                  ? `Thanks — ${estimate.business_name || estimate.trader_name || "your trader"} has been notified.`
                   : "Please review the estimate below and accept when you're happy to go ahead."}
               </p>
             </div>
@@ -349,7 +360,7 @@ const id = searchParams.get("id") || "";
                   <div className="ff-acceptNextStepItem">
                     <span className="ff-acceptStepDot" />
                     <span>
-                      Your enquiry moves into booked work in FixFlow.
+                      Your trader can now arrange the next step with you.
                     </span>
                   </div>
 

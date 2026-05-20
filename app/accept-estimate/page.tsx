@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 
 type Estimate = {
   id: string;
@@ -34,8 +34,8 @@ function money(value?: number | null) {
 }
 
 export default function AcceptEstimatePage() {
-  const params = useParams();
-  const id = params?.id as string;
+const searchParams = useSearchParams();
+const id = searchParams.get("id") || "";
 
   const [loading, setLoading] = useState(true);
   const [estimate, setEstimate] = useState<Estimate | null>(null);

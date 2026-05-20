@@ -407,7 +407,7 @@ const appUrl =
   process.env.APP_URL ||
   "https://thefixflowapp.com";
 
-const acceptUrl = `${appUrl.replace(/\/$/, "")}/api/estimates/${estimate.id}/accept`;
+const acceptUrl = `${appUrl.replace(/\/$/, "")}/accept-estimate?id=${estimate.id}`;
 
     const itemRowsHtml = (items || [])
       .map((item: any) => {
@@ -594,11 +594,15 @@ const safeCustomerName = escapeEmailHtml(firstName);
             : ""
         }
 
-        <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
-          Your PDF estimate is attached to this email.
-        </div>
+<div style="font-size:15px; line-height:1.7; color:#5C6B84; margin:20px 0 16px;">
+  Your PDF estimate is attached to this email.
+</div>
+
+<div style="margin:18px 0 6px;">
+  ${buildFixFlowButton("Accept estimate", acceptUrl)}
+</div>
       `,
-      ctaHtml: buildFixFlowButton("Accept estimate", acceptUrl),
+     ctaHtml: "",
       closingHtml: `
         <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
           Thanks,<br />

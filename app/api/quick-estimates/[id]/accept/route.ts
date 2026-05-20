@@ -68,26 +68,79 @@ export async function GET(_: Request, { params }: RouteProps) {
 
     return new Response(
       `
+      <!doctype html>
       <html>
-        <body style="font-family: Arial; padding: 40px; text-align: center;">
-          <h1>Estimate accepted</h1>
-          <p>Thanks — your trader has been notified.</p>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Estimate accepted</title>
+        </head>
+        <body style="margin:0; font-family: Arial, sans-serif; background:#F6F8FC; color:#0B1320;">
+          <div style="min-height:100vh; padding:28px 18px; box-sizing:border-box; display:flex; align-items:center; justify-content:center;">
+            <div style="width:100%; max-width:560px; background:#ffffff; border:1px solid #E6ECF5; border-radius:28px; padding:28px; box-shadow:0 18px 50px rgba(11,42,85,0.12);">
+              
+              <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+                <div style="width:44px; height:44px; border-radius:14px; background:#0B2A55; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:22px;">
+                  F
+                </div>
+                <div>
+                  <div style="font-weight:900; font-size:20px; color:#0B2A55;">FixFlow</div>
+                  <div style="font-size:13px; color:#5C6B84;">Customer estimate</div>
+                </div>
+              </div>
+
+              <div style="background:#ECFDF3; border:1px solid #BFEFD0; color:#087443; border-radius:999px; display:inline-block; padding:8px 14px; font-weight:800; font-size:13px; margin-bottom:18px;">
+                Accepted
+              </div>
+
+              <h1 style="font-size:34px; line-height:1.1; margin:0 0 14px; color:#0B1320;">
+                Estimate accepted
+              </h1>
+
+              <p style="font-size:17px; line-height:1.7; color:#5C6B84; margin:0 0 24px;">
+                Thanks &mdash; your trader has been notified and will be in touch shortly.
+              </p>
+
+              <div style="border:1px solid #E6ECF5; border-radius:22px; padding:20px; background:#F4F7FF;">
+                <div style="font-size:12px; font-weight:900; letter-spacing:.08em; text-transform:uppercase; color:#5C6B84; margin-bottom:10px;">
+                  What happens next
+                </div>
+
+                <div style="display:grid; gap:12px; font-size:15px; line-height:1.5; color:#0B1320;">
+                  <div>✓ Your acceptance has been saved.</div>
+                  <div>✓ The job has moved into won work.</div>
+                  <div>✓ The trader can now arrange the booking with you.</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
         </body>
       </html>
       `,
-      { status: 200, headers: { "Content-Type": "text/html" } }
+      { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } }
     );
   } catch (e: any) {
     return new Response(
       `
+      <!doctype html>
       <html>
-        <body style="font-family: Arial; padding: 40px; text-align: center;">
-          <h1>Couldn’t accept estimate</h1>
-          <p>${e?.message || "Unknown error"}</p>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Could not accept estimate</title>
+        </head>
+        <body style="margin:0; font-family: Arial, sans-serif; background:#F6F8FC; color:#0B1320;">
+          <div style="min-height:100vh; padding:28px 18px; display:flex; align-items:center; justify-content:center;">
+            <div style="width:100%; max-width:560px; background:#ffffff; border:1px solid #FFD0D0; border-radius:28px; padding:28px;">
+              <h1 style="margin:0 0 12px;">Could not accept estimate</h1>
+              <p style="color:#5C6B84;">${e?.message || "This estimate could not be accepted."}</p>
+            </div>
+          </div>
         </body>
       </html>
       `,
-      { status: 500, headers: { "Content-Type": "text/html" } }
+      { status: 500, headers: { "Content-Type": "text/html; charset=utf-8" } }
     );
   }
 }

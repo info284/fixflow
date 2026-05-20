@@ -75,7 +75,7 @@ export async function POST(req: Request) {
 
     const subject = `Your estimate from ${safeTraderName} (£${total})`;
 
-    const acceptUrl = `https://thefixflowapp.com/accept-estimate?id=${estimateId}`;
+   const acceptUrl = `https://thefixflowapp.com/api/estimates/${estimateId}/accept`;
 
     const html = buildFixFlowEmail({
       title: "Estimate ready",

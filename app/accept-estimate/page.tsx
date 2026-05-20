@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Estimate = {
@@ -33,7 +33,7 @@ function money(value?: number | null) {
   }).format(Number(value || 0));
 }
 
-export default function AcceptEstimatePage() {
+function AcceptEstimateContent() {
 const searchParams = useSearchParams();
 const id = searchParams.get("id") || "";
 
@@ -353,5 +353,22 @@ const id = searchParams.get("id") || "";
         </div>
       </div>
     </div>
+  );
+}
+export default function AcceptEstimatePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="ff-acceptPage">
+          <div className="ff-acceptShell">
+            <div className="ff-acceptCard">
+              Loading estimate…
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <AcceptEstimateContent />
+    </Suspense>
   );
 }

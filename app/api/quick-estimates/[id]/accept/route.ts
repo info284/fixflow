@@ -40,10 +40,9 @@ async function acceptQuickEstimate(id: string) {
   if (existing.request_id) {
     const { error: requestError } = await supabase
       .from("quote_requests")
-      .update({
-        stage: "won",
-        status: "replied",
-      })
+     .update({
+  stage: "won",
+})
       .eq("id", existing.request_id);
 
     if (requestError) throw new Error(requestError.message);

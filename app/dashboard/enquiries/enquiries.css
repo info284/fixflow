@@ -5706,6 +5706,100 @@ body {
   font-weight: 800;
   text-decoration: none;
 }
+.ff-emptySales {
+  padding: 28px 22px;
+  display: grid;
+  gap: 18px;
+}
+
+.ff-emptyBadge {
+  display: inline-flex;
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(36, 91, 255, 0.08);
+  color: #245bff;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ff-emptyTitleBig {
+  color: #0b1320;
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 950;
+  max-width: 420px;
+}
+
+.ff-emptyText {
+  max-width: 540px;
+  color: #64748b;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.ff-emptySteps {
+  display: grid;
+  gap: 12px;
+}
+
+.ff-emptyStep {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #1f355c;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.ff-emptyStep span {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #eef4ff;
+  color: #245bff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.ff-emptyDemo {
+  border: 1px solid rgba(36, 91, 255, 0.14);
+  background: #f8fbff;
+  border-radius: 22px;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+}
+
+.ff-demoTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ff-demoName {
+  color: #0b1320;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.ff-demoMeta {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.ff-demoAction {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #1f355c;
+  font-size: 14px;
+  font-weight: 800;
+}
 /* desktop: make only the enquiry list scroll */
 @media (min-width: 981px) {
   .ff-leftPane {

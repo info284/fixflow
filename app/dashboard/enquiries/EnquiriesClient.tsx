@@ -4983,10 +4983,67 @@ useEffect(() => {
 
           <div className="ff-card">
             <div className="ff-emptyWrap">
-              <EmptyState
-                title="No enquiries yet"
-                sub="When customers send enquiries, they’ll appear here."
-              />
+<div className="ff-emptySales">
+  <div className="ff-emptyBadge">
+    ⚡ Your sales engine is ready
+  </div>
+
+  <div className="ff-emptyTitleBig">
+    Win your first job with FixFlow
+  </div>
+
+  <div className="ff-emptyText">
+    New customer enquiries, replies, quotes and follow-ups
+    will appear here automatically.
+  </div>
+
+  <div className="ff-emptySteps">
+    <div className="ff-emptyStep">
+      <span>1</span>
+      Share your enquiry link
+    </div>
+
+    <div className="ff-emptyStep">
+      <span>2</span>
+      Customers message you
+    </div>
+
+    <div className="ff-emptyStep">
+      <span>3</span>
+      FixFlow helps you win the work
+    </div>
+  </div>
+
+  <div className="ff-emptyDemo">
+    <div className="ff-demoTop">
+      <div>
+        <div className="ff-demoName">
+          Sarah M — Boiler repair
+        </div>
+
+        <div className="ff-demoMeta">
+          CR4 • Customer replied 2 mins ago
+        </div>
+      </div>
+
+      <div className="ff-chip ff-chipBlue">
+        Hot lead
+      </div>
+    </div>
+
+    <div className="ff-demoAction">
+      ⚡ AI suggests: Reply now
+    </div>
+  </div>
+
+  <button
+    type="button"
+    className="ff-btnPrimary"
+    onClick={() => setShowCallModal(true)}
+  >
+    + Add first enquiry
+  </button>
+</div>
             </div>
           </div>
         </div>

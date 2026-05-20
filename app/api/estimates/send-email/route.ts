@@ -598,11 +598,15 @@ const safeCustomerName = escapeEmailHtml(firstName);
   Your PDF estimate is attached to this email.
 </div>
 
-<div style="margin:18px 0 6px;">
-  ${buildFixFlowButton("Accept estimate", acceptUrl)}
-</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0 6px; border-collapse:collapse;">
+  <tr>
+    <td align="center">
+      ${buildFixFlowButton("Accept estimate", acceptUrl)}
+    </td>
+  </tr>
+</table>
       `,
-     ctaHtml: "",
+      ctaHtml: "",
       closingHtml: `
         <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
           Thanks,<br />

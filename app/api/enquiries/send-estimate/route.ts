@@ -75,7 +75,7 @@ export async function POST(req: Request) {
 
     const subject = `Your estimate from ${safeTraderName} (£${total})`;
 
-   const acceptUrl = `https://thefixflowapp.com/api/estimates/${estimateId}/accept`;
+  const acceptUrl = `https://thefixflowapp.com/api/quick-estimates/${estimateId}/accept`;
 
     const html = buildFixFlowEmail({
       title: "Estimate ready",
@@ -140,8 +140,11 @@ export async function POST(req: Request) {
         <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
           Please use the button below to accept this estimate.
         </div>
+        <div style="margin:18px 0 6px;">
+  ${buildFixFlowButton("Accept estimate", acceptUrl)}
+</div>
       `,
-      ctaHtml: buildFixFlowButton("Accept estimate", acceptUrl),
+     ctaHtml: "",
       closingHtml: `
         <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
           Thanks,<br />

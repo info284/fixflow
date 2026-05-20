@@ -64,7 +64,7 @@ async function acceptEstimate(id: string) {
       .from("quote_requests")
 .update({
   stage: "won",
-  status: "won",
+  status: "replied",
 })
       .eq("id", existing.request_id);
 

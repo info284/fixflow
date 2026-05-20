@@ -239,6 +239,20 @@ body {
   backdrop-filter: blur(8px);
 }
 
+.ff-acceptSuccessPill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  margin: 0 0 24px;
+  padding: 9px 16px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  border: 1px solid #bfefd0;
+  color: #087443;
+  font-size: 14px;
+  font-weight: 900;
+}
+
 .ff-acceptHero {
   display: grid;
   grid-template-columns: 1fr 220px;

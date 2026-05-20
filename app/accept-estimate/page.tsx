@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, useCallback } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 type Estimate = {
@@ -15,11 +15,12 @@ type Estimate = {
   last_viewed_at?: string | null;
   accepted_at?: string | null;
   trader_name?: string | null;
-business_name?: string | null;
+  business_name?: string | null;
 };
 
 function niceDateTime(value?: string | null) {
   if (!value) return "—";
+
   return new Date(value).toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
@@ -36,8 +37,8 @@ function money(value?: number | null) {
 }
 
 function AcceptEstimateContent() {
-const searchParams = useSearchParams();
-const id = searchParams.get("id") || "";
+  const searchParams = useSearchParams();
+  const id = searchParams.get("id") || "";
 
   const [loading, setLoading] = useState(true);
   const [estimate, setEstimate] = useState<Estimate | null>(null);
@@ -47,11 +48,11 @@ const id = searchParams.get("id") || "";
 
   const loadEstimate = useCallback(async () => {
     if (!id) {
-  setError("Missing estimate id");
-  setEstimate(null);
-  setLoading(false);
-  return;
-}
+      setError("Missing estimate id");
+      setEstimate(null);
+      setLoading(false);
+      return;
+    }
 
     try {
       setError(null);
@@ -67,6 +68,7 @@ const id = searchParams.get("id") || "";
       }
 
       const loadedEstimate = json?.estimate as Estimate;
+
       setEstimate(loadedEstimate);
       setAccepted(
         String(loadedEstimate?.status || "").toLowerCase() === "accepted"
@@ -84,12 +86,7 @@ const id = searchParams.get("id") || "";
   }, [loadEstimate]);
 
   const trackView = useCallback(async () => {
-   if (!id) {
-  setError("Missing estimate id");
-  setEstimate(null);
-  setLoading(false);
-  return;
-}
+    if (!id) return;
 
     try {
       await fetch("/api/estimate/view", {
@@ -105,12 +102,7 @@ const id = searchParams.get("id") || "";
   }, [id]);
 
   useEffect(() => {
-   if (!id) {
-  setError("Missing estimate id");
-  setEstimate(null);
-  setLoading(false);
-  return;
-}
+    if (!id) return;
 
     let sent = false;
 
@@ -166,10 +158,8 @@ const id = searchParams.get("id") || "";
     }
   }
 
-   const traderDisplayName =
-    estimate?.business_name ||
-    estimate?.trader_name ||
-    "FixFlow";
+  const traderDisplayName =
+    estimate?.business_name || estimate?.trader_name || "FixFlow";
 
   if (loading) {
     return (
@@ -181,6 +171,7 @@ const id = searchParams.get("id") || "";
           <div className="ff-acceptTop">
             <div className="ff-acceptBrandWrap">
               <div className="ff-acceptLogo">F</div>
+
               <div className="ff-acceptBrandText">
                 <div className="ff-acceptBrand">FixFlow</div>
                 <div className="ff-acceptBrandSub">Customer estimate</div>
@@ -214,13 +205,10 @@ const id = searchParams.get("id") || "";
           <div className="ff-acceptTop">
             <div className="ff-acceptBrandWrap">
               <div className="ff-acceptLogo">F</div>
+
               <div className="ff-acceptBrandText">
-                <div className="ff-acceptBrand">
-{traderDisplayName}
-</div>
-<div className="ff-acceptBrandSub">
-  Estimate powered by FixFlow
-</div>
+                <div className="ff-acceptBrand">FixFlow</div>
+                <div className="ff-acceptBrandSub">Customer estimate</div>
               </div>
             </div>
 
@@ -229,7 +217,9 @@ const id = searchParams.get("id") || "";
 
           <div className="ff-acceptCard">
             <div className="ff-acceptEyebrow">Estimate</div>
+
             <h1 className="ff-acceptTitle">Estimate not found</h1>
+
             <p className="ff-acceptSub">
               This estimate link may have expired or is no longer available.
             </p>
@@ -252,8 +242,10 @@ const id = searchParams.get("id") || "";
             <div className="ff-acceptLogo">F</div>
 
             <div className="ff-acceptBrandText">
-            <div className="ff-acceptBrand">{traderDisplayName}</div>
-<div className="ff-acceptBrandSub">Estimate powered by FixFlow</div>
+              <div className="ff-acceptBrand">{traderDisplayName}</div>
+              <div className="ff-acceptBrandSub">
+                Estimate powered by FixFlow
+              </div>
             </div>
           </div>
 
@@ -263,66 +255,76 @@ const id = searchParams.get("id") || "";
         </div>
 
         <div className="ff-acceptCard">
-          <div className="ff-acceptHero">
-            <div className="ff-acceptHeroText">
-              <div className="ff-acceptEyebrow">Estimate review</div>
+          <div className="ff-acceptEyebrow">Estimate review</div>
 
-              <h1 className="ff-acceptTitle">
-                {accepted ? "Estimate accepted" : "Review your estimate"}
-              </h1>
+          <h1 className="ff-acceptTitle">
+            {accepted ? "Estimate accepted" : "Review your estimate"}
+          </h1>
 
-              <p className="ff-acceptSub">
-                {accepted
-                  ? `Thanks — ${estimate.business_name || estimate.trader_name || "your trader"} has been notified.`
-                  : "Please review the estimate below and accept when you're happy to go ahead."}
-              </p>
+          <p className="ff-acceptSub">
+            {accepted
+              ? `Thanks — ${traderDisplayName} has received your confirmation and will be in touch shortly.`
+              : "Please review the estimate below and accept when you're happy to go ahead."}
+          </p>
+
+          {accepted ? (
+            <div className="ff-acceptSuccessPill">✓ Accepted</div>
+          ) : null}
+
+          <div className="ff-acceptPriceCard">
+            <div className="ff-acceptPriceLabel">
+              {accepted ? "Accepted estimate amount" : "Total estimate"}
             </div>
 
-            <div className="ff-acceptPriceCard">
-              <div className="ff-acceptPriceLabel">Total estimate</div>
-              <div className="ff-acceptPriceValue">{money(estimate.total)}</div>
-              <div className="ff-acceptPriceSub">
-                {accepted ? "Confirmed" : "No payment taken now"}
-              </div>
+            <div className="ff-acceptPriceValue">{money(estimate.total)}</div>
+
+            <div className="ff-acceptPriceSub">
+              No payment has been taken now.
             </div>
           </div>
 
           <div className="ff-acceptSummary">
-            <div className="ff-acceptRow">
-              <span>Customer</span>
-              <strong>{estimate.customer_name || "—"}</strong>
-            </div>
+            {!accepted ? (
+              <>
+                <div className="ff-acceptRow">
+                  <span>Customer</span>
+                  <strong>{estimate.customer_name || "—"}</strong>
+                </div>
+
+                <div className="ff-acceptRow">
+                  <span>Job</span>
+                  <strong>{estimate.job_type || "—"}</strong>
+                </div>
+
+                <div className="ff-acceptRow">
+                  <span>Views</span>
+                  <strong>{estimate.view_count || 0}</strong>
+                </div>
+
+                <div className="ff-acceptRow">
+                  <span>Last viewed</span>
+                  <strong>
+                    {estimate.last_viewed_at
+                      ? niceDateTime(estimate.last_viewed_at)
+                      : "Just opened"}
+                  </strong>
+                </div>
+              </>
+            ) : null}
 
             <div className="ff-acceptRow">
-              <span>Job</span>
-              <strong>{estimate.job_type || "—"}</strong>
+              <span>{accepted ? "Accepted at" : "Status"}</span>
+              <strong>
+                {accepted
+                  ? niceDateTime(estimate.accepted_at)
+                  : "Pending approval"}
+              </strong>
             </div>
 
             <div className="ff-acceptRow">
               <span>Status</span>
               <strong>{accepted ? "Accepted" : "Pending approval"}</strong>
             </div>
-
-            <div className="ff-acceptRow">
-              <span>Views</span>
-              <strong>{estimate.view_count || 0}</strong>
-            </div>
-
-            <div className="ff-acceptRow">
-              <span>Last viewed</span>
-              <strong>
-                {estimate.last_viewed_at
-                  ? niceDateTime(estimate.last_viewed_at)
-                  : "Just opened"}
-              </strong>
-            </div>
-
-            {accepted ? (
-              <div className="ff-acceptRow">
-                <span>Accepted at</span>
-                <strong>{niceDateTime(estimate.accepted_at)}</strong>
-              </div>
-            ) : null}
           </div>
 
           {!accepted ? (
@@ -341,35 +343,27 @@ const id = searchParams.get("id") || "";
               </div>
             </div>
           ) : (
-            <div className="ff-acceptSuccessWrap">
-              <div className="ff-acceptTick">✓</div>
-              <div className="ff-acceptSuccessText">Estimate accepted</div>
-              <div className="ff-acceptSuccessSub">
-               {traderDisplayName} has been notified and will be in touch shortly.
-              </div>
+            <div className="ff-acceptNextSteps">
+              <div className="ff-acceptNextStepsTitle">What happens next</div>
 
-              <div className="ff-acceptNextSteps">
-                <div className="ff-acceptNextStepsTitle">What happens next</div>
+              <div className="ff-acceptNextStepList">
+                <div className="ff-acceptNextStepItem">
+                  <span className="ff-acceptStepDot" />
+                  <span>Your acceptance has been saved.</span>
+                </div>
 
-                <div className="ff-acceptNextStepList">
-                  <div className="ff-acceptNextStepItem">
-                    <span className="ff-acceptStepDot" />
-                    <span>Your acceptance is sent straight to {traderDisplayName}.</span>
-                  </div>
+                <div className="ff-acceptNextStepItem">
+                  <span className="ff-acceptStepDot" />
+                  <span>
+                    {traderDisplayName} has received your confirmation.
+                  </span>
+                </div>
 
-                  <div className="ff-acceptNextStepItem">
-                    <span className="ff-acceptStepDot" />
-                    <span>
-                      Your trader can now arrange the next step with you.
-                    </span>
-                  </div>
-
-                  <div className="ff-acceptNextStepItem">
-                    <span className="ff-acceptStepDot" />
-                    <span>
-                      The trader will contact you shortly to arrange the job.
-                    </span>
-                  </div>
+                <div className="ff-acceptNextStepItem">
+                  <span className="ff-acceptStepDot" />
+                  <span>
+                    Your trader can now arrange the next step with you.
+                  </span>
                 </div>
               </div>
             </div>
@@ -381,15 +375,14 @@ const id = searchParams.get("id") || "";
     </div>
   );
 }
+
 export default function AcceptEstimatePage() {
   return (
     <Suspense
       fallback={
         <div className="ff-acceptPage">
           <div className="ff-acceptShell">
-            <div className="ff-acceptCard">
-              Loading estimate…
-            </div>
+            <div className="ff-acceptCard">Loading estimate…</div>
           </div>
         </div>
       }

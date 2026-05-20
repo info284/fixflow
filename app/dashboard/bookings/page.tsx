@@ -169,8 +169,7 @@ function getJobTimeHint(
 
   const now = new Date();
 
-  const jobDate =
-    request?.job_booked_at || visit?.starts_at || null;
+const jobDate = request?.job_booked_at || null;
 
   if (status === "approved") {
     return {
@@ -530,17 +529,16 @@ function normalizeJobStatus(
     rStatus.includes("approved") ||
     rStatus.includes("accepted")
   ) {
-    return visit || request?.job_booked_at ? "booked" : "approved";
+   return request?.job_booked_at ? "booked" : "approved";
   }
 
-  if (
-    qStatus.includes("book") ||
-    rStatus.includes("book") ||
-    request?.job_booked_at ||
-    visit
-  ) {
-    return "booked";
-  }
+if (
+  qStatus.includes("book") ||
+  rStatus.includes("book") ||
+  request?.job_booked_at
+) {
+  return "booked";
+}
 
   return "approved";
 }
@@ -585,7 +583,7 @@ function getHealthItems(args: {
     },
     {
       label: "Booking",
-      ok: Boolean(visit || request?.job_booked_at),
+     ok: Boolean(request?.job_booked_at),
     },
     {
       label: "Work description",
@@ -625,9 +623,9 @@ function getMissingItems(args: {
     out.push("Customer address missing");
   }
 
-  if (!visit && !request?.job_booked_at && status === "approved") {
-    out.push("No confirmed booking date");
-  }
+if (!request?.job_booked_at && status === "approved") {
+  out.push("No confirmed job booking date");
+}
 
   if (!String(quote?.job_details || request?.details || "").trim()) {
     out.push("Work description missing");
@@ -893,6 +891,43 @@ for (const row of (data || []) as QuoteRow[]) {
   if (!map[row.request_id]) {
     map[row.request_id] = row;
   }
+}
+
+const { data: estimates } = await supabase
+  .from("estimates")
+  .select("id,request_id,plumber_id,status,total,subtotal,customer_message,created_at")
+  .eq("plumber_id", plumberId)
+  .in("request_id", requestIds)
+  .order("created_at", { ascending: false });
+
+for (const est of estimates || []) {
+  if (!est.request_id) continue;
+  if (map[est.request_id]) continue;
+
+  map[est.request_id] = {
+    id: est.id,
+    plumber_id: est.plumber_id,
+    request_id: est.request_id,
+
+    customer_name: null,
+    customer_email: null,
+    customer_phone: null,
+    postcode: null,
+    address: null,
+    job_type: null,
+    urgency: null,
+
+    vat_rate: null,
+    subtotal: Number(est.subtotal || est.total || 0),
+    note: est.customer_message || null,
+    job_details: null,
+    trader_ref: null,
+    status: est.status || "accepted",
+    sent_at: null,
+    created_at: est.created_at,
+    last_chased_at: null,
+    chase_count: null,
+  } as QuoteRow;
 }
 
   setQuoteMap(map);
@@ -2679,11 +2714,9 @@ className={`ff-leftItem
                   <span className="ff-leftMetaDot">•</span>
 
                   <div className="ff-leftMetaText">
-                    {visit?.starts_at
-                      ? niceDate(visit.starts_at)
-                      : request.job_booked_at
-                      ? niceDate(request.job_booked_at)
-                      : "Not booked yet"}
+                    {request.job_booked_at
+  ? niceDate(request.job_booked_at)
+  : "Job not booked yet"}
                   </div>
                 </div>
                 

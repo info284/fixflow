@@ -53,6 +53,12 @@ export async function POST(req: Request) {
 
     if (uploadError) throw uploadError;
 
+    const { data: publicUrlData } = supabase.storage
+  .from(BUCKET)
+  .getPublicUrl(path);
+
+const fileUrl = publicUrlData.publicUrl;
+
     const { error: fileInsertError } = await supabase.from("job_files").insert({
       request_id: requestId,
       plumber_id: enquiry.plumber_id,
@@ -72,7 +78,7 @@ export async function POST(req: Request) {
         direction: "in",
         channel: "file",
         subject: "Customer uploaded a file",
-        body_text: `Customer uploaded: ${file.name}`,
+        body_text: `Customer uploaded: ${file.name}\n${fileUrl}`,
         from_email: customerEmail || null,
         to_email: null,
       });

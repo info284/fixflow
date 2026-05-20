@@ -5693,7 +5693,19 @@ body {
   max-height: none;
   overflow: visible;
 }
-
+.ff-fileBubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #eef4ff;
+  border: 1px solid #dbe5ff;
+  color: #1f355c;
+  font-weight: 800;
+  text-decoration: none;
+}
 /* desktop: make only the enquiry list scroll */
 @media (min-width: 981px) {
   .ff-leftPane {

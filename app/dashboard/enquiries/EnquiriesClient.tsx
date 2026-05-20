@@ -8198,7 +8198,29 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
   </div>
 )}
 
-<div className="ff-chatText">{body || "—"}</div>
+<div className="ff-chatText">
+  {String(body || "—")
+    .split("\n")
+    .map((line, index) => {
+      const isUrl = line.startsWith("http");
+
+      if (isUrl) {
+        return (
+          <a
+            key={index}
+            href={line}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ff-fileBubble"
+          >
+            📎 Open uploaded file
+          </a>
+        );
+      }
+
+      return <div key={index}>{line}</div>;
+    })}
+</div>
               </div>
             </button>
           );

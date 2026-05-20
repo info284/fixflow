@@ -92,16 +92,16 @@ function successHtml(traderName: string) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Quick estimate accepted</title>
+    <title>Estimate accepted</title>
   </head>
 
   <body style="margin:0; font-family: Arial, sans-serif; background:linear-gradient(180deg,#EEF4FF 0%,#F8FAFC 100%); color:#0B1320;">
-    <div style="min-height:100vh; padding:28px 18px; box-sizing:border-box; display:flex; align-items:center; justify-content:center;">
-      <div style="width:100%; max-width:620px; background:#ffffff; border:1px solid #E6ECF5; border-radius:32px; padding:30px; box-shadow:0 22px 60px rgba(11,42,85,0.14); box-sizing:border-box;">
+    <div style="min-height:100vh; padding:28px 18px; box-sizing:border-box;">
+      <div style="width:100%; max-width:760px; margin:0 auto;">
 
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:30px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:28px;">
           <div style="display:flex; align-items:center; gap:14px;">
-            <div style="width:56px; height:56px; border-radius:18px; background:#0B2A55; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:28px;">
+            <div style="width:54px; height:54px; border-radius:16px; background:#0B2A55; color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:28px;">
               F
             </div>
 
@@ -120,30 +120,37 @@ function successHtml(traderName: string) {
           </div>
         </div>
 
-        <div style="background:#ECFDF3; border:1px solid #BFEFD0; color:#087443; border-radius:999px; display:inline-block; padding:9px 16px; font-weight:900; font-size:14px; margin-bottom:20px;">
-          Quick estimate accepted
-        </div>
+        <div style="background:#ffffff; border:1px solid #E6ECF5; border-radius:32px; padding:30px; box-shadow:0 22px 60px rgba(11,42,85,0.14); box-sizing:border-box;">
 
-        <h1 style="font-size:42px; line-height:1.08; margin:0 0 16px; color:#0B1320;">
-          Estimate accepted
-        </h1>
-
-        <p style="font-size:19px; line-height:1.7; color:#5C6B84; margin:0 0 28px;">
-          Thanks &mdash; ${safeTraderName} has been notified and will be in touch shortly.
-        </p>
-
-        <div style="border:1px solid #E6ECF5; border-radius:24px; padding:24px; background:#F4F7FF;">
-          <div style="font-size:13px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; color:#5C6B84; margin-bottom:14px;">
-            What happens next
+          <div style="font-size:12px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; color:#5C6B84; margin-bottom:18px;">
+            Estimate review
           </div>
 
-          <div style="display:grid; gap:14px; font-size:17px; line-height:1.55; color:#0B1320;">
-            <div>✓ Your acceptance has been saved.</div>
-            <div>✓ ${safeTraderName} has been notified.</div>
-            <div>✓ Your trader can now arrange the next step with you.</div>
-          </div>
-        </div>
+          <h1 style="font-size:44px; line-height:1.08; margin:0 0 18px; color:#0B1320;">
+            Estimate accepted
+          </h1>
 
+          <p style="font-size:19px; line-height:1.7; color:#5C6B84; margin:0 0 28px;">
+            Thanks — ${safeTraderName} has been notified and will be in touch shortly.
+          </p>
+
+          <div style="background:#ECFDF3; border:1px solid #BFEFD0; color:#087443; border-radius:999px; display:inline-block; padding:9px 16px; font-weight:900; font-size:14px; margin-bottom:24px;">
+            Accepted
+          </div>
+
+          <div style="border:1px solid #E6ECF5; border-radius:24px; padding:24px; background:#F4F7FF;">
+            <div style="font-size:13px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; color:#5C6B84; margin-bottom:16px;">
+              What happens next
+            </div>
+
+            <div style="display:grid; gap:14px; font-size:17px; line-height:1.55; color:#0B1320;">
+              <div>✓ Your acceptance has been saved.</div>
+              <div>✓ ${safeTraderName} has been notified.</div>
+              <div>✓ Your trader can now arrange the next step with you.</div>
+            </div>
+          </div>
+
+        </div>
       </div>
     </div>
   </body>

@@ -44,7 +44,12 @@ const id = searchParams.get("id") || "";
   const [error, setError] = useState<string | null>(null);
 
   const loadEstimate = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+  setError("Missing estimate id");
+  setEstimate(null);
+  setLoading(false);
+  return;
+}
 
     try {
       setError(null);
@@ -77,7 +82,12 @@ const id = searchParams.get("id") || "";
   }, [loadEstimate]);
 
   const trackView = useCallback(async () => {
-    if (!id) return;
+   if (!id) {
+  setError("Missing estimate id");
+  setEstimate(null);
+  setLoading(false);
+  return;
+}
 
     try {
       await fetch("/api/estimate/view", {
@@ -93,7 +103,12 @@ const id = searchParams.get("id") || "";
   }, [id]);
 
   useEffect(() => {
-    if (!id) return;
+   if (!id) {
+  setError("Missing estimate id");
+  setEstimate(null);
+  setLoading(false);
+  return;
+}
 
     let sent = false;
 

@@ -63,22 +63,31 @@ async function acceptQuickEstimate(id: string) {
 export async function GET(_: Request, { params }: RouteProps) {
   const { id } = await params;
 
-  const siteUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.NEXT_PUBLIC_APP_URL ||
-    "https://thefixflowapp.com";
-
   try {
     await acceptQuickEstimate(id);
 
-    return NextResponse.redirect(
-      `${siteUrl}/estimate/accepted?id=${id}`,
-      303
+    return new Response(
+      `
+      <html>
+        <body style="font-family: Arial; padding: 40px; text-align: center;">
+          <h1>Estimate accepted</h1>
+          <p>Thanks — your trader has been notified.</p>
+        </body>
+      </html>
+      `,
+      { status: 200, headers: { "Content-Type": "text/html" } }
     );
-  } catch {
-    return NextResponse.redirect(
-      `${siteUrl}/estimate/error?id=${id}`,
-      303
+  } catch (e: any) {
+    return new Response(
+      `
+      <html>
+        <body style="font-family: Arial; padding: 40px; text-align: center;">
+          <h1>Couldn’t accept estimate</h1>
+          <p>${e?.message || "Unknown error"}</p>
+        </body>
+      </html>
+      `,
+      { status: 500, headers: { "Content-Type": "text/html" } }
     );
   }
 }

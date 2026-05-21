@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import type {
+  QuoteRequestRow,
+  TraderProfile,
+} from "@/app/dashboard/enquiries/EnquiriesClient";
 
 type QuickEstimateQuote = {
   id: string;
@@ -19,8 +23,11 @@ type Trader = {
 };
 
 type Props = {
-  selectedQuote: QuickEstimateQuote | null;
-  trader?: Trader | null;
+  selectedQuote: QuoteRequestRow;
+  trader: TraderProfile | null;
+
+  onScheduleJob?: () => void;
+  onCreateInvoice?: () => void;
 };
 
 type EstimateStatus = "draft" | "sent" | "accepted";
@@ -113,6 +120,8 @@ function getSmartSuggestion(jobType?: string | null): SmartSuggestion | null {
 export default function QuickEstimateCard({
   selectedQuote,
   trader,
+  onScheduleJob,
+  onCreateInvoice,
 }: Props) {
   const [labour, setLabour] = useState<number>(0);
   const [materials, setMaterials] = useState<number>(0);
@@ -456,14 +465,23 @@ if (nextStatus === "sent") {
 
           <div className="ff-acceptedTotal">£{total.toFixed(2)}</div>
 
-          <div className="ff-acceptedActions">
-            <button type="button" className="ff-btn ff-btnPrimary ff-btnSm">
-              Schedule job
-            </button>
-            <button type="button" className="ff-btn ff-btnGhost ff-btnSm">
-              Create invoice
-            </button>
-          </div>
+<div className="ff-acceptedActions">
+<button
+  type="button"
+  className="ff-btn ff-btnPrimary ff-btnSm"
+  onClick={onScheduleJob}
+>
+  Schedule job
+</button>
+
+<button
+  type="button"
+  className="ff-btn ff-btnGhost ff-btnSm"
+  onClick={onCreateInvoice}
+>
+  Create invoice
+</button>
+</div>
         </div>
       ) : (
         <>

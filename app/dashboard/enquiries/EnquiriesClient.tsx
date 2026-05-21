@@ -11,7 +11,7 @@ import { getFollowUpState, type FollowUpResult } from "@/lib/enquiries/followUp"
    TYPES
 ================================ */
 
-type QuoteRequestRow = {
+export type QuoteRequestRow = {
   id: string;
   job_number: string | null;
   plumber_id: string;
@@ -119,7 +119,7 @@ type SiteVisitRow = {
   created_at: string;
 };
 
-type TraderProfile = {
+export type TraderProfile = {
   display_name: string | null;
   business_name: string | null;
   logo_url: string | null;
@@ -6559,10 +6559,14 @@ onClick={() => {
           selectedRow?.urgency
         )}`}
       >
-        <QuickEstimateCard
-          selectedQuote={selectedRow}
-          trader={traderProfile}
-        />
+<QuickEstimateCard
+  selectedQuote={selectedRow}
+  trader={traderProfile}
+  onScheduleJob={() => syncRightTab("visit")}
+  onCreateInvoice={() =>
+    router.push(`/dashboard/invoices?requestId=${selectedRow.id}`)
+  }
+/>
       </div>
     </div>
 

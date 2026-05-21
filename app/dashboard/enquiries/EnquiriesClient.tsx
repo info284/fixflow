@@ -6021,7 +6021,21 @@ onClick={() => selectEnquiry(r.id, "details")}
       <button
         type="button"
         className={`ff-btn ff-btnGhost ff-btnSm ${getAiButtonClass(selectedDisplayedAiAction, "visit")}`}
-        onClick={() => syncRightTab("visit")}
+        onClick={() => {
+  setRightTab("visit");
+
+  const params = new URLSearchParams(sp.toString());
+
+  if (selectedId) {
+    params.set("requestId", selectedId);
+  }
+
+  params.set("tab", "visit");
+
+  router.replace(`/dashboard/enquiries?${params.toString()}`, {
+    scroll: false,
+  });
+}}
       >
         {selectedRow?.ai_recommended_action?.toLowerCase().includes("visit")
           ? "⚡ Book visit"

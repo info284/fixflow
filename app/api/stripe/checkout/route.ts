@@ -83,7 +83,7 @@ export async function POST(req: Request) {
         },
       ],
 
-     success_url: `${origin}/pay/success?invoiceId=${invoiceId}`,
+    success_url: `${origin}/pay/receipt?invoiceId=${invoiceId}`,
 cancel_url: `${origin}/pay/${invoiceId}`,
 
       metadata: {

@@ -40,24 +40,22 @@ function PaySuccessInner() {
           Thanks, your invoice payment has been completed successfully.
         </p>
 
-        <button
-          type="button"
-          onClick={() =>
-            router.push(invoiceId ? `/pay/${invoiceId}` : "/")
-          }
-          style={{
-            marginTop: 18,
-            height: 42,
-            padding: "0 18px",
-            borderRadius: 999,
-            border: "none",
-            background: "#0b2a55",
-            color: "#fff",
-            fontWeight: 800,
-          }}
-        >
-          Done
-        </button>
+<button
+  type="button"
+  onClick={() => router.push("/")}
+  style={{
+    marginTop: 18,
+    height: 42,
+    padding: "0 18px",
+    borderRadius: 999,
+    border: "none",
+    background: "#0b2a55",
+    color: "#fff",
+    fontWeight: 800,
+  }}
+>
+  Done
+</button>
       </div>
     </div>
   );

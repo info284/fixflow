@@ -6565,9 +6565,9 @@ onClick={() => {
   onScheduleJob={() =>
     router.push(`/dashboard/jobs?requestId=${selectedRow.id}&tab=schedule`)
   }
-  onCreateInvoice={() =>
-    router.push(`/dashboard/invoices?requestId=${selectedRow.id}`)
-  }
+onCreateInvoice={() =>
+  router.push(`/dashboard/invoices?requestId=${encodeURIComponent(selectedRow.id)}`)
+}
 />
       </div>
     </div>

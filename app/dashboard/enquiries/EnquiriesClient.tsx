@@ -6563,7 +6563,7 @@ onClick={() => {
   selectedQuote={selectedRow}
   trader={traderProfile}
   onScheduleJob={() =>
-    router.push(`/dashboard/jobs?requestId=${selectedRow.id}&tab=schedule`)
+    router.push(`/dashboard/bookings?requestId=${selectedRow.id}&tab=schedule`)
   }
 onCreateInvoice={() =>
   router.push(`/dashboard/invoices?requestId=${encodeURIComponent(selectedRow.id)}`)

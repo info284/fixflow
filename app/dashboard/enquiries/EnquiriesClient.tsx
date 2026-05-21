@@ -1328,7 +1328,7 @@ useEffect(() => {
   const estimateTotal = estimateSubtotal + estimateVat;
 
 const selectedPhotoCount = selectedRow
-  ? selectedRow.photo_count || 0
+  ? custFiles.length
   : 0;
 
 
@@ -6562,7 +6562,9 @@ onClick={() => {
 <QuickEstimateCard
   selectedQuote={selectedRow}
   trader={traderProfile}
-  onScheduleJob={() => syncRightTab("visit")}
+  onScheduleJob={() =>
+    router.push(`/dashboard/jobs?requestId=${selectedRow.id}&tab=schedule`)
+  }
   onCreateInvoice={() =>
     router.push(`/dashboard/invoices?requestId=${selectedRow.id}`)
   }

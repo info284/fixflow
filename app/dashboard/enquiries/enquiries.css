@@ -5684,6 +5684,59 @@ body {
   overflow: visible;
 }
 
+.ff-fileRow,
+.ff-fileItem,
+.ff-traderFileRow {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.ff-fileRow,
+.ff-fileItem {
+  overflow: hidden;
+}
+
+.ff-fileMeta,
+.ff-fileInfo,
+.ff-fileName {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.ff-fileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ff-fileActions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+@media (max-width: 640px) {
+  .ff-fileRow,
+  .ff-fileItem,
+  .ff-traderFileRow {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .ff-fileActions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ff-fileActions button,
+  .ff-fileActions a {
+    width: 100%;
+  }
+}
+
 .ff-leftReplyAlert {
   margin-top: 10px;
   display: inline-flex;

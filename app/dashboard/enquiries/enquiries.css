@@ -5917,6 +5917,62 @@ body {
   }
 }
 /* =========================
+   FINAL MOBILE FILE ROW FIX
+========================= */
+
+.ff-fileList,
+.ff-fileRow,
+.ff-fileRowMeta {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.ff-fileRow {
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+.ff-fileRowMeta {
+  overflow: hidden !important;
+}
+
+.ff-fileRowMeta strong,
+.ff-fileRowMeta div,
+.ff-fileName {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.ff-fileActions {
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+@media (max-width: 640px) {
+  .ff-fileRow {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  .ff-fileActions {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  .ff-fileActions .ff-btn,
+  .ff-fileActions button,
+  .ff-fileActions a {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+/* =========================
    JOBS PAGE ONLY
 ========================== */
 

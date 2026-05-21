@@ -1,54 +1,80 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function PayPage({
   params,
 }: {
   params: Promise<{ invoiceId: string }>;
 }) {
-useEffect(() => {
-  const run = async () => {
-    const p = await params;
+  const [error, setError] = useState<string | null>(null);
 
-    alert("Invoice ID: " + p.invoiceId);
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const p = await params;
 
-    const res = await fetch("/api/stripe/checkout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ invoiceId: p.invoiceId }),
-    });
+        if (!p.invoiceId) {
+          setError("Missing invoice ID.");
+          return;
+        }
 
-    const data = await res.json();
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ invoiceId: p.invoiceId }),
+        });
 
-    alert(JSON.stringify(data));
+        const data = await res.json();
 
-    if (data?.url) {
-      window.location.href = data.url;
-    }
-  };
+        if (!res.ok) {
+          setError(data?.error || "Could not start payment.");
+          return;
+        }
 
-  run();
-}, [params]);
+        if (!data?.url) {
+          setError("Payment link was not created.");
+          return;
+        }
+
+        window.location.href = data.url;
+      } catch (e: any) {
+        setError(e?.message || "Something went wrong.");
+      }
+    };
+
+    run();
+  }, [params]);
 
   return (
     <div
       style={{
-        height: "100vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        minHeight: "100vh",
+        display: "grid",
+        placeItems: "center",
+        padding: 24,
         fontFamily: "system-ui",
+        background: "#f6f8fc",
       }}
     >
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 18, fontWeight: 600 }}>
-          Redirecting to secure payment...
+      <div
+        style={{
+          width: "min(420px, 100%)",
+          borderRadius: 24,
+          background: "#fff",
+          border: "1px solid #e6ecf5",
+          padding: 24,
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 20, fontWeight: 900, color: "#0b2a55" }}>
+          {error ? "Payment could not start" : "Redirecting to secure payment"}
         </div>
-        <div style={{ marginTop: 10, fontSize: 14, opacity: 0.6 }}>
-          Please wait a moment
+
+        <div style={{ marginTop: 10, fontSize: 14, color: "#64748b" }}>
+          {error || "Please wait a moment…"}
         </div>
       </div>
     </div>

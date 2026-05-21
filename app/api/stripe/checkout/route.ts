@@ -62,6 +62,7 @@ export async function POST(req: Request) {
     }
 
     // 2. Create Stripe checkout session
+    const origin = new URL(req.url).origin;
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
 
@@ -82,8 +83,8 @@ export async function POST(req: Request) {
         },
       ],
 
-      success_url: `https://www.thefixflowapp.co.uk/pay/success?invoiceId=${inv.id}`,
-      cancel_url: `https://www.thefixflowapp.co.uk/pay/cancel?invoiceId=${inv.id}`,
+     success_url: `${origin}/pay/success?invoiceId=${invoiceId}`,
+cancel_url: `${origin}/pay/${invoiceId}`,
 
       metadata: {
         invoiceId: inv.id,

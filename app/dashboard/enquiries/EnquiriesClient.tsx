@@ -7798,20 +7798,8 @@ onClick={deleteEnquiry}
                             ) : traderFiles.length ? (
                               <div style={{ display: "grid", gap: 10 }}>
                                 {traderFiles.map((file) => (
-                                  <div
-                                    key={file.path}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "space-between",
-                                      gap: 12,
-                                      padding: 12,
-                                      border: `1px solid ${FF.border}`,
-                                      borderRadius: 14,
-                                      background: "#fff",
-                                    }}
-                                  >
-                                    <div style={{ minWidth: 0, flex: 1 }}>
+                           <div key={file.path} className="ff-fileRow">
+                                    <div className="ff-fileRowMeta">
                                       <div
                                         style={{
                                           fontSize: 13,
@@ -7845,13 +7833,7 @@ onClick={deleteEnquiry}
                                       </div>
                                     </div>
 
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        gap: 8,
-                                        flexShrink: 0,
-                                      }}
-                                    >
+                                <div className="ff-fileActions">
                                       <a
                                         href={file.url || "#"}
                                         target="_blank"

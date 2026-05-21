@@ -5667,6 +5667,23 @@ body {
   max-height: none;
   overflow: visible;
 }
+.ff-acceptedActions {
+  position: relative;
+  z-index: 20;
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.ff-acceptedActions button {
+  position: relative;
+  z-index: 30;
+  pointer-events: auto;
+}
+.ff-detailCard {
+  overflow: visible;
+}
+
 .ff-leftReplyAlert {
   margin-top: 10px;
   display: inline-flex;

@@ -685,7 +685,7 @@ function missingInfoList(r: QuoteRequestRow, photos: number) {
 
   if (!r.customer_phone) missing.push("Phone");
   if (!r.budget || r.budget === "not-sure") missing.push("Budget");
-  if (!photos) missing.push("Photos");
+  if ((photos || 0) <= 0) missing.push("Photos");
   if (!r.details || r.details.length < 30) missing.push("Details");
   if (!r.address && !r.postcode) missing.push("Address");
   if (!r.property_type) missing.push("Property");
@@ -696,7 +696,7 @@ function missingInfoList(r: QuoteRequestRow, photos: number) {
 function quoteReadinessItems(r: QuoteRequestRow, photos: number) {
   return [
     { label: "Details", ok: !!r.details && r.details.length >= 30 },
-    { label: "Photos", ok: photos > 0 },
+    { label: "Photos", ok: (photos || 0) > 0 },
     { label: "Budget", ok: !!r.budget && r.budget !== "not-sure" },
     { label: "Contact", ok: !!r.customer_phone || !!r.customer_email },
     { label: "Address", ok: !!r.address || !!r.postcode },
@@ -5873,18 +5873,7 @@ onClick={() => selectEnquiry(r.id, "details")}
                           <div className="ff-leftAddress">
                             {r.address || formatPostcode(r.postcode) || "No address"}
                           </div>
-<div
-  style={{
-    color: "red",
-    fontSize: "18px",
-    fontWeight: 800,
-    padding: "8px 0",
-    background: "yellow",
-    display: "block",
-  }}
->
-  TEST PREVIEW IS SHOWING
-</div>
+
                         </div>
 
                         <div className="ff-leftMetaRow">

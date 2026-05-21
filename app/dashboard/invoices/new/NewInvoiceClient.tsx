@@ -837,7 +837,7 @@ return (
         <div className="ff-card ff-leftPane">
           <div className="ff-leftHeadRow">
             <div className="ff-leftTitle">All invoices</div>
-            <div className="ff-leftCount">{visibleInvoices.length}</div>
+<div className="ff-leftCount">{visibleInvoices.length}</div>
           </div>
 
           <div className="ff-leftList">
@@ -1601,7 +1601,22 @@ display: flex;
 justify-content: flex-end;
 gap: 10px;
 }
+.ff-leftHeadRow {
+  padding: 18px 20px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 
+.ff-leftHeadRow .ff-leftTitle {
+  margin: 0;
+}
+
+.ff-leftCount {
+  font-size: 14px;
+  font-weight: 900;
+  color: #64748b;
+}
   .ff-controls {
     display: flex;
     flex-wrap: wrap;
@@ -1625,6 +1640,23 @@ gap: 10px;
     gap: 14px;
     grid-template-columns: 390px minmax(0, 1fr);
   }
+
+.ff-leftHeadRow {
+  padding: 18px 20px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ff-leftHeadRow .ff-leftTitle {
+  margin: 0;
+}
+
+.ff-leftCount {
+  font-size: 14px;
+  font-weight: 900;
+  color: #64748b;
+}
 
   .ff-grid > * {
     min-height: 0;

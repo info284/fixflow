@@ -1071,23 +1071,33 @@ const total = s + vatAmount;
                         <div className="ff-leftDate">{niceDateOnly(inv.created_at)}</div>
                       </div>
 
-                      <div className="ff-leftMeta">
-                        {(req?.postcode || "—").toUpperCase()} • {req?.job_type || "Invoice"}
-                      </div>
+<div className="ff-leftJobTitle">
+  {req?.job_type || "Invoice"}
+</div>
 
-                      <div className="ff-jobQuickRow">
-                        <div className="ff-jobBudget">{money(inv.amount, inv.currency)}</div>
-                        <div className="ff-jobPhotos">{req?.job_number || "No job number"}</div>
-                      </div>
+<div className="ff-leftCustomer">
+  {req?.customer_name || "Customer"}
+</div>
 
-                      <div className="ff-leftChips">
-                        <span className={st.cls}>{st.text}</span>
-                      </div>
+<div className="ff-leftAddress">
+  {req?.address || req?.postcode || "No address"}
+</div>
 
-                      <div className="ff-leftVisit">
-                        <span>To</span>
-                        <span className="ff-leftVisitMuted">{inv.to_email || "No email"}</span>
-                      </div>
+<div className="ff-jobQuickRow">
+  <div className="ff-jobBudget">{money(inv.amount, inv.currency)}</div>
+  <div className="ff-jobPhotos">{niceDate(inv.created_at)}</div>
+</div>
+
+<div className="ff-leftStatusRow">
+  <span className={st.cls}>{st.text}</span>
+  <span className="ff-chip ff-chipBlue">
+    {req?.job_number || "No job number"}
+  </span>
+</div>
+
+<div className="ff-leftReplyAlert">
+  To {inv.to_email || "No email"}
+</div>
                     </div>
                   </button>
                 );
@@ -1116,114 +1126,118 @@ const total = s + vatAmount;
               </div>
             ) : (
               <>
-                <button
-                  className="ff-backMobile"
-                  type="button"
-                  onClick={backToListMobile}
-                >
-                  ← Back to invoices
-                </button>
 
-                <div className="ff-enquiryHeader">
-                  <div className="ff-enquiryHeaderLeft">
-                    <div className="ff-enquiryTitle">
-                      {selectedInvoice.invoice_number || "Generating..."}
-                    </div>
 
-                    <div className="ff-enquiryMeta">
-                      Job: {linkedRequest?.job_number || linkedRequest?.customer_name || "—"}
-                    </div>
+<div className="ff-rightTop">
+  <div className="ff-rightTopLeft">
+    <button
+      className="ff-backBtn ff-backBtnMobile"
+      type="button"
+      onClick={backToListMobile}
+    >
+      ← Back to invoices
+    </button>
 
-                    <div className="ff-enquirySubMeta">
-                      {linkedRequest?.postcode || "—"} • {linkedRequest?.job_type || "Invoice"}
-                    </div>
-                  </div>
+    <div>
+      <div className="ff-rightJobNo">
+        {selectedInvoice.invoice_number || "Generating..."}
+      </div>
 
-                  <div className="ff-headerBtnRow">
-                    <button
-                      className="ff-btnGhost"
-                      type="button"
-                      onClick={saveInvoice}
-                      disabled={busy}
-                    >
-                      {busy ? "Saving…" : "Save"}
-                    </button>
+      <h1 className="ff-rightTitle">
+        {linkedRequest?.job_type || "Invoice"}
+      </h1>
 
-                    <button
-                      className="ff-btnGhost"
-                      type="button"
-                      onClick={() => {
-                        if (!selectedInvoice) return;
-                        downloadInvoicePdf(selectedInvoice);
-                      }}
-                      disabled={!selectedInvoice}
-                    >
-                      Download PDF
-                    </button>
+      <div className="ff-rightSub">
+        {linkedRequest?.customer_name || "Customer"} •{" "}
+        {(linkedRequest?.postcode || "—").toUpperCase()}
+      </div>
+    </div>
+  </div>
 
-                    <button
-                      className="ff-btnPrimary"
-                      type="button"
-                      onClick={() => {
-                        if (!selectedInvoice) return;
-                        sendInvoice(selectedInvoice);
-                      }}
-                      disabled={busy || !selectedInvoice}
-                    >
-                      Send
-                    </button>
+  <div className="ff-rightTopActions">
+    <button
+      className="ff-btn ff-btnGhost"
+      type="button"
+      onClick={saveInvoice}
+      disabled={busy}
+    >
+      {busy ? "Saving…" : "Save"}
+    </button>
 
-                    <button
-  className="ff-btnSuccess"
-  type="button"
-  onClick={() => {
-    if (!selectedInvoice) return;
-    markStatus(selectedInvoice.id, "paid");
-  }}
-  disabled={busy || !selectedInvoice}
->
-  Mark as paid
-</button>
+    <button
+      className="ff-btn ff-btnGhost"
+      type="button"
+      onClick={() => {
+        if (!selectedInvoice) return;
+        downloadInvoicePdf(selectedInvoice);
+      }}
+    >
+      Download PDF
+    </button>
 
-                    <button
-                      className="ff-btnDanger ff-btnDangerSm"
-                      type="button"
-                      onClick={() => {
-                        if (!selectedInvoice) return;
-                        deleteInvoice(selectedInvoice.id);
-                      }}
-                      disabled={busy || !selectedInvoice}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
+    <button
+      className="ff-btn ff-btnPrimary"
+      type="button"
+      onClick={() => {
+        if (!selectedInvoice) return;
+        sendInvoice(selectedInvoice);
+      }}
+      disabled={busy}
+    >
+      Send
+    </button>
 
-                <div className="ff-rightTabs">
-                  <button
-                    className={`ff-tabPill ${tab === "details" ? "isActive" : ""}`}
-                    onClick={() => setTab("details")}
-                    type="button"
-                  >
-                    Details
-                  </button>
+    <button
+      className="ff-btn ff-btnSuccess"
+      type="button"
+      onClick={() => {
+        if (!selectedInvoice) return;
+        markStatus(selectedInvoice.id, "paid");
+      }}
+      disabled={busy}
+    >
+      Mark as paid
+    </button>
 
-                  <button
-                    className={`ff-tabPill ${tab === "status" ? "isActive" : ""}`}
-                    onClick={() => setTab("status")}
-                    type="button"
-                  >
-                    Status
-                  </button>
+    <button
+      className="ff-btn ff-btnDanger"
+      type="button"
+      onClick={() => {
+        if (!selectedInvoice) return;
+        deleteInvoice(selectedInvoice.id);
+      }}
+      disabled={busy}
+    >
+      Delete
+    </button>
+  </div>
+</div>
 
-                  <button
-                    className={`ff-tabPill ${tab === "notes" ? "isActive" : ""}`}
-                    onClick={() => setTab("notes")}
-                    type="button"
-                  >
-                    Notes
-                  </button>
-                </div>
+<div className="ff-tabs">
+  <button
+    className={`ff-tabBtn ${tab === "details" ? "isActive" : ""}`}
+    onClick={() => setTab("details")}
+    type="button"
+  >
+    Details
+  </button>
+
+  <button
+    className={`ff-tabBtn ${tab === "status" ? "isActive" : ""}`}
+    onClick={() => setTab("status")}
+    type="button"
+  >
+    Status
+  </button>
+
+  <button
+    className={`ff-tabBtn ${tab === "notes" ? "isActive" : ""}`}
+    onClick={() => setTab("notes")}
+    type="button"
+  >
+    Notes
+  </button>
+</div>
 
                 <div className="ff-rightInner">
                   {tab === "details" ? (

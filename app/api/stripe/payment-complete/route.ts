@@ -40,6 +40,7 @@ export async function POST(req: Request) {
     }
 
     const alreadyPaid = invoice.status === "paid";
+    const receiptAlreadySent = !!invoice.receipt_sent_at;
 
     if (!alreadyPaid) {
       const { error: updateErr } = await supabase
@@ -63,11 +64,13 @@ export async function POST(req: Request) {
 
     const toEmail = invoice.to_email || request?.customer_email;
 
-    if (toEmail && !alreadyPaid) {
-      await resend.emails.send({
+    if (toEmail && !receiptAlreadySent) {
+      const sent = await resend.emails.send({
         from: "FixFlow <noreply@thefixflowapp.co.uk>",
         to: toEmail,
-        subject: `Payment received for ${invoice.invoice_number || "your invoice"}`,
+        subject: `Payment received for ${
+          invoice.invoice_number || "your invoice"
+        }`,
         html: `
           <div style="font-family: Arial, sans-serif; color: #0b1320; line-height: 1.6;">
             <h2 style="color:#0b2a55;">Payment received</h2>
@@ -83,10 +86,21 @@ export async function POST(req: Request) {
               <p><strong>Reference:</strong> ${request?.job_number || invoice.request_id}</p>
             </div>
 
+            <p>This confirms your card payment has been completed.</p>
+
             <p>Kind regards,<br/>FixFlow</p>
           </div>
         `,
       });
+
+      console.log("Receipt email sent:", sent);
+
+      await supabase
+        .from("invoices")
+        .update({
+          receipt_sent_at: new Date().toISOString(),
+        })
+        .eq("id", invoice.id);
     }
 
     return NextResponse.json({
@@ -99,6 +113,7 @@ export async function POST(req: Request) {
         customer_name: request?.customer_name || null,
         job_type: request?.job_type || null,
         job_number: request?.job_number || null,
+        receipt_sent: !!toEmail,
       },
     });
   } catch (err: any) {

@@ -39,10 +39,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
     }
 
-    const alreadyPaid = invoice.status === "paid";
     const receiptAlreadySent = !!invoice.receipt_sent_at;
 
-    if (!alreadyPaid) {
+    if (invoice.status !== "paid") {
       const { error: updateErr } = await supabase
         .from("invoices")
         .update({
@@ -63,44 +62,44 @@ export async function POST(req: Request) {
       .maybeSingle();
 
     const toEmail = invoice.to_email || request?.customer_email;
+    let receiptSent = receiptAlreadySent;
 
     if (toEmail && !receiptAlreadySent) {
       const sent = await resend.emails.send({
-        from: "FixFlow <noreply@thefixflowapp.co.uk>",
+        from: "FixFlow <onboarding@resend.dev>",
         to: toEmail,
-        subject: `Payment received for ${
-          invoice.invoice_number || "your invoice"
-        }`,
+        subject: `Payment received for ${invoice.invoice_number || "your invoice"}`,
         html: `
           <div style="font-family: Arial, sans-serif; color: #0b1320; line-height: 1.6;">
             <h2 style="color:#0b2a55;">Payment received</h2>
-
             <p>Hi ${request?.customer_name || "there"},</p>
-
             <p>Thanks, your payment has been received successfully.</p>
-
             <div style="padding:16px; border:1px solid #e6ecf5; border-radius:14px; background:#f8fbff; margin:18px 0;">
               <p><strong>Invoice:</strong> ${invoice.invoice_number || invoice.id}</p>
               <p><strong>Amount paid:</strong> ${money(invoice.amount)}</p>
               <p><strong>Job:</strong> ${request?.job_type || "Work completed"}</p>
               <p><strong>Reference:</strong> ${request?.job_number || invoice.request_id}</p>
             </div>
-
             <p>This confirms your card payment has been completed.</p>
-
             <p>Kind regards,<br/>FixFlow</p>
           </div>
         `,
       });
 
-      console.log("Receipt email sent:", sent);
+      console.log("Receipt email result:", sent);
 
-      await supabase
-        .from("invoices")
-        .update({
-          receipt_sent_at: new Date().toISOString(),
-        })
-        .eq("id", invoice.id);
+      if (sent?.data?.id) {
+        receiptSent = true;
+
+        await supabase
+          .from("invoices")
+          .update({
+            receipt_sent_at: new Date().toISOString(),
+          })
+          .eq("id", invoice.id);
+      } else {
+        console.error("Receipt email was not sent:", sent?.error);
+      }
     }
 
     return NextResponse.json({
@@ -113,7 +112,7 @@ export async function POST(req: Request) {
         customer_name: request?.customer_name || null,
         job_type: request?.job_type || null,
         job_number: request?.job_number || null,
-        receipt_sent: !!toEmail,
+        receipt_sent: receiptSent,
       },
     });
   } catch (err: any) {

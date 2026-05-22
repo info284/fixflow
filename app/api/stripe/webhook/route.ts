@@ -36,6 +36,7 @@ export async function POST(req: Request) {
 
   if (!webhookSecret) {
     console.error("Missing STRIPE_WEBHOOK_SECRET");
+
     return NextResponse.json(
       { error: "Missing STRIPE_WEBHOOK_SECRET" },
       { status: 500 }
@@ -45,9 +46,17 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = stripe.webhooks.constructEvent(
+      body,
+      signature,
+      webhookSecret
+    );
   } catch (err: any) {
-    console.error("Stripe webhook signature failed:", err.message);
+    console.error(
+      "Stripe webhook signature failed:",
+      err.message
+    );
+
     return NextResponse.json(
       { error: `Webhook error: ${err.message}` },
       { status: 400 }
@@ -55,73 +64,191 @@ export async function POST(req: Request) {
   }
 
   if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    const invoiceId = session.metadata?.invoiceId;
+    try {
+      const session =
+        event.data.object as Stripe.Checkout.Session;
 
-    if (!invoiceId) {
-      return NextResponse.json({ received: true });
-    }
+      const invoiceId = session.metadata?.invoiceId;
 
-    const supabase = supabaseAdmin();
-    const resend = new Resend(process.env.RESEND_API_KEY);
+      if (!invoiceId) {
+        return NextResponse.json({ received: true });
+      }
 
-    const { data: invoice } = await supabase
-      .from("invoices")
-      .select("*")
-      .eq("id", invoiceId)
-      .maybeSingle();
+      const supabase = supabaseAdmin();
 
-    if (!invoice) {
-      return NextResponse.json({ received: true });
-    }
+      const resend = new Resend(
+        process.env.RESEND_API_KEY
+      );
 
-await supabase
-  .from("invoices")
-  .update({
-    status: "paid",
-  })
-  .eq("id", invoice.id);
-
-    const { data: requestRow } = await supabase
-      .from("quote_requests")
-      .select("customer_name, customer_email, job_type, job_number")
-      .eq("id", invoice.request_id)
-      .maybeSingle();
-
-    const toEmail = invoice.to_email || requestRow?.customer_email;
-
-    if (toEmail && !invoice.receipt_sent_at) {
-      const sent = await resend.emails.send({
-        from: "FixFlow <onboarding@resend.dev>",
-        to: toEmail,
-        subject: `Payment received for ${invoice.invoice_number || "your invoice"}`,
-        html: `
-          <div style="font-family: Arial, sans-serif; color: #0b1320; line-height: 1.6;">
-            <h2 style="color:#0b2a55;">Payment received</h2>
-            <p>Hi ${requestRow?.customer_name || "there"},</p>
-            <p>Thanks, your payment has been received successfully.</p>
-
-            <div style="padding:16px; border:1px solid #e6ecf5; border-radius:14px; background:#f8fbff; margin:18px 0;">
-              <p><strong>Invoice:</strong> ${invoice.invoice_number || invoice.id}</p>
-              <p><strong>Amount paid:</strong> ${money(invoice.amount)}</p>
-              <p><strong>Job:</strong> ${requestRow?.job_type || "Work completed"}</p>
-              <p><strong>Reference:</strong> ${requestRow?.job_number || invoice.request_id}</p>
-            </div>
-
-            <p>This confirms your card payment has been completed.</p>
-            <p>Kind regards,<br/>FixFlow</p>
-          </div>
-        `,
-      });
-
-      if (sent?.data?.id) {
+      const { data: invoice, error: invoiceError } =
         await supabase
           .from("invoices")
-          .update({
-            receipt_sent_at: new Date().toISOString(),
-          })
-          .eq("id", invoice.id);
+          .select("*")
+          .eq("id", invoiceId)
+          .maybeSingle();
+
+      if (invoiceError) {
+        console.error(
+          "Invoice lookup failed:",
+          invoiceError.message
+        );
+
+        return NextResponse.json({ received: true });
       }
+
+      if (!invoice) {
+        console.error(
+          "Invoice not found:",
+          invoiceId
+        );
+
+        return NextResponse.json({ received: true });
+      }
+
+      const { error: paidError } = await supabase
+        .from("invoices")
+        .update({
+          status: "paid",
+        })
+        .eq("id", invoice.id);
+
+      if (paidError) {
+        console.error(
+          "Invoice update failed:",
+          paidError.message
+        );
+      }
+
+      const {
+        data: requestRow,
+        error: requestError,
+      } = await supabase
+        .from("quote_requests")
+        .select(
+          "customer_name, customer_email, job_type, job_number"
+        )
+        .eq("id", invoice.request_id)
+        .maybeSingle();
+
+      if (requestError) {
+        console.error(
+          "Quote request lookup failed:",
+          requestError.message
+        );
+      }
+
+      const toEmail =
+        invoice.to_email ||
+        requestRow?.customer_email ||
+        session.customer_details?.email ||
+        session.customer_email;
+
+      if (
+        toEmail &&
+        !invoice.receipt_sent_at
+      ) {
+        try {
+          const sent = await resend.emails.send({
+            from:
+              "FixFlow <quotes@send.thefixflowapp.com>",
+
+            to: toEmail,
+
+            subject: `Payment received for ${
+              invoice.invoice_number ||
+              "your invoice"
+            }`,
+
+            html: `
+              <div style="font-family: Arial, sans-serif; color: #0b1320; line-height: 1.6;">
+                <h2 style="color:#0b2a55;">
+                  Payment received
+                </h2>
+
+                <p>
+                  Hi ${
+                    requestRow?.customer_name ||
+                    "there"
+                  },
+                </p>
+
+                <p>
+                  Thanks, your payment has been received successfully.
+                </p>
+
+                <div style="padding:16px; border:1px solid #e6ecf5; border-radius:14px; background:#f8fbff; margin:18px 0;">
+                  <p>
+                    <strong>Invoice:</strong>
+                    ${
+                      invoice.invoice_number ||
+                      invoice.id
+                    }
+                  </p>
+
+                  <p>
+                    <strong>Amount paid:</strong>
+                    ${money(invoice.amount)}
+                  </p>
+
+                  <p>
+                    <strong>Job:</strong>
+                    ${
+                      requestRow?.job_type ||
+                      "Work completed"
+                    }
+                  </p>
+
+                  <p>
+                    <strong>Reference:</strong>
+                    ${
+                      requestRow?.job_number ||
+                      invoice.request_id ||
+                      "—"
+                    }
+                  </p>
+                </div>
+
+                <p>
+                  This confirms your card payment has been completed.
+                </p>
+
+                <p>
+                  Kind regards,<br />
+                  FixFlow
+                </p>
+              </div>
+            `,
+          });
+
+          console.log(
+            "Receipt email sent:",
+            sent?.data?.id || sent
+          );
+
+          await supabase
+            .from("invoices")
+            .update({
+              receipt_sent_at:
+                new Date().toISOString(),
+            })
+            .eq("id", invoice.id);
+        } catch (emailError: any) {
+          console.error(
+            "Receipt email failed:",
+            emailError?.message || emailError
+          );
+        }
+      } else {
+        console.error(
+          "No receipt email found for invoice:",
+          invoice.id
+        );
+      }
+    } catch (err: any) {
+      console.error(
+        "Webhook processing failed:",
+        err?.message || err
+      );
     }
   }
 

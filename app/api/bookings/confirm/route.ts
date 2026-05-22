@@ -87,7 +87,7 @@ function makeJobBookingIcs(opts: {
 VERSION:2.0
 PRODID:-//FixFlow//Job Booking//EN
 BEGIN:VEVENT
-UID:${Date.now()}@thefixflowapp.co.uk
+UID:${Date.now()}@thefixflowapp.com
 DTSTAMP:${formatUtc(new Date())}
 DTSTART:${formatUtc(start)}
 DTEND:${formatUtc(end)}

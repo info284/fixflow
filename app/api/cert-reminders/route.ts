@@ -89,7 +89,7 @@ html: `
       Keeping certificates up to date helps you win more jobs and stay compliant.
     </p>
 
-    <a href="https://thefixflowapp.co.uk/dashboard/profile"
+    <a href="https://thefixflowapp.com/dashboard/profile"
        style="
          display:inline-block;
          margin-top:12px;

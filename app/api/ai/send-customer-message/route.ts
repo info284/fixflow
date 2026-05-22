@@ -75,9 +75,9 @@ export async function POST(req: Request) {
     ].join("\n");
 
 
-const from = `${traderName} <quotes@send.thefixflowapp.co.uk`;
+const from = `${traderName} <quotes@send.thefixflowapp.com`;
 
-const replyTo = `enquiries+${enquiryId}@send.thefixflowapp.co.uk`;
+const replyTo = `enquiries+${enquiryId}@send.thefixflowapp.com`;
 
 const sendResult = await resend.emails.send({
   from,

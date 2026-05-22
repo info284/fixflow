@@ -66,7 +66,7 @@ export async function POST(req: Request) {
 
     if (toEmail && !receiptAlreadySent) {
       const sent = await resend.emails.send({
-        from: "FixFlow <onboarding@resend.dev>",
+       from: "FixFlow <hello@send.thefixflowapp.com>",
         to: toEmail,
         subject: `Payment received for ${invoice.invoice_number || "your invoice"}`,
         html: `

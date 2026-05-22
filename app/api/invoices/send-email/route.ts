@@ -271,7 +271,7 @@ export async function POST(req: Request) {
 
     const pdfDownloadUrl = signedPdf.signedUrl;
 
- const payUrl = `https://www.thefixflowapp.co.uk/pay/${inv.id}`;
+const payUrl = `https://www.thefixflowapp.com/pay/${inv.id}`;
 
     const customerName = String(linkedRequest?.customer_name || "there").trim();
     const invoiceNumber = String(inv.invoice_number || refDefault).trim();

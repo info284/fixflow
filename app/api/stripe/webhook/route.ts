@@ -75,13 +75,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    await supabase
-      .from("invoices")
-      .update({
-        status: "paid",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", invoice.id);
+await supabase
+  .from("invoices")
+  .update({
+    status: "paid",
+  })
+  .eq("id", invoice.id);
 
     const { data: requestRow } = await supabase
       .from("quote_requests")

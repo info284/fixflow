@@ -62,7 +62,10 @@ export async function POST(req: Request) {
     }
 
     // 2. Create Stripe checkout session
-    const origin = new URL(req.url).origin;
+  const origin =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "https://thefixflowapp.com";
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
 

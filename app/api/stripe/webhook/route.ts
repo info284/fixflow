@@ -88,7 +88,12 @@ export async function POST(req: Request) {
     if (requestError) {
       console.error("Quote request lookup failed:", requestError.message);
     }
-
+const { data: trader } = await supabase
+  .from("profiles")
+  .select("display_name, business_name")
+  .eq("id", invoice.user_id)
+  .maybeSingle();
+  
     const toEmail =
       invoice.to_email ||
       requestRow?.customer_email ||
@@ -115,7 +120,10 @@ export async function POST(req: Request) {
               </div>
 
               <p>This confirms your card payment has been completed.</p>
-              <p>Kind regards,<br/>FixFlow</p>
+             <p>
+  Kind regards,<br/>
+  ${trader?.business_name || trader?.display_name || "Your tradesperson"}
+</p>
             </div>
           `,
         });

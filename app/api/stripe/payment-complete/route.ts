@@ -61,6 +61,17 @@ export async function POST(req: Request) {
       .eq("id", invoice.request_id)
       .maybeSingle();
 
+      const { data: trader } = await supabase
+  .from("profiles")
+  .select("display_name, business_name")
+  .eq("id", invoice.user_id)
+  .maybeSingle();
+
+const traderName =
+  trader?.business_name ||
+  trader?.display_name ||
+  "Your tradesperson";
+
     const toEmail = invoice.to_email || request?.customer_email;
     let receiptSent = receiptAlreadySent;
 
@@ -81,7 +92,10 @@ export async function POST(req: Request) {
               <p><strong>Reference:</strong> ${request?.job_number || invoice.request_id}</p>
             </div>
             <p>This confirms your card payment has been completed.</p>
-            <p>Kind regards,<br/>FixFlow</p>
+<p>
+  Kind regards,<br/>
+  ${traderName}
+</p>
           </div>
         `,
       });

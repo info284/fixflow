@@ -97,9 +97,9 @@ cancel_url: `${origin}/pay/${invoiceId}`,
   } catch (err: any) {
     console.error("Stripe checkout error:", err);
 
-    return NextResponse.json(
-      { error: "Checkout failed" },
-      { status: 500 }
-    );
+return NextResponse.json(
+  { error: err?.message || "Checkout failed" },
+  { status: 500 }
+);
   }
 }

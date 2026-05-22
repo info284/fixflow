@@ -92,7 +92,7 @@ await supabase
 
     if (toEmail && !invoice.receipt_sent_at) {
       const sent = await resend.emails.send({
-        from: "FixFlow <onboarding@resend.dev>",
+       from: "FixFlow <quotes@send.thefixflowapp.com>",
         to: toEmail,
         subject: `Payment received for ${invoice.invoice_number || "your invoice"}`,
         html: `

@@ -60,6 +60,10 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+const balance = await stripe.balance.retrieve();
+
+console.log("STRIPE KEY WORKS. Balance object:", balance.object);
+console.log("STRIPE LIVEMODE:", balance.livemode);
 
     // 2. Create Stripe checkout session
   const origin =

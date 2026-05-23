@@ -1,30 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
-export default function PayPage({
-  params,
-}: {
-  params: Promise<{ invoiceId: string }>;
-}) {
+export default function PayPage() {
+  const params = useParams<{ invoiceId: string }>();
+  const invoiceId = params?.invoiceId;
+
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!invoiceId) {
+      setError("Missing invoice ID.");
+      return;
+    }
+
     const run = async () => {
       try {
-        const p = await params;
-
-        if (!p.invoiceId) {
-          setError("Missing invoice ID.");
-          return;
-        }
-
         const res = await fetch("/api/stripe/checkout", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ invoiceId: p.invoiceId }),
+          body: JSON.stringify({ invoiceId }),
         });
 
         const data = await res.json();
@@ -46,7 +44,7 @@ export default function PayPage({
     };
 
     run();
-  }, [params]);
+  }, [invoiceId]);
 
   return (
     <div

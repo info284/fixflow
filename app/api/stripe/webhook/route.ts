@@ -70,10 +70,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true });
     }
 
-    const { error: paidError } = await supabase
-      .from("invoices")
-      .update({ status: "paid" })
-      .eq("id", invoice.id);
+const { error: paidError } = await supabase
+  .from("invoices")
+  .update({
+    status: "paid",
+    paid_at: new Date().toISOString(),
+    stripe_checkout_session_id: session.id,
+    stripe_payment_intent_id:
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : session.payment_intent?.id || null,
+  })
+  .eq("id", invoice.id);
 
     if (paidError) {
       console.error("Invoice update failed:", paidError.message);

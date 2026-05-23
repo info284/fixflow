@@ -388,10 +388,10 @@ const safeCustomerName = escapeEmailHtml(firstName);
     const resendKey = process.env.RESEND_API_KEY;
     if (!resendKey) throw new Error("Missing RESEND_API_KEY");
 
-    const from =
-      process.env.RESEND_FROM ||
-      process.env.EMAIL_FROM ||
-      "FixFlow <onboarding@resend.dev>";
+const from =
+  process.env.RESEND_FROM ||
+  process.env.EMAIL_FROM ||
+  "FixFlow <noreply@send.thefixflowapp.com>";
 
     const subject = subjectIn || `Invoice ${invoiceNumber} from ${traderName}`;
 

@@ -441,7 +441,9 @@ if (!requestId) return pushToast("Pick a request first.", "error");
 if (!toEmail.trim()) return pushToast("Customer email is required.", "error");
 if (!isValidEmail(toEmail)) return pushToast("Customer email looks invalid.", "error");
 
-const subtotalNum = Number(String(amount).replace(/,/g, "").trim());
+const baseNum = Number(String(amount).replace(/,/g, "").trim());
+const extrasNum = Number(String(extras).replace(/,/g, "").trim() || 0);
+const subtotalNum = baseNum + extrasNum;
 if (!Number.isFinite(subtotalNum) || subtotalNum < 0) {
   return pushToast("Amount must be a number.", "error");
 }

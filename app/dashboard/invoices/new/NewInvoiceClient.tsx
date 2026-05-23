@@ -685,6 +685,33 @@ async function runDeleteInvoice(id: string) {
   }
 }
 
+async function payInvoice(inv: InvoiceRow) {
+  try {
+    setBusy(true);
+    setToast(null);
+
+    const res = await fetch("/api/stripe/checkout", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ invoiceId: inv.id }),
+    });
+
+    const json = await res.json().catch(() => null);
+
+    if (!res.ok || !json?.url) {
+      throw new Error(json?.error || "Could not start payment");
+    }
+
+    window.location.href = json.url;
+  } catch (e: any) {
+    pushToast(e?.message || "Payment failed to start", "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
   async function sendInvoice(inv: InvoiceRow) {
     setToast(null);
 
@@ -1186,6 +1213,18 @@ const total = s + vatAmount;
     >
       Send
     </button>
+
+<button
+  className="ff-btn ff-btnPrimary"
+  type="button"
+  onClick={() => {
+    if (!selectedInvoice) return;
+    payInvoice(selectedInvoice);
+  }}
+  disabled={busy}
+>
+  Pay by card
+</button>
 
     <button
       className="ff-btn ff-btnSuccess"

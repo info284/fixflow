@@ -1,63 +1,66 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 
 export default function PayPage() {
   const params = useParams<{ invoiceId: string }>();
   const invoiceId = params?.invoiceId;
 
+  const startedRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
-useEffect(() => {
-  console.log("PAY PAGE LOADED");
-  console.log("PAY PAGE INVOICE ID:", invoiceId);
+  useEffect(() => {
+    console.log("PAY PAGE LOADED");
+    console.log("PAY PAGE INVOICE ID:", invoiceId);
 
-  if (!invoiceId) {
-    setError("Missing invoice ID.");
-    return;
-  }
-
-  const run = async () => {
-    try {
-      console.log("CALLING CHECKOUT API");
-
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ invoiceId }),
-      });
-
-      console.log("CHECKOUT RESPONSE STATUS:", res.status);
-
-      const data = await res.json();
-
-      console.log("CHECKOUT RESPONSE DATA:", data);
-
-      if (!res.ok) {
-        setError(data?.error || "Could not start payment.");
-        return;
-      }
-
-      if (!data?.url) {
-        setError("Payment link was not created.");
-        return;
-      }
-
-      console.log("REDIRECTING TO STRIPE:", data.url);
-
-      window.location.href = data.url;
-    } catch (e: any) {
-      console.error("PAY PAGE ERROR:", e);
-
-      setError(e?.message || "Something went wrong.");
+    if (!invoiceId) {
+      setError("Missing invoice ID.");
+      return;
     }
-  };
 
-  run();
-}, [invoiceId]);
+    if (startedRef.current) return;
+    startedRef.current = true;
+
+    async function startCheckout() {
+      try {
+        console.log("CALLING CHECKOUT API");
+
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ invoiceId }),
+        });
+
+        console.log("CHECKOUT RESPONSE STATUS:", res.status);
+
+        const data = await res.json();
+
+        console.log("CHECKOUT RESPONSE DATA:", data);
+
+        if (!res.ok) {
+          setError(data?.error || "Could not start payment.");
+          return;
+        }
+
+        if (!data?.url) {
+          setError("Payment link was not created.");
+          return;
+        }
+
+        console.log("REDIRECTING TO STRIPE:", data.url);
+
+        window.location.assign(data.url);
+      } catch (e: any) {
+        console.error("PAY PAGE ERROR:", e);
+        setError(e?.message || "Something went wrong.");
+      }
+    }
+
+    startCheckout();
+  }, [invoiceId]);
 
   return (
     <div

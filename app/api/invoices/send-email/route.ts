@@ -428,6 +428,11 @@ ${traderName}`,
         },
       ],
     });
+if (sent.error) {
+  throw new Error(
+    sent.error.message || "Resend failed to send the invoice email"
+  );
+}
 
     const update1 = await admin
       .from("invoices")

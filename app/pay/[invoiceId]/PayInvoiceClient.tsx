@@ -15,9 +15,11 @@ export default function PayInvoiceClient({ invoice }: { invoice: Invoice }) {
   const [loading, setLoading] = useState(false);
   const amount = Number(invoice.amount || 0);
 
-  async function startPayment() {
-    try {
-      setLoading(true);
+async function startPayment() {
+try {
+console.log("PAY BUTTON CLICKED", invoice.id);
+
+setLoading(true);
 
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -27,7 +29,9 @@ export default function PayInvoiceClient({ invoice }: { invoice: Invoice }) {
         body: JSON.stringify({ invoiceId: invoice.id }),
       });
 
-      const json = await res.json();
+     const json = await res.json().catch(() => null);
+
+console.log("STRIPE CHECKOUT RESPONSE", res.status, json);
 
       if (!res.ok || !json?.url) {
         throw new Error(json?.error || "Could not start payment");

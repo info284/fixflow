@@ -434,6 +434,10 @@ if (sent.error) {
   );
 }
 
+console.log("✅ Resend invoice email result:", JSON.stringify(sent));
+console.log("📧 Invoice email sent to:", to);
+console.log("📧 Invoice from:", from);
+
     const update1 = await admin
       .from("invoices")
       .update({ status: "sent", issued_at: sentAtISO })

@@ -9,42 +9,55 @@ export default function PayPage() {
 
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!invoiceId) {
-      setError("Missing invoice ID.");
-      return;
-    }
+useEffect(() => {
+  console.log("PAY PAGE LOADED");
+  console.log("PAY PAGE INVOICE ID:", invoiceId);
 
-    const run = async () => {
-      try {
-        const res = await fetch("/api/stripe/checkout", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ invoiceId }),
-        });
+  if (!invoiceId) {
+    setError("Missing invoice ID.");
+    return;
+  }
 
-        const data = await res.json();
+  const run = async () => {
+    try {
+      console.log("CALLING CHECKOUT API");
 
-        if (!res.ok) {
-          setError(data?.error || "Could not start payment.");
-          return;
-        }
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ invoiceId }),
+      });
 
-        if (!data?.url) {
-          setError("Payment link was not created.");
-          return;
-        }
+      console.log("CHECKOUT RESPONSE STATUS:", res.status);
 
-        window.location.href = data.url;
-      } catch (e: any) {
-        setError(e?.message || "Something went wrong.");
+      const data = await res.json();
+
+      console.log("CHECKOUT RESPONSE DATA:", data);
+
+      if (!res.ok) {
+        setError(data?.error || "Could not start payment.");
+        return;
       }
-    };
 
-    run();
-  }, [invoiceId]);
+      if (!data?.url) {
+        setError("Payment link was not created.");
+        return;
+      }
+
+      console.log("REDIRECTING TO STRIPE:", data.url);
+
+      window.location.href = data.url;
+    } catch (e: any) {
+      console.error("PAY PAGE ERROR:", e);
+
+      setError(e?.message || "Something went wrong.");
+    }
+  };
+
+  run();
+}, [invoiceId]);
 
   return (
     <div

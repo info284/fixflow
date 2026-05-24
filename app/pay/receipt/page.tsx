@@ -8,53 +8,129 @@ function ReceiptInner() {
   const invoiceId = searchParams.get("invoiceId");
 
   return (
-    <div
+    <main
       style={{
         minHeight: "100vh",
         display: "grid",
         placeItems: "center",
         padding: 24,
-        background: "#f6f8fc",
-        fontFamily: "system-ui",
+        background:
+          "linear-gradient(180deg, #EEF4FF 0%, #F8FBFF 45%, #FFFFFF 100%)",
+        fontFamily:
+          "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
       }}
     >
       <div
         style={{
-          width: "min(520px, 100%)",
-          borderRadius: 26,
-          background: "#fff",
-          border: "1px solid #e6ecf5",
-          padding: 28,
+          width: "min(540px, 100%)",
+          borderRadius: 30,
+          background: "#FFFFFF",
+          border: "1px solid #E6ECF5",
+          padding: 36,
           textAlign: "center",
-          boxShadow: "0 18px 45px rgba(15,23,42,0.08)",
+          boxShadow: "0 30px 80px rgba(11, 42, 85, 0.12)",
         }}
       >
-        <div style={{ fontSize: 42 }}>✅</div>
+        <div
+          style={{
+            width: 90,
+            height: 90,
+            borderRadius: 28,
+            background: "linear-gradient(135deg, #245BFF 0%, #0B2A55 100%)",
+            display: "grid",
+            placeItems: "center",
+            margin: "0 auto 26px",
+            color: "#FFFFFF",
+            fontSize: 42,
+            fontWeight: 900,
+            boxShadow: "0 22px 50px rgba(36, 91, 255, 0.35)",
+          }}
+        >
+          ✓
+        </div>
 
-        <h1 style={{ color: "#0b2a55", marginBottom: 8 }}>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 900,
+            color: "#245BFF",
+            marginBottom: 10,
+            textTransform: "uppercase",
+            letterSpacing: "0.12em",
+          }}
+        >
+          Payment successful
+        </div>
+
+        <h1
+          style={{
+            color: "#0B1320",
+            margin: "0 0 14px",
+            fontSize: 38,
+            lineHeight: 1.1,
+            fontWeight: 950,
+            letterSpacing: "-0.04em",
+          }}
+        >
           Payment received
         </h1>
 
-        <p style={{ color: "#64748b", lineHeight: 1.5 }}>
-          Thanks, your invoice payment has been completed successfully.
-          A receipt will be sent by email once the payment has been confirmed.
+        <p
+          style={{
+            color: "#5C6B84",
+            lineHeight: 1.8,
+            fontSize: 16,
+            margin: "0 auto 28px",
+            maxWidth: 420,
+          }}
+        >
+          Thank you. Your invoice payment has been completed successfully.
+          A confirmation receipt has been emailed to you.
         </p>
 
         {invoiceId ? (
           <div
             style={{
-              marginTop: 20,
+              marginTop: 10,
+              marginBottom: 28,
               textAlign: "left",
-              border: "1px solid #e6ecf5",
-              borderRadius: 18,
-              padding: 16,
-              background: "#f8fbff",
-              color: "#0b1320",
+              border: "1px solid #E6ECF5",
+              borderRadius: 22,
+              overflow: "hidden",
+              background: "#FFFFFF",
             }}
           >
-            <p>
-              <strong>Reference:</strong> {invoiceId.slice(0, 8)}
-            </p>
+            <div
+              style={{
+                padding: "14px 18px",
+                borderBottom: "1px solid #E6ECF5",
+                background: "#F8FBFF",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 900,
+                  color: "#5C6B84",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                }}
+              >
+                Payment reference
+              </div>
+            </div>
+
+            <div
+              style={{
+                padding: 22,
+                fontSize: 28,
+                fontWeight: 950,
+                color: "#0B1320",
+                letterSpacing: "-0.04em",
+              }}
+            >
+              {invoiceId.slice(0, 8).toUpperCase()}
+            </div>
           </div>
         ) : null}
 
@@ -62,21 +138,34 @@ function ReceiptInner() {
           type="button"
           onClick={() => (window.location.href = "/")}
           style={{
-            marginTop: 20,
-            height: 44,
-            padding: "0 22px",
+            height: 54,
+            padding: "0 32px",
             borderRadius: 999,
             border: "none",
-            background: "#0b2a55",
-            color: "#fff",
+            background:
+              "linear-gradient(135deg, #245BFF 0%, #0B2A55 100%)",
+            color: "#FFFFFF",
             fontWeight: 900,
+            fontSize: 16,
             cursor: "pointer",
+            boxShadow: "0 18px 40px rgba(36, 91, 255, 0.35)",
           }}
         >
           Done
         </button>
+
+        <div
+          style={{
+            marginTop: 18,
+            color: "#94A3B8",
+            fontSize: 13,
+            lineHeight: 1.6,
+          }}
+        >
+          Powered securely by FixFlow & Stripe
+        </div>
       </div>
-    </div>
+    </main>
   );
 }
 

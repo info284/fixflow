@@ -114,32 +114,83 @@ console.log("Receipt check:", {
   invoiceId: invoice.id,
 });
 
-if (toEmail) {
+if (toEmail && !invoice.receipt_sent_at) {
       try {
         const sent = await resend.emails.send({
         from: "FixFlow Receipts <receipts@send.thefixflowapp.com>",
           to: toEmail,
           subject: `Payment received for ${invoice.invoice_number || "your invoice"}`,
-          html: `
-            <div style="font-family: Arial, sans-serif; color: #0b1320; line-height: 1.6;">
-              <h2 style="color:#0b2a55;">Payment received</h2>
-              <p>Hi ${requestRow?.customer_name || "there"},</p>
-              <p>Thanks, your payment has been received successfully.</p>
+html: `
+  <div style="margin:0; padding:0; background:#EEF4FF; font-family:Arial, sans-serif;">
+    <div style="max-width:620px; margin:0 auto; padding:28px 16px;">
+      <div style="background:#ffffff; border:1px solid #E6ECF5; border-radius:28px; overflow:hidden; box-shadow:0 20px 60px rgba(11,42,85,0.12);">
+        
+        <div style="padding:28px 28px 22px; background:linear-gradient(135deg,#245BFF 0%,#0B2A55 100%); color:#ffffff;">
+          <div style="font-size:13px; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; opacity:0.9;">
+            FixFlow receipt
+          </div>
+          <h1 style="margin:12px 0 0; font-size:34px; line-height:1.1;">
+            Payment received
+          </h1>
+        </div>
 
-              <div style="padding:16px; border:1px solid #e6ecf5; border-radius:14px; background:#f8fbff; margin:18px 0;">
-                <p><strong>Invoice:</strong> ${invoice.invoice_number || invoice.id}</p>
-                <p><strong>Amount paid:</strong> ${money(invoice.amount)}</p>
-                <p><strong>Job:</strong> ${requestRow?.job_type || "Work completed"}</p>
-                <p><strong>Reference:</strong> ${requestRow?.job_number || invoice.request_id || "—"}</p>
+        <div style="padding:28px;">
+          <p style="margin:0 0 18px; font-size:17px; line-height:1.7; color:#0B1320;">
+            Hi ${requestRow?.customer_name || "there"},
+          </p>
+
+          <p style="margin:0 0 24px; font-size:16px; line-height:1.7; color:#5C6B84;">
+            Thanks, your card payment has been completed successfully.
+          </p>
+
+          <div style="border:1px solid #E6ECF5; border-radius:22px; background:#F8FBFF; overflow:hidden; margin:0 0 24px;">
+            <div style="padding:18px; border-bottom:1px solid #E6ECF5;">
+              <div style="font-size:11px; font-weight:900; color:#5C6B84; letter-spacing:0.1em; text-transform:uppercase;">
+                Invoice
               </div>
-
-              <p>This confirms your card payment has been completed.</p>
-             <p>
-  Kind regards,<br/>
-  ${trader?.business_name || trader?.display_name || "Your tradesperson"}
-</p>
+              <div style="margin-top:6px; font-size:22px; font-weight:900; color:#0B1320;">
+                ${invoice.invoice_number || invoice.id}
+              </div>
             </div>
-          `,
+
+            <div style="padding:20px 18px; border-bottom:1px solid #E6ECF5;">
+              <div style="font-size:13px; color:#5C6B84; margin-bottom:6px;">
+                Amount paid
+              </div>
+              <div style="font-size:34px; font-weight:900; color:#0B1320;">
+                ${money(invoice.amount)}
+              </div>
+            </div>
+
+            <div style="padding:18px;">
+              <p style="margin:0 0 10px; font-size:15px; color:#0B1320;">
+                <strong>Job:</strong> ${requestRow?.job_type || "Work completed"}
+              </p>
+              <p style="margin:0; font-size:15px; color:#0B1320;">
+                <strong>Reference:</strong> ${requestRow?.job_number || invoice.request_id || "—"}
+              </p>
+            </div>
+          </div>
+
+          <div style="padding:16px 18px; border-radius:18px; background:#ECFDF3; color:#027A48; font-size:15px; font-weight:800; margin-bottom:24px;">
+            ✓ Your payment has been confirmed.
+          </div>
+
+          <p style="margin:0; font-size:15px; line-height:1.7; color:#5C6B84;">
+            Kind regards,<br/>
+            <strong style="color:#0B2A55;">
+              ${trader?.business_name || trader?.display_name || "Your tradesperson"}
+            </strong>
+          </p>
+        </div>
+      </div>
+
+      <div style="text-align:center; margin-top:18px; font-size:12px; color:#94A3B8;">
+        Sent securely by FixFlow
+      </div>
+    </div>
+  </div>
+`,
         });
 if (sent.error) {
   console.error("Receipt Resend error:", sent.error);

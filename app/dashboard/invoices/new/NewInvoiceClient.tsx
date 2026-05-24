@@ -23,6 +23,8 @@ type RequestRow = {
   urgency: string | null;
   details: string | null;
   created_at?: string | null;
+  status: string | null;
+stage: string | null;
 };
 
 type InvoiceRow = {
@@ -400,22 +402,47 @@ function pushToast(text: string, type: "success" | "error" = "success") {
 }
     }
 
-    const { data: ests, error: estErr } = await supabase
+const map: Record<string, EstimateRow | null> = {};
+
+const { data: ests } = await supabase
   .from("estimates")
   .select("id, request_id, plumber_id, status, total, subtotal, vat, labour, materials, callout, parts, other, customer_message")
   .eq("plumber_id", user.id)
   .order("created_at", { ascending: false });
 
-if (!estErr) {
-  const map: Record<string, EstimateRow | null> = {};
-
-  for (const est of (ests || []) as EstimateRow[]) {
-    if (!est.request_id) continue;
-    if (!map[est.request_id]) map[est.request_id] = est;
-  }
-
-  setEstimateMap(map);
+for (const est of (ests || []) as EstimateRow[]) {
+  if (!est.request_id) continue;
+  if (!map[est.request_id]) map[est.request_id] = est;
 }
+
+const { data: quotes } = await supabase
+  .from("quotes")
+  .select("id, request_id, plumber_id, status, subtotal, note, created_at")
+  .eq("plumber_id", user.id)
+  .order("created_at", { ascending: false });
+
+for (const quote of quotes || []) {
+  if (!quote.request_id) continue;
+  if (map[quote.request_id]) continue;
+
+  map[quote.request_id] = {
+    id: quote.id,
+    request_id: quote.request_id,
+    plumber_id: quote.plumber_id,
+    status: quote.status || null,
+    total: Number(quote.subtotal || 0),
+    subtotal: Number(quote.subtotal || 0),
+    vat: null,
+    labour: null,
+    materials: null,
+    callout: null,
+    parts: null,
+    other: null,
+    customer_message: quote.note || null,
+  };
+}
+
+setEstimateMap(map);
     setLoading(false);
   }
 

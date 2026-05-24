@@ -1210,9 +1210,16 @@ async function markInProgress() {
     await updateJobStatus("paid", "Job marked paid");
   }
 
-  function goToCreateInvoice(requestId: string) {
-    router.push(`/dashboard/invoices?requestId=${encodeURIComponent(requestId)}`);
+function goToCreateInvoice(requestId: string) {
+  if (!requestId) {
+    pushToast("No job selected.", "error");
+    return;
   }
+
+  window.location.href = `/dashboard/invoices?requestId=${encodeURIComponent(
+    requestId
+  )}`;
+}
 
 function goToCreateBooking(requestId: string) {
   setRightTab("schedule");

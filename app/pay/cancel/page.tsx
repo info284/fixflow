@@ -1,225 +1,120 @@
-export const runtime = "nodejs";
+"use client";
 
-import { NextResponse } from "next/server";
-import Stripe from "stripe";
-import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
+import { useRouter } from "next/navigation";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+export default function PayCancelPage() {
+const router = useRouter();
 
-function supabaseAdmin() {
-return createClient(
-process.env.NEXT_PUBLIC_SUPABASE_URL!,
-process.env.SUPABASE_SERVICE_ROLE_KEY!
+return (
+<main
+style={{
+minHeight: "100vh",
+display: "grid",
+placeItems: "center",
+padding: 24,
+background: "#F4F7FB",
+fontFamily:
+"Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+}}
+>
+<div
+style={{
+width: "100%",
+maxWidth: 520,
+borderRadius: 30,
+background: "#FFFFFF",
+border: "1px solid #E0E7F1",
+padding: 34,
+textAlign: "center",
+boxShadow: "0 24px 70px rgba(15, 23, 42, 0.08)",
+}}
+>
+<div
+style={{
+width: 82,
+height: 82,
+borderRadius: 26,
+background: "#F8FAFD",
+display: "grid",
+placeItems: "center",
+margin: "0 auto 24px",
+color: "#163A70",
+fontSize: 38,
+fontWeight: 950,
+border: "1px solid #E0E7F1",
+}}
+>
+×
+</div>
+
+<div
+style={{
+fontSize: 12,
+fontWeight: 950,
+color: "#667085",
+marginBottom: 10,
+textTransform: "uppercase",
+letterSpacing: "0.12em",
+}}
+>
+Payment cancelled
+</div>
+
+<h1
+style={{
+color: "#0E2F63",
+margin: "0 0 14px",
+fontSize: 34,
+lineHeight: 1.12,
+fontWeight: 950,
+letterSpacing: "-0.04em",
+}}
+>
+Payment not completed
+</h1>
+
+<p
+style={{
+color: "#667085",
+lineHeight: 1.8,
+fontSize: 16,
+margin: "0 auto 30px",
+maxWidth: 420,
+}}
+>
+Your payment was cancelled before completion. No money has been taken.
+</p>
+
+<button
+type="button"
+onClick={() => router.back()}
+style={{
+height: 56,
+padding: "0 34px",
+borderRadius: 999,
+border: "none",
+background: "#163A70",
+color: "#FFFFFF",
+fontWeight: 950,
+fontSize: 16,
+cursor: "pointer",
+boxShadow: "0 10px 24px rgba(22, 58, 112, 0.16)",
+}}
+>
+Return to payment
+</button>
+
+<div
+style={{
+marginTop: 18,
+color: "#667085",
+fontSize: 13,
+lineHeight: 1.6,
+}}
+>
+Powered by FixFlow. Card payments processed securely by Stripe.
+</div>
+</div>
+</main>
 );
-}
-
-function money(value: number | null | undefined) {
-return new Intl.NumberFormat("en-GB", {
-style: "currency",
-currency: "GBP",
-}).format(Number(value || 0));
-}
-
-function escapeHtml(value: any) {
-return String(value ?? "")
-.replaceAll("&", "&amp;")
-.replaceAll("<", "&lt;")
-.replaceAll(">", "&gt;")
-.replaceAll('"', "&quot;")
-.replaceAll("'", "&#039;");
-}
-
-export async function POST(req: Request) {
-const body = await req.text();
-const signature = req.headers.get("stripe-signature");
-
-if (!signature) {
-return NextResponse.json({ error: "Missing Stripe signature" }, { status: 400 });
-}
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
-if (!webhookSecret) {
-console.error("Missing STRIPE_WEBHOOK_SECRET");
-return NextResponse.json({ error: "Missing STRIPE_WEBHOOK_SECRET" }, { status: 500 });
-}
-
-let event: Stripe.Event;
-
-try {
-event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-} catch (err: any) {
-console.error("Stripe webhook signature failed:", err.message);
-return NextResponse.json({ error: `Webhook error: ${err.message}` }, { status: 400 });
-}
-
-if (event.type === "checkout.session.completed") {
-const session = event.data.object as Stripe.Checkout.Session;
-const invoiceId = session.metadata?.invoiceId;
-
-if (!invoiceId) return NextResponse.json({ received: true });
-
-const supabase = supabaseAdmin();
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-const { data: invoice, error: invoiceError } = await supabase
-.from("invoices")
-.select("*")
-.eq("id", invoiceId)
-.maybeSingle();
-
-if (invoiceError || !invoice) {
-console.error("Invoice lookup failed:", invoiceError?.message || invoiceId);
-return NextResponse.json({ received: true });
-}
-
-const { error: paidError } = await supabase
-.from("invoices")
-.update({
-status: "paid",
-paid_at: new Date().toISOString(),
-stripe_checkout_session_id: session.id,
-stripe_payment_intent_id:
-typeof session.payment_intent === "string"
-? session.payment_intent
-: session.payment_intent?.id || null,
-})
-.eq("id", invoice.id);
-
-if (paidError) console.error("Invoice update failed:", paidError.message);
-
-const { data: requestRow } = await supabase
-.from("quote_requests")
-.select("customer_name, customer_email, job_type, job_number")
-.eq("id", invoice.request_id)
-.maybeSingle();
-
-const { data: trader } = await supabase
-.from("profiles")
-.select("display_name, business_name, logo_url")
-.eq("id", invoice.user_id)
-.maybeSingle();
-
-const toEmail =
-invoice.to_email ||
-requestRow?.customer_email ||
-session.customer_details?.email ||
-session.customer_email;
-
-if (toEmail && !invoice.receipt_sent_at) {
-try {
-const traderName = trader?.business_name || trader?.display_name || "Your tradesperson";
-const traderInitial = traderName.slice(0, 1).toUpperCase();
-
-const sent = await resend.emails.send({
-from: "FixFlow Receipts <receipts@send.thefixflowapp.com>",
-to: toEmail,
-subject: `Payment received for ${invoice.invoice_number || "your invoice"}`,
-html: `
-<div style="margin:0;padding:0;background:#F4F7FB;font-family:Arial,sans-serif;">
-<div style="max-width:620px;margin:0 auto;padding:28px 16px;">
-<div style="background:#ffffff;border:1px solid #E2E8F0;border-radius:28px;overflow:hidden;box-shadow:0 20px 60px rgba(15,23,42,0.08);">
-
-<div style="padding:34px 28px;text-align:center;background:#0F3267;">
-${
-trader?.logo_url
-? `<img src="${escapeHtml(trader.logo_url)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:22px;background:#ffffff;border:1px solid rgba(255,255,255,0.14);margin-bottom:18px;" />`
-: `<div style="width:72px;height:72px;border-radius:22px;background:#ffffff;color:#0F3267;border:1px solid rgba(255,255,255,0.14);display:inline-grid;place-items:center;font-size:28px;font-weight:900;margin-bottom:18px;">${escapeHtml(traderInitial)}</div>`
-}
-
-<div style="font-size:12px;font-weight:900;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.72);margin-bottom:10px;">
-FixFlow receipt
-</div>
-
-<div style="font-size:34px;line-height:1.08;font-weight:900;color:#ffffff;letter-spacing:-0.04em;">
-Payment received
-</div>
-
-<div style="margin-top:12px;font-size:15px;line-height:1.7;color:rgba(255,255,255,0.78);">
-Receipt from ${escapeHtml(traderName)}
-</div>
-</div>
-
-<div style="padding:30px 28px;">
-<p style="margin:0 0 12px;font-size:16px;line-height:1.7;color:#0B1320;">
-Hi ${escapeHtml(requestRow?.customer_name || "there")},
-</p>
-
-<p style="margin:0 0 26px;font-size:16px;line-height:1.7;color:#667085;">
-Thanks — your card payment has been completed successfully.
-</p>
-
-<div style="border:1px solid #E2E8F0;border-radius:22px;background:#F8FAFC;overflow:hidden;margin-bottom:24px;">
-<div style="padding:18px;border-bottom:1px solid #E2E8F0;">
-<div style="font-size:11px;font-weight:900;color:#667085;letter-spacing:0.12em;text-transform:uppercase;">
-Invoice
-</div>
-<div style="margin-top:8px;font-size:22px;font-weight:900;color:#0F3267;">
-${escapeHtml(invoice.invoice_number || invoice.id)}
-</div>
-</div>
-
-<div style="padding:22px 18px;border-bottom:1px solid #E2E8F0;background:#ffffff;">
-<div style="font-size:13px;color:#667085;font-weight:700;margin-bottom:8px;">
-Amount paid
-</div>
-<div style="font-size:36px;line-height:1;font-weight:900;color:#0B1320;letter-spacing:-0.04em;">
-${money(invoice.amount)}
-</div>
-</div>
-
-<div style="padding:18px;">
-<p style="margin:0 0 10px;font-size:15px;color:#0B1320;line-height:1.6;">
-<strong>Job:</strong> ${escapeHtml(requestRow?.job_type || "Work completed")}
-</p>
-<p style="margin:0;font-size:15px;color:#0B1320;line-height:1.6;">
-<strong>Reference:</strong> ${escapeHtml(requestRow?.job_number || invoice.request_id || "—")}
-</p>
-</div>
-</div>
-
-<div style="padding:15px 18px;border-radius:18px;background:#EEF4FF;color:#163A70;font-size:15px;font-weight:800;margin-bottom:24px;border:1px solid #D9E4F5;">
-Your payment has been confirmed securely.
-</div>
-
-<p style="margin:0;font-size:15px;line-height:1.7;color:#667085;">
-Kind regards,<br/>
-<strong style="color:#0F3267;">${escapeHtml(traderName)}</strong>
-</p>
-</div>
-</div>
-
-<div style="text-align:center;margin-top:18px;font-size:12px;color:#94A3B8;">
-Powered by FixFlow · Card payment processed securely by Stripe
-</div>
-</div>
-</div>
-`,
-});
-
-if (sent.error) {
-console.error("Receipt Resend error:", sent.error);
-throw new Error(sent.error.message || "Receipt email failed");
-}
-
-console.log("Receipt email result:", sent);
-
-if (sent?.data?.id) {
-const { error: receiptError } = await supabase
-.from("invoices")
-.update({ receipt_sent_at: new Date().toISOString() })
-.eq("id", invoice.id);
-
-if (receiptError) {
-console.error("Receipt timestamp update failed:", receiptError.message);
-}
-}
-} catch (err: any) {
-console.error("Receipt email failed:", err?.message || err);
-}
-}
-}
-
-return NextResponse.json({ received: true });
 }

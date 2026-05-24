@@ -17,9 +17,11 @@ params: Promise<{ invoiceId: string }>;
 }) {
 const { invoiceId } = await params;
 
+console.log("PAY PAGE invoiceId:", invoiceId);
+
 const supabase = supabaseAdmin();
 
-const { data: inv } = await supabase
+const { data: inv, error } = await supabase
 .from("invoices")
 .select(`
 id,
@@ -36,6 +38,13 @@ logo_url
 `)
 .eq("id", invoiceId)
 .maybeSingle();
+
+console.log("PAY PAGE invoice lookup:", {
+invoiceId,
+found: !!inv,
+error: error?.message || null,
+});
+
 
 if (!inv) return <div>Invoice not found.</div>;
 

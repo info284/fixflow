@@ -6140,27 +6140,7 @@ onClick={() => {
 
 {rightTab === "details" ? (
   <>
-    <div className="ff-mobileNextStep">
-      <div className="ff-nextStepCard">
-        <div className="ff-nextStepTop">
-          <div>
-            <div className="ff-nextStepEyebrow">Next job-winning move</div>
-            <div className="ff-nextStepTitle">{selectedBestAction.title}</div>
-            <div className="ff-nextStepText">{selectedBestAction.text}</div>
-          </div>
 
-          {selectedBestAction.button ? (
-            <button
-              type="button"
-              className="ff-btn ff-btnPrimary ff-btnSm"
-              onClick={selectedBestAction.button.action}
-            >
-              {selectedBestAction.button.label}
-            </button>
-          ) : null}
-        </div>
-      </div>
-    </div>
 
 {selectedFollowUpState?.label ? (
 <div className="ff-followUpBanner">
@@ -7156,13 +7136,7 @@ onCreateInvoice={() =>
 </div>
 
 
-<button
-  type="button"
-  className="ff-btn ff-btnGhost ff-btnSm"
-  onClick={() => markAsLost("Job cancelled")}
->
-  Lost: Cancelled
-</button>
+
         <div style={{ marginTop: 18 }}>
           <button
             type="button"

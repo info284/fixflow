@@ -6354,7 +6354,13 @@ font-weight: 800;
 .ff-mainShell {
   align-items: start !important;
 }
-
+.ff-jobsPage .ff-bestActionCard {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #8FA9D6;
+  border-radius: 24px;
+  background: #F4F8FE;
+}
 .ff-rightPane {
   height: auto !important;
   min-height: auto !important;

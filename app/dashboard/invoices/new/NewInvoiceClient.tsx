@@ -1552,12 +1552,12 @@ const total = s + vatAmount;
                   {tab === "notes" ? (
                     <div className="ff-detailGrid">
                       <div className="ff-detailCard">
-                        <textarea
-                          className="ff-textarea"
-                          value={detailNotes}
-                          onChange={(e) => setDetailNotes(e.target.value)}
-                          placeholder="Invoice notes…"
-                        />
+                      <textarea
+  className="ff-textarea ff-invoiceNotesTextarea"
+  value={detailNotes}
+  onChange={(e) => setDetailNotes(e.target.value)}
+  placeholder="Invoice notes…"
+/>
 
                         <div className="ff-noteFoot">
                           <button
@@ -2046,7 +2046,16 @@ textarea {
     .ff-backMobile {
       display: inline-block;
 }
+.ff-invoiceNotesTextarea {
+  min-height: 240px;
+  resize: vertical;
+}
 
+@media (max-width: 980px) {
+  .ff-invoiceNotesTextarea {
+    min-height: 300px;
+  }
+}
     .ff-headerBtnRow {
       grid-template-columns: 1fr;
       max-width: none;

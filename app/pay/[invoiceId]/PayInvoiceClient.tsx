@@ -82,7 +82,7 @@ return (
 <main
 style={{
 minHeight: "100vh",
-background: "#F4F7FB",
+background: "#eef4f8",
 display: "grid",
 placeItems: "center",
 padding: 20,
@@ -97,7 +97,7 @@ maxWidth: 520,
 background: "#FFFFFF",
 borderRadius: 32,
 overflow: "hidden",
-border: "1px solid #E2E8F0",
+border: "1px solid #E6ECF5",
 boxShadow:
 "0 20px 60px rgba(15, 23, 42, 0.08)",
 }}
@@ -106,7 +106,7 @@ boxShadow:
 
 <div
 style={{
-background: "#0F3267",
+background: "#1F355C",
 padding: "34px 30px",
 textAlign: "center",
 }}
@@ -175,11 +175,10 @@ padding: 30,
 >
 <div
 style={{
-border: "1px solid #E2E8F0",
+background: "#F8FBFF",
 borderRadius: 24,
 overflow: "hidden",
 marginBottom: 26,
-background: "#F8FAFC",
 }}
 >
 <div
@@ -205,7 +204,7 @@ Invoice number
 style={{
 fontSize: 24,
 fontWeight: 950,
-color: "#0F3267",
+color: "#1F355C",
 letterSpacing: "-0.03em",
 }}
 >
@@ -234,7 +233,7 @@ style={{
 fontSize: 42,
 lineHeight: 1,
 fontWeight: 950,
-color: "#0B1320",
+color: "#0F172A",
 letterSpacing: "-0.05em",
 }}
 >
@@ -248,10 +247,11 @@ letterSpacing: "-0.05em",
 style={{
 padding: 18,
 borderRadius: 18,
-background: "#EEF4FF",
-border: "1px solid #D9E4F5",
+background: "#F4F8FE",
+border: "1px solid #E6ECF5",
+color: "#1F355C",
 textAlign: "center",
-color: "#163A70",
+
 fontWeight: 800,
 marginBottom: 20,
 }}
@@ -271,7 +271,7 @@ border: "none",
 background:
 loading || amount <= 0
 ? "#94A3B8"
-: "#163A70",
+: "#1F355C",
 color: "#FFFFFF",
 fontWeight: 900,
 fontSize: 16,
@@ -282,7 +282,7 @@ loading || amount <= 0
 boxShadow:
 loading || amount <= 0
 ? "none"
-: "0 12px 28px rgba(15, 50, 103, 0.18)",
+: "0 12px 28px rgba(31, 53, 92, 0.18)",
 }}
 >
 {loading

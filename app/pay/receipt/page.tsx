@@ -13,9 +13,8 @@ style={{
 minHeight: "100vh",
 display: "grid",
 placeItems: "center",
-padding: 24,
-background:
-"linear-gradient(180deg, #F6F8FC 0%, #F8FBFF 48%, #FFFFFF 100%)",
+padding: 20,
+background: "#F4F7FB",
 fontFamily:
 "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 }}
@@ -23,40 +22,28 @@ fontFamily:
 <div
 style={{
 width: "min(540px, 100%)",
-borderRadius: 30,
+borderRadius: 32,
 background: "#FFFFFF",
-border: "1px solid #E6ECF5",
-padding: 34,
+border: "1px solid #E2E8F0",
+overflow: "hidden",
 textAlign: "center",
-boxShadow: "0 24px 70px rgba(15, 23, 42, 0.08)",
+boxShadow: "0 20px 60px rgba(15, 23, 42, 0.08)",
 }}
 >
 <div
 style={{
-width: 86,
-height: 86,
-borderRadius: 26,
-background: "#EEF4FF",
-display: "grid",
-placeItems: "center",
-margin: "0 auto 24px",
-color: "#1F355C",
-fontSize: 40,
-fontWeight: 950,
-border: "1px solid #E6ECF5",
+background: "#0F3267",
+padding: "38px 30px",
 }}
 >
-✓
-</div>
-
 <div
 style={{
+color: "rgba(255,255,255,0.72)",
 fontSize: 12,
-fontWeight: 950,
-color: "#64748B",
-marginBottom: 10,
+fontWeight: 900,
+letterSpacing: "0.14em",
 textTransform: "uppercase",
-letterSpacing: "0.12em",
+marginBottom: 12,
 }}
 >
 Payment confirmed
@@ -64,28 +51,48 @@ Payment confirmed
 
 <h1
 style={{
-color: "#0B2A55",
-margin: "0 0 14px",
-fontSize: 36,
-lineHeight: 1.1,
+color: "#FFFFFF",
+margin: 0,
+fontSize: 38,
+lineHeight: 1.08,
 fontWeight: 950,
-letterSpacing: "-0.04em",
+letterSpacing: "-0.05em",
 }}
 >
 Payment received
 </h1>
+</div>
+
+<div style={{ padding: 30 }}>
+<div
+style={{
+width: 78,
+height: 78,
+borderRadius: 24,
+background: "#EEF4FF",
+display: "grid",
+placeItems: "center",
+margin: "0 auto 22px",
+color: "#163A70",
+fontSize: 38,
+fontWeight: 950,
+border: "1px solid #D9E4F5",
+}}
+>
+✓
+</div>
 
 <p
 style={{
-color: "#64748B",
+color: "#667085",
 lineHeight: 1.8,
 fontSize: 16,
 margin: "0 auto 28px",
-maxWidth: 420,
+maxWidth: 410,
 }}
 >
-Thank you. Your invoice payment has been completed securely. A receipt
-has been emailed to you.
+Thank you. Your invoice payment has been completed securely. A
+receipt has been emailed to you.
 </p>
 
 {invoiceId ? (
@@ -93,26 +100,25 @@ has been emailed to you.
 style={{
 marginBottom: 28,
 textAlign: "left",
-border: "1px solid #E6ECF5",
+border: "1px solid #E2E8F0",
 borderRadius: 22,
 overflow: "hidden",
-background: "#FFFFFF",
+background: "#F8FAFC",
 }}
 >
 <div
 style={{
 padding: "14px 18px",
-borderBottom: "1px solid #E6ECF5",
-background: "#F8FBFF",
+borderBottom: "1px solid #E2E8F0",
 }}
 >
 <div
 style={{
 fontSize: 11,
-fontWeight: 950,
-color: "#64748B",
+fontWeight: 900,
+color: "#667085",
 textTransform: "uppercase",
-letterSpacing: "0.1em",
+letterSpacing: "0.12em",
 }}
 >
 Payment reference
@@ -124,7 +130,7 @@ style={{
 padding: 22,
 fontSize: 26,
 fontWeight: 950,
-color: "#0B2A55",
+color: "#163A70",
 letterSpacing: "-0.035em",
 }}
 >
@@ -138,15 +144,15 @@ type="button"
 onClick={() => (window.location.href = "/")}
 style={{
 height: 54,
-padding: "0 32px",
+padding: "0 34px",
 borderRadius: 999,
 border: "none",
-background: "linear-gradient(180deg, #1F4B99 0%, #163B73 100%)",
+background: "#163A70",
 color: "#FFFFFF",
-fontWeight: 950,
+fontWeight: 900,
 fontSize: 16,
 cursor: "pointer",
-boxShadow: "0 18px 40px rgba(15, 23, 42, 0.12)",
+boxShadow: "0 12px 28px rgba(15, 50, 103, 0.18)",
 }}
 >
 Done
@@ -154,13 +160,14 @@ Done
 
 <div
 style={{
-marginTop: 18,
-color: "#64748B",
+marginTop: 20,
+color: "#667085",
 fontSize: 13,
-lineHeight: 1.6,
+lineHeight: 1.7,
 }}
 >
 Powered by FixFlow. Card payments processed securely by Stripe.
+</div>
 </div>
 </div>
 </main>

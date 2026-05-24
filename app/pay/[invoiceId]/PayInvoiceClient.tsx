@@ -27,16 +27,26 @@ currency,
 }).format(Number(amount || 0));
 }
 
-export default function PayInvoiceClient({ invoice }: { invoice: Invoice }) {
+export default function PayInvoiceClient({
+invoice,
+}: {
+invoice: Invoice;
+}) {
 const [loading, setLoading] = useState(false);
 
 const amount = Number(invoice.amount || 0);
 const currency = invoice.currency || "GBP";
-const invoiceRef = invoice.invoice_number || invoice.id.slice(0, 8);
+const invoiceRef =
+invoice.invoice_number || invoice.id.slice(0, 8);
 
 const trader = invoice.profiles;
+
 const traderName =
-trader?.business_name || trader?.display_name || "Your tradesperson";
+trader?.business_name ||
+trader?.display_name ||
+"Your tradesperson";
+
+const paid = invoice.status === "paid";
 
 async function startPayment() {
 try {
@@ -44,14 +54,20 @@ setLoading(true);
 
 const res = await fetch("/api/stripe/checkout", {
 method: "POST",
-headers: { "Content-Type": "application/json" },
-body: JSON.stringify({ invoiceId: invoice.id }),
+headers: {
+"Content-Type": "application/json",
+},
+body: JSON.stringify({
+invoiceId: invoice.id,
+}),
 });
 
 const json = await res.json().catch(() => null);
 
 if (!res.ok || !json?.url) {
-throw new Error(json?.error || "Could not start payment");
+throw new Error(
+json?.error || "Could not start payment"
+);
 }
 
 window.location.href = json.url;
@@ -62,17 +78,14 @@ setLoading(false);
 }
 }
 
-const paid = invoice.status === "paid";
-
 return (
 <main
 style={{
 minHeight: "100vh",
-background:
-"linear-gradient(180deg, #F6F8FC 0%, #F8FBFF 48%, #FFFFFF 100%)",
+background: "#F4F7FB",
 display: "grid",
 placeItems: "center",
-padding: 24,
+padding: 20,
 fontFamily:
 "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 }}
@@ -80,95 +93,109 @@ fontFamily:
 <div
 style={{
 width: "100%",
-maxWidth: 500,
+maxWidth: 520,
 background: "#FFFFFF",
-borderRadius: 30,
-padding: 30,
-boxShadow: "0 24px 70px rgba(15, 23, 42, 0.08)",
-border: "1px solid #E6ECF5",
+borderRadius: 32,
+overflow: "hidden",
+border: "1px solid #E2E8F0",
+boxShadow:
+"0 20px 60px rgba(15, 23, 42, 0.08)",
 }}
 >
-<div style={{ textAlign: "center", marginBottom: 26 }}>
+{/* HEADER */}
+
+<div
+style={{
+background: "#0F3267",
+padding: "34px 30px",
+textAlign: "center",
+}}
+>
 {trader?.logo_url ? (
 <img
 src={trader.logo_url}
 alt={traderName}
 style={{
-width: 76,
-height: 76,
+width: 78,
+height: 78,
 objectFit: "cover",
 borderRadius: 22,
-marginBottom: 14,
-border: "1px solid #E6ECF5",
+background: "#FFFFFF",
+marginBottom: 18,
+border: "1px solid rgba(255,255,255,0.14)",
 }}
 />
-) : (
+) : null}
+
 <div
 style={{
-width: 76,
-height: 76,
-borderRadius: 22,
-margin: "0 auto 14px",
-display: "grid",
-placeItems: "center",
-background: "#EEF4FF",
-color: "#1F355C",
-fontSize: 28,
+color: "rgba(255,255,255,0.72)",
+fontSize: 12,
+fontWeight: 900,
+letterSpacing: "0.14em",
+textTransform: "uppercase",
+marginBottom: 12,
+}}
+>
+FixFlow secure payment
+</div>
+
+<div
+style={{
+color: "#FFFFFF",
+fontSize: 38,
+lineHeight: 1.05,
 fontWeight: 950,
-border: "1px solid #E6ECF5",
+letterSpacing: "-0.05em",
+marginBottom: 14,
 }}
 >
-{traderName.slice(0, 1).toUpperCase()}
-</div>
-)}
-
-<div
-style={{
-fontSize: 22,
-fontWeight: 950,
-color: "#0B2A55",
-letterSpacing: "-0.03em",
-}}
->
-{traderName}
+Pay your invoice
 </div>
 
 <div
 style={{
-marginTop: 6,
-color: "#64748B",
-fontSize: 14,
-fontWeight: 700,
+color: "rgba(255,255,255,0.78)",
+fontSize: 16,
+lineHeight: 1.7,
+maxWidth: 360,
+margin: "0 auto",
 }}
 >
-Secure invoice payment powered by FixFlow
+Invoice from {traderName}
 </div>
 </div>
 
+{/* BODY */}
+
 <div
 style={{
-border: "1px solid #E6ECF5",
+padding: 30,
+}}
+>
+<div
+style={{
+border: "1px solid #E2E8F0",
 borderRadius: 24,
 overflow: "hidden",
-background: "#FFFFFF",
-marginBottom: 24,
+marginBottom: 26,
+background: "#F8FAFC",
 }}
 >
 <div
 style={{
-padding: 18,
-background: "#F8FBFF",
-borderBottom: "1px solid #E6ECF5",
+padding: 20,
+borderBottom: "1px solid #E2E8F0",
 }}
 >
 <div
 style={{
 fontSize: 11,
-fontWeight: 950,
-color: "#64748B",
-marginBottom: 6,
+fontWeight: 900,
+color: "#667085",
+marginBottom: 8,
 textTransform: "uppercase",
-letterSpacing: "0.11em",
+letterSpacing: "0.12em",
 }}
 >
 Invoice number
@@ -176,21 +203,26 @@ Invoice number
 
 <div
 style={{
-fontSize: 21,
+fontSize: 24,
 fontWeight: 950,
-color: "#0B1320",
+color: "#0F3267",
+letterSpacing: "-0.03em",
 }}
 >
 {invoiceRef}
 </div>
 </div>
 
-<div style={{ padding: 22 }}>
+<div
+style={{
+padding: 22,
+}}
+>
 <div
 style={{
 fontSize: 13,
-color: "#64748B",
-marginBottom: 8,
+color: "#667085",
+marginBottom: 10,
 fontWeight: 800,
 }}
 >
@@ -199,31 +231,14 @@ Total due
 
 <div
 style={{
-fontSize: 38,
+fontSize: 42,
+lineHeight: 1,
 fontWeight: 950,
-color: "#0B2A55",
-letterSpacing: "-0.045em",
+color: "#0B1320",
+letterSpacing: "-0.05em",
 }}
 >
 {formatMoney(amount, currency)}
-</div>
-
-<div
-style={{
-marginTop: 16,
-display: "inline-flex",
-alignItems: "center",
-gap: 8,
-background: "#EEF4FF",
-color: "#1F355C",
-padding: "9px 13px",
-borderRadius: 999,
-fontWeight: 900,
-fontSize: 12,
-border: "1px solid rgba(31, 53, 92, 0.08)",
-}}
->
-Secure card payment
 </div>
 </div>
 </div>
@@ -231,15 +246,17 @@ Secure card payment
 {paid ? (
 <div
 style={{
-textAlign: "center",
 padding: 18,
-borderRadius: 20,
-background: "#ECFDF3",
-color: "#166534",
-fontWeight: 900,
+borderRadius: 18,
+background: "#EEF4FF",
+border: "1px solid #D9E4F5",
+textAlign: "center",
+color: "#163A70",
+fontWeight: 800,
+marginBottom: 20,
 }}
 >
-✓ This invoice has already been paid. Thank you.
+✓ This invoice has already been paid
 </div>
 ) : (
 <button
@@ -254,31 +271,38 @@ border: "none",
 background:
 loading || amount <= 0
 ? "#94A3B8"
-: "linear-gradient(180deg, #1F4B99 0%, #163B73 100%)",
+: "#163A70",
 color: "#FFFFFF",
-fontWeight: 950,
+fontWeight: 900,
 fontSize: 16,
-cursor: loading || amount <= 0 ? "not-allowed" : "pointer",
+cursor:
+loading || amount <= 0
+? "not-allowed"
+: "pointer",
 boxShadow:
 loading || amount <= 0
 ? "none"
-: "0 18px 40px rgba(15, 23, 42, 0.12)",
+: "0 12px 28px rgba(15, 50, 103, 0.18)",
 }}
 >
-{loading ? "Starting secure payment…" : "Pay securely by card"}
+{loading
+? "Starting secure payment…"
+: "Pay securely by card"}
 </button>
 )}
 
 <div
 style={{
-marginTop: 18,
-fontSize: 13,
-lineHeight: 1.6,
-color: "#64748B",
+marginTop: 20,
 textAlign: "center",
+color: "#667085",
+fontSize: 13,
+lineHeight: 1.7,
 }}
 >
-Powered by FixFlow. Card payments are securely processed by Stripe.
+Powered by FixFlow. Card payments are
+securely processed by Stripe.
+</div>
 </div>
 </div>
 </main>

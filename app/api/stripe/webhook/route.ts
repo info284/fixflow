@@ -98,7 +98,7 @@ const { error: paidError } = await supabase
     }
 const { data: trader } = await supabase
   .from("profiles")
-  .select("display_name, business_name")
+  .select("display_name, business_name, logo_url")
   .eq("id", invoice.user_id)
   .maybeSingle();
   
@@ -121,75 +121,88 @@ if (toEmail && !invoice.receipt_sent_at) {
           to: toEmail,
           subject: `Payment received for ${invoice.invoice_number || "your invoice"}`,
 html: `
-  <div style="margin:0; padding:0; background:#EEF4FF; font-family:Arial, sans-serif;">
-    <div style="max-width:620px; margin:0 auto; padding:28px 16px;">
-      <div style="background:#ffffff; border:1px solid #E6ECF5; border-radius:28px; overflow:hidden; box-shadow:0 20px 60px rgba(11,42,85,0.12);">
-        
-        <div style="padding:28px 28px 22px; background:linear-gradient(135deg,#245BFF 0%,#0B2A55 100%); color:#ffffff;">
-          <div style="font-size:13px; font-weight:800; letter-spacing:0.12em; text-transform:uppercase; opacity:0.9;">
-            FixFlow receipt
-          </div>
-          <h1 style="margin:12px 0 0; font-size:34px; line-height:1.1;">
-            Payment received
-          </h1>
-        </div>
+<div style="margin:0; padding:0; background:#F6F8FC; font-family:Arial, sans-serif;">
+<div style="max-width:620px; margin:0 auto; padding:28px 16px;">
+<div style="background:#ffffff; border:1px solid #E6ECF5; border-radius:28px; overflow:hidden; box-shadow:0 24px 70px rgba(15,23,42,0.08);">
 
-        <div style="padding:28px;">
-          <p style="margin:0 0 18px; font-size:17px; line-height:1.7; color:#0B1320;">
-            Hi ${requestRow?.customer_name || "there"},
-          </p>
+<div style="padding:30px 28px 24px; text-align:center; background:#F8FBFF; border-bottom:1px solid #E6ECF5;">
+${
+trader?.logo_url
+? `<img src="${trader.logo_url}" alt="" style="width:72px; height:72px; object-fit:cover; border-radius:22px; border:1px solid #E6ECF5; margin-bottom:14px;" />`
+: `<div style="width:72px; height:72px; border-radius:22px; background:#EEF4FF; color:#1F355C; border:1px solid #E6ECF5; display:inline-grid; place-items:center; font-size:28px; font-weight:900; margin-bottom:14px;">
+${(trader?.business_name || trader?.display_name || "T").slice(0, 1).toUpperCase()}
+</div>`
+}
 
-          <p style="margin:0 0 24px; font-size:16px; line-height:1.7; color:#5C6B84;">
-            Thanks, your card payment has been completed successfully.
-          </p>
+<div style="font-size:22px; font-weight:900; color:#0B2A55;">
+${trader?.business_name || trader?.display_name || "Your tradesperson"}
+</div>
 
-          <div style="border:1px solid #E6ECF5; border-radius:22px; background:#F8FBFF; overflow:hidden; margin:0 0 24px;">
-            <div style="padding:18px; border-bottom:1px solid #E6ECF5;">
-              <div style="font-size:11px; font-weight:900; color:#5C6B84; letter-spacing:0.1em; text-transform:uppercase;">
-                Invoice
-              </div>
-              <div style="margin-top:6px; font-size:22px; font-weight:900; color:#0B1320;">
-                ${invoice.invoice_number || invoice.id}
-              </div>
-            </div>
+<div style="margin-top:6px; font-size:14px; font-weight:700; color:#64748B;">
+Payment receipt powered by FixFlow
+</div>
+</div>
 
-            <div style="padding:20px 18px; border-bottom:1px solid #E6ECF5;">
-              <div style="font-size:13px; color:#5C6B84; margin-bottom:6px;">
-                Amount paid
-              </div>
-              <div style="font-size:34px; font-weight:900; color:#0B1320;">
-                ${money(invoice.amount)}
-              </div>
-            </div>
+<div style="padding:30px 28px;">
+<div style="width:74px; height:74px; border-radius:24px; background:#EEF4FF; color:#1F355C; border:1px solid #E6ECF5; display:grid; place-items:center; font-size:34px; font-weight:900; margin:0 auto 22px;">
+✓
+</div>
 
-            <div style="padding:18px;">
-              <p style="margin:0 0 10px; font-size:15px; color:#0B1320;">
-                <strong>Job:</strong> ${requestRow?.job_type || "Work completed"}
-              </p>
-              <p style="margin:0; font-size:15px; color:#0B1320;">
-                <strong>Reference:</strong> ${requestRow?.job_number || invoice.request_id || "—"}
-              </p>
-            </div>
-          </div>
+<h1 style="margin:0 0 12px; text-align:center; font-size:32px; line-height:1.12; color:#0B2A55;">
+Payment received
+</h1>
 
-          <div style="padding:16px 18px; border-radius:18px; background:#ECFDF3; color:#027A48; font-size:15px; font-weight:800; margin-bottom:24px;">
-            ✓ Your payment has been confirmed.
-          </div>
+<p style="margin:0 0 26px; text-align:center; font-size:16px; line-height:1.7; color:#64748B;">
+Hi ${requestRow?.customer_name || "there"}, thanks — your card payment has been completed successfully.
+</p>
 
-          <p style="margin:0; font-size:15px; line-height:1.7; color:#5C6B84;">
-            Kind regards,<br/>
-            <strong style="color:#0B2A55;">
-              ${trader?.business_name || trader?.display_name || "Your tradesperson"}
-            </strong>
-          </p>
-        </div>
-      </div>
+<div style="border:1px solid #E6ECF5; border-radius:22px; background:#FFFFFF; overflow:hidden; margin-bottom:24px;">
+<div style="padding:18px; background:#F8FBFF; border-bottom:1px solid #E6ECF5;">
+<div style="font-size:11px; font-weight:900; color:#64748B; letter-spacing:0.1em; text-transform:uppercase;">
+Invoice
+</div>
+<div style="margin-top:6px; font-size:21px; font-weight:900; color:#0B1320;">
+${invoice.invoice_number || invoice.id}
+</div>
+</div>
 
-      <div style="text-align:center; margin-top:18px; font-size:12px; color:#94A3B8;">
-        Sent securely by FixFlow
-      </div>
-    </div>
-  </div>
+<div style="padding:22px 18px; border-bottom:1px solid #E6ECF5;">
+<div style="font-size:13px; color:#64748B; font-weight:700; margin-bottom:6px;">
+Amount paid
+</div>
+<div style="font-size:34px; font-weight:900; color:#0B2A55;">
+${money(invoice.amount)}
+</div>
+</div>
+
+<div style="padding:18px;">
+<p style="margin:0 0 10px; font-size:15px; color:#0B1320;">
+<strong>Job:</strong> ${requestRow?.job_type || "Work completed"}
+</p>
+<p style="margin:0; font-size:15px; color:#0B1320;">
+<strong>Reference:</strong> ${requestRow?.job_number || invoice.request_id || "—"}
+</p>
+</div>
+</div>
+
+<div style="padding:15px 18px; border-radius:18px; background:#EEF4FF; color:#1F355C; font-size:15px; font-weight:800; margin-bottom:24px; border:1px solid rgba(31,53,92,0.08);">
+Your payment has been confirmed securely.
+</div>
+
+<p style="margin:0; font-size:15px; line-height:1.7; color:#64748B;">
+Kind regards,<br/>
+<strong style="color:#0B2A55;">
+${trader?.business_name || trader?.display_name || "Your tradesperson"}
+</strong>
+</p>
+</div>
+</div>
+
+<div style="text-align:center; margin-top:18px; font-size:12px; color:#94A3B8;">
+Powered by FixFlow · Card payment processed securely by Stripe
+</div>
+</div>
+</div>
 `,
         });
 if (sent.error) {

@@ -272,9 +272,39 @@ const [dueAt, setDueAt] = useState("");
   );
 }, [selectedRequest?.id, estimateMap]);
 
-  useEffect(() => {
-    if (requestIdFromUrl) setRequestId(requestIdFromUrl);
-  }, [requestIdFromUrl]);
+useEffect(() => {
+  if (!requestIdFromUrl) return;
+  if (!requests.length) return;
+
+  const foundRequest = requests.find((r) => r.id === requestIdFromUrl);
+  if (!foundRequest) return;
+
+  const estimate = estimateMap[foundRequest.id];
+
+  const estimateBase =
+    Number(estimate?.subtotal || 0) ||
+    Number(estimate?.total || 0) ||
+    0;
+
+  setRequestId(foundRequest.id);
+  setToEmail((foundRequest.customer_email || "").trim().toLowerCase());
+  setAmount(estimateBase > 0 ? estimateBase.toFixed(2) : "0");
+  setExtras("0");
+  setStatus("draft");
+  setDueAt("");
+
+  setNotes(
+    `Invoice for ${foundRequest.job_type || "job"}${
+      foundRequest.job_number
+        ? ` — ${foundRequest.job_number}`
+        : ""
+    }.${
+      foundRequest.details
+        ? `\n\nWork details:\n${foundRequest.details}`
+        : ""
+    }`
+  );
+}, [requestIdFromUrl, requests, estimateMap]);
 
 useEffect(() => {
   if (!selectedInvoice) return;
@@ -335,9 +365,9 @@ function pushToast(text: string, type: "success" | "error" = "success") {
 
     const { data: reqs, error: reqErr } = await supabase
   .from("quote_requests")
-  .select(
-    "id, job_number, plumber_id, customer_name, customer_email, customer_phone, postcode, address, job_type, urgency, details, created_at"
-  )
+.select(
+  "id, job_number, plumber_id, customer_name, customer_email, customer_phone, postcode, address, job_type, urgency, details, created_at, stage, status"
+)
       .eq("plumber_id", user.id)
       .order("created_at", { ascending: false })
       .limit(200);

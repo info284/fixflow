@@ -114,7 +114,7 @@ console.log("Receipt check:", {
   invoiceId: invoice.id,
 });
 
-    if (toEmail && !invoice.receipt_sent_at) {
+if (toEmail) {
       try {
         const sent = await resend.emails.send({
         from: "FixFlow Receipts <receipts@send.thefixflowapp.com>",

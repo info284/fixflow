@@ -108,6 +108,12 @@ const { data: trader } = await supabase
       session.customer_details?.email ||
       session.customer_email;
 
+console.log("Receipt check:", {
+  toEmail,
+  receipt_sent_at: invoice.receipt_sent_at,
+  invoiceId: invoice.id,
+});
+
     if (toEmail && !invoice.receipt_sent_at) {
       try {
         const sent = await resend.emails.send({
@@ -135,6 +141,12 @@ const { data: trader } = await supabase
             </div>
           `,
         });
+if (sent.error) {
+  console.error("Receipt Resend error:", sent.error);
+  throw new Error(sent.error.message || "Receipt email failed");
+}
+
+console.log("Receipt email result:", sent);
 
         console.log("Receipt email result:", sent);
 

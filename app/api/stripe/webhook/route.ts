@@ -118,7 +118,7 @@ export async function POST(req: Request) {
           to: toEmail,
           subject: `Payment received for ${invoice.invoice_number || "your invoice"}`,
           html: `
-<div style="margin:0;padding:0;background:#eef4f8;font-family:Arial,sans-serif;">
+<div style="margin:0;padding:0;background:#eef4f8;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;">
   <div style="max-width:620px;margin:0 auto;padding:28px 16px;">
     <div style="background:#ffffff;border:1px solid #E6ECF5;border-radius:28px;overflow:hidden;box-shadow:0 20px 60px rgba(15,23,42,0.08);">
 

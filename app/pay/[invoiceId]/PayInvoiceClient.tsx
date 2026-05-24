@@ -87,7 +87,7 @@ display: "grid",
 placeItems: "center",
 padding: 20,
 fontFamily:
-"Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+  'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
 }}
 >
 <div
@@ -184,14 +184,14 @@ marginBottom: 26,
 <div
 style={{
 padding: 20,
-borderBottom: "1px solid #E2E8F0",
+borderBottom: "1px solid #E6ECF5",
 }}
 >
 <div
 style={{
 fontSize: 11,
 fontWeight: 900,
-color: "#667085",
+color: "#5F708A",
 marginBottom: 8,
 textTransform: "uppercase",
 letterSpacing: "0.12em",
@@ -220,7 +220,7 @@ padding: 22,
 <div
 style={{
 fontSize: 13,
-color: "#667085",
+color: "#5F708A",
 marginBottom: 10,
 fontWeight: 800,
 }}
@@ -295,7 +295,7 @@ loading || amount <= 0
 style={{
 marginTop: 20,
 textAlign: "center",
-color: "#667085",
+color: "#5F708A",
 fontSize: 13,
 lineHeight: 1.7,
 }}

@@ -14,8 +14,8 @@ function PaySuccessInner() {
         placeItems: "center",
         padding: 20,
         background: "#eef4f8",
-        fontFamily:
-          "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+fontFamily:
+  'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
       }}
     >
       <div

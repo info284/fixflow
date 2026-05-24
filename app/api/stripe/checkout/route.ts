@@ -61,10 +61,7 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-const balance = await stripe.balance.retrieve();
 
-console.log("STRIPE KEY WORKS. Balance object:", balance.object);
-console.log("STRIPE LIVEMODE:", balance.livemode);
 
     // 2. Create Stripe checkout session
   const origin =
@@ -90,8 +87,7 @@ console.log("STRIPE LIVEMODE:", balance.livemode);
           quantity: 1,
         },
       ],
-
-    success_url: `${origin}/pay/receipt?invoiceId=${invoiceId}`,
+success_url: `${origin}/pay/success?invoiceId=${invoiceId}`,
 cancel_url: `${origin}/pay/${invoiceId}`,
 
       metadata: {

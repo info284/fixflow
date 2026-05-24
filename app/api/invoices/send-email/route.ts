@@ -412,6 +412,9 @@ VAT${vatRate > 0 ? ` (${vatRate}%)` : ""}: ${formatMoney(vatAmount, currency)}
 Total due: ${formatMoney(totalAmount, currency)}
 Due date: ${dueDateText}
 
+Pay invoice:
+${payUrl}
+
 Download invoice:
 ${pdfDownloadUrl}
 

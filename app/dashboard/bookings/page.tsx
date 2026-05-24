@@ -511,7 +511,7 @@ function normalizeJobStatus(
   visit?: SiteVisitRow | null
 ) {
   const qStatus = String(quote?.status || "").toLowerCase().trim();
-  const rStatus = String(request?.status || "").toLowerCase().trim();
+const rStatus = String(request?.stage || request?.status || "").toLowerCase().trim();
 
   if (qStatus.includes("paid")) return "paid";
   if (qStatus.includes("invoice")) return "invoiced";
@@ -1137,8 +1137,10 @@ if (selectedRequest) {
     setNotesSaving(false);
   }
 
-async function updateJobStatus(nextStatus: JobStatus, okText: string){
+async function updateJobStatus(nextStatus: JobStatus, okText: string) {
   if (!uid || !selectedRequest) return;
+
+  setSaving(true);
 
   if (selectedQuote) {
     const { error } = await supabase
@@ -1148,6 +1150,7 @@ async function updateJobStatus(nextStatus: JobStatus, okText: string){
       .eq("plumber_id", uid);
 
     if (error) {
+      setSaving(false);
       pushToast(`Update failed: ${error.message}`, "error");
       return;
     }
@@ -1162,11 +1165,12 @@ async function updateJobStatus(nextStatus: JobStatus, okText: string){
 
   const { error: requestError } = await supabase
     .from("quote_requests")
-    .update({ status: nextStatus })
+    .update({ stage: nextStatus })
     .eq("id", selectedRequest.id)
     .eq("plumber_id", uid);
 
   if (requestError) {
+    setSaving(false);
     pushToast(`Update failed: ${requestError.message}`, "error");
     return;
   }
@@ -1174,7 +1178,7 @@ async function updateJobStatus(nextStatus: JobStatus, okText: string){
   setJobs((prev) =>
     prev.map((job) =>
       job.id === selectedRequest.id
-        ? { ...job, status: nextStatus }
+        ? { ...job, stage: nextStatus }
         : job
     )
   );
@@ -1182,10 +1186,11 @@ async function updateJobStatus(nextStatus: JobStatus, okText: string){
   setRequestMap((prev) => ({
     ...prev,
     [selectedRequest.id]: prev[selectedRequest.id]
-      ? { ...prev[selectedRequest.id]!, status: nextStatus }
+      ? { ...prev[selectedRequest.id]!, stage: nextStatus }
       : prev[selectedRequest.id],
   }));
 
+  setSaving(false);
   pushToast(okText);
 }
 

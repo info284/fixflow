@@ -6125,22 +6125,97 @@ body {
   width: min(92vw, 620px);
   max-height: calc(100dvh - 120px);
   overflow-y: auto;
-  padding: 22px;
+  padding: 20px;
+  border-radius: 30px;
+  background: #ffffff;
+  border: 1px solid rgba(143, 169, 214, 0.18);
+  box-shadow: 0 18px 50px rgba(11, 42, 85, 0.14);
 }
 
 .ff-modalTop {
-  position: relative;
-  padding: 18px 56px 20px 18px;
-  margin: -6px -6px 20px;
-  border-radius: 28px;
-  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
-  border: 1px solid rgba(143, 169, 214, 0.16);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 6px 2px 18px;
+  margin: 0 0 18px;
+  border-bottom: 1px solid rgba(143, 169, 214, 0.14);
 }
 
 .ff-declineHeader {
   display: flex;
-  gap: 16px;
   align-items: flex-start;
+  gap: 12px;
+  margin: 0;
+}
+
+.ff-declineIcon {
+  width: 42px;
+  height: 42px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: #f4f7fb;
+  border: 1px solid rgba(143, 169, 214, 0.2);
+  flex: 0 0 auto;
+}
+
+.ff-declineHeader h2 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #0b2a55;
+}
+
+.ff-declineHeader p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #5c6b84;
+}
+
+.ff-iconBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  border: 1px solid rgba(143, 169, 214, 0.2);
+  background: #ffffff;
+  color: #5c6b84;
+  font-size: 24px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+.ff-field {
+  margin-top: 16px;
+}
+
+.ff-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #354765;
+}
+
+.ff-input,
+.ff-textarea {
+  width: 100%;
+  min-height: 52px;
+  border-radius: 18px;
+  border: 1px solid rgba(143, 169, 214, 0.24);
+  background: #ffffff;
+  padding: 14px 16px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #0b2a55;
+}
+
+.ff-textarea {
+  min-height: 94px;
+  resize: vertical;
 }
 
 .ff-iconBtn {
@@ -6149,13 +6224,6 @@ body {
   right: 16px;
 }
 
-.ff-declineHeader h2 {
-  margin: 0 0 8px;
-  font-size: 24px;
-  line-height: 1.08;
-  letter-spacing: -0.04em;
-  color: #10264a;
-}
 .ff-declineHeader > div:last-child {
   flex: 1;
   min-width: 0;

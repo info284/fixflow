@@ -14,6 +14,15 @@ type ProfileLite = {
   slug?: string | null;
   logo_url: string | null;
 };
+
+type RecentActivity = {
+  id: string;
+  label: string;
+  detail: string;
+  href: string;
+  created_at: string;
+};
+
 type QuoteRequestLite = {
   id: string;
   stage: string | null;
@@ -70,6 +79,8 @@ const [stats, setStats] = useState<Stats>({
   invoices: 0,
 });
   const [loading, setLoading] = useState(true);
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
+  const [revenueThisMonth, setRevenueThisMonth] = useState("£0");
   const [certificateReminders, setCertificateReminders] = useState<CertificateReminder[]>([]);
 
 const hasNeedsAction = stats.needsAction > 0;
@@ -322,12 +333,109 @@ const certRows = await safeLoad<CertificateReminder[]>(async () => {
           return count ?? 0;
         });
 
+const invoiceRows = await safeLoad(async () => {
+  const { data } = await supabase
+    .from("invoices")
+   .select("id, invoice_number, status, created_at, request_id, amount")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  return data ?? [];
+}, []);
+
+const activity: RecentActivity[] = [
+  ...allRequests.map((r) => ({
+    id: `enquiry-${r.id}`,
+    label: "New enquiry",
+    detail: "A customer enquiry was created",
+    href: `/dashboard/enquiries?id=${r.id}`,
+    created_at: r.created_at,
+  })),
+
+  ...messageRows.map((m: any) => ({
+    id: `message-${m.request_id}-${m.created_at}`,
+    label: m.direction === "outbound" ? "Message sent" : "Customer replied",
+    detail:
+      m.direction === "outbound"
+        ? "You sent a message to a customer"
+        : "A customer sent a message",
+    href: `/dashboard/enquiries?id=${m.request_id}`,
+    created_at: m.created_at,
+  })),
+
+  ...estimateRows.map((e: any) => ({
+    id: `estimate-${e.request_id}-${e.created_at}`,
+    label: "Estimate created",
+    detail: e.status ? `Status: ${e.status}` : "An estimate was created",
+    href: `/dashboard/enquiries?id=${e.request_id}`,
+    created_at: e.created_at,
+  })),
+
+  ...visitRows.map((v: any) => ({
+    id: `visit-${v.request_id}-${v.starts_at}`,
+    label: "Site visit booked",
+    detail: new Date(v.starts_at).toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    href: `/dashboard/enquiries?id=${v.request_id}`,
+    created_at: v.starts_at,
+  })),
+
+  ...invoiceRows.map((inv: any) => ({
+    id: `invoice-${inv.id}`,
+    label: "Invoice created",
+    detail: inv.invoice_number
+      ? `Invoice ${inv.invoice_number}`
+      : "An invoice was created",
+    href: "/dashboard/invoices",
+    created_at: inv.created_at,
+  })),
+]
+  .filter((item) => item.created_at)
+  .sort(
+    (a, b) =>
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
+  .slice(0, 6);
+
+  const startOfMonth = new Date();
+startOfMonth.setDate(1);
+startOfMonth.setHours(0, 0, 0, 0);
+
+const monthInvoiceRows = await safeLoad(async () => {
+  const { data } = await supabase
+    .from("invoices")
+    .select("amount, created_at")
+    .eq("user_id", user.id)
+    .gte("created_at", startOfMonth.toISOString());
+
+  return data ?? [];
+}, []);
+
+const monthTotal = monthInvoiceRows.reduce(
+  (sum: number, inv: any) => sum + Number(inv.amount || 0),
+  0
+);
+
+const monthTotalText = new Intl.NumberFormat("en-GB", {
+  style: "currency",
+  currency: "GBP",
+}).format(monthTotal);
+
         if (!mounted) return;
 
         setProfile((p as ProfileLite) || null);
         setCertificateReminders(
   certRows.filter((c) => getCertificateWarning(c.expiry_date))
 );
+setRecentActivity(activity);
+
+setRevenueThisMonth(monthTotalText);
+
 setStats({
   enquiriesUnread,
   enquiriesOpen,
@@ -344,6 +452,8 @@ setStats({
     };
 
     load();
+
+
 
     const ch1 = supabase
       .channel("ff_dashboard_quote_requests")
@@ -415,9 +525,9 @@ return () => {
     return profile?.slug?.trim() || "your-link";
   }, [profile]);
 
-  const traderLink = useMemo(() => {
-    return `https://thefixflowapp.com/${traderSlug}`;
-  }, [traderSlug]);
+const traderLink = useMemo(() => {
+  return `https://thefixflowapp.com/p/${traderSlug}/quote`;
+}, [traderSlug]);
 
   const traderName = useMemo(() => {
     return (
@@ -454,7 +564,7 @@ return () => {
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${traderSlug}-qr.svg`;
+   a.download = `${traderName.replace(/\s+/g, "-").toLowerCase()}-quote-qr.svg`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -463,9 +573,17 @@ return () => {
     toast("QR downloaded");
   };
 
-  const revenueThisMonth = "£0";
-  const lastActivity = "Live data coming next";
-  const lastLogin = "—";
+
+const lastActivity =
+  recentActivity[0]?.created_at
+    ? new Date(recentActivity[0].created_at).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "No activity yet";
+const lastLogin = "—";
 
   return (
     <div className="ffdash-page">
@@ -639,7 +757,7 @@ return () => {
                 Put this on Google, your website, vans and cards.
               </div>
             </div>
-            <span className="ffdash-chip">Public profile</span>
+          <span className="ffdash-chip">Quote form</span>
           </div>
 
           <div className="ffdash-linkRow">
@@ -664,7 +782,7 @@ return () => {
               Copy link
             </button>
             <button className="ffdash-btn" onClick={openTraderPage}>
-              Open page
+              Open quote form
             </button>
             <button className="ffdash-btn" onClick={downloadQR}>
               Download QR
@@ -767,16 +885,37 @@ return () => {
               <span className="ffdash-mutedSmall">Latest</span>
             </div>
 
-            <div className="ffdash-emptyState">
-              <div className="ffdash-emptyDot" />
-              <div>
-                <div className="ffdash-emptyTitle">No recent activity yet</div>
-                <div className="ffdash-mutedSmall">
-                  When you send estimates, move jobs or create invoices, they’ll
-                  show here.
-                </div>
-              </div>
-            </div>
+         {recentActivity.length > 0 ? (
+  <div className="ffdash-activityList">
+    {recentActivity.map((item) => (
+      <Link key={item.id} href={item.href} className="ffdash-activityItem">
+        <div className="ffdash-emptyDot" />
+        <div>
+          <div className="ffdash-emptyTitle">{item.label}</div>
+          <div className="ffdash-mutedSmall">
+            {item.detail} •{" "}
+            {new Date(item.created_at).toLocaleString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </div>
+        </div>
+      </Link>
+    ))}
+  </div>
+) : (
+  <div className="ffdash-emptyState">
+    <div className="ffdash-emptyDot" />
+    <div>
+      <div className="ffdash-emptyTitle">No recent activity yet</div>
+      <div className="ffdash-mutedSmall">
+        When you send estimates, move jobs or create invoices, they’ll show here.
+      </div>
+    </div>
+  </div>
+)}
 
             <div className="ffdash-metaStrip">
               <div>
@@ -1504,6 +1643,31 @@ return () => {
           color: #1f355c;
           letter-spacing: -0.01em;
         }
+
+.ffdash-activityList {
+  display: grid;
+  gap: 10px;
+}
+
+.ffdash-activityItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f8fbff;
+  border: 1px solid #e6ecf5;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.15s ease;
+}
+
+.ffdash-activityItem:hover {
+  transform: translateY(-1px);
+  border-color: #cfd9e8;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
 
         .ffdash-emptyState {
           display: flex;

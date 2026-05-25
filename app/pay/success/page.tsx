@@ -15,7 +15,7 @@ function PaySuccessInner() {
         padding: 20,
         background: "#eef4f8",
 fontFamily:
-  'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
+  "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
       }}
     >
       <div
@@ -55,7 +55,7 @@ fontFamily:
               fontSize: 38,
               lineHeight: 1.08,
               fontWeight: 950,
-              letterSpacing: "-0.05em",
+              letterSpacing: "-0.035em",
             }}
           >
             Payment received

@@ -15,8 +15,9 @@ function ReceiptInner() {
         placeItems: "center",
         padding: 20,
         background: "#eef4f8",
-        fontFamily:
-          "Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+       fontFamily:
+  "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
+          
       }}
     >
       <div
@@ -56,7 +57,7 @@ function ReceiptInner() {
               fontSize: 38,
               lineHeight: 1.08,
               fontWeight: 950,
-              letterSpacing: "-0.05em",
+              letterSpacing: "-0.035em",
             }}
           >
             Payment received

@@ -87,7 +87,7 @@ display: "grid",
 placeItems: "center",
 padding: 20,
 fontFamily:
-  'system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif',
+  "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
 }}
 >
 <div
@@ -146,7 +146,7 @@ color: "#FFFFFF",
 fontSize: 38,
 lineHeight: 1.05,
 fontWeight: 950,
-letterSpacing: "-0.05em",
+letterSpacing: "-0.035em",
 marginBottom: 14,
 }}
 >
@@ -234,7 +234,7 @@ fontSize: 42,
 lineHeight: 1,
 fontWeight: 950,
 color: "#0F172A",
-letterSpacing: "-0.05em",
+letterSpacing: "-0.035em",
 }}
 >
 {formatMoney(amount, currency)}

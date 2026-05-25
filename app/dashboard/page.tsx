@@ -360,6 +360,9 @@ const invoiceRows = await safeLoad(async () => {
   return data ?? [];
 }, []);
 
+const twoWeeksAgo = new Date();
+twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
 const activity: RecentActivity[] = [
   ...allRequests.map((r) => ({
     id: `enquiry-${r.id}`,
@@ -433,12 +436,16 @@ const activity: RecentActivity[] = [
     };
   }),
 ]
-  .filter((item) => item.created_at)
+ .filter(
+  (item) =>
+    item.created_at &&
+    new Date(item.created_at) >= twoWeeksAgo
+)
   .sort(
     (a, b) =>
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
-  .slice(0, 6);
+  .slice(0, 8);
 
   const startOfMonth = new Date();
 startOfMonth.setDate(1);

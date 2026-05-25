@@ -25,6 +25,9 @@ type RecentActivity = {
 
 type QuoteRequestLite = {
   id: string;
+  customer_name: string | null;
+  customer_email: string | null;
+  job_type: string | null;
   stage: string | null;
   status: string | null;
   job_booked_at: string | null;
@@ -187,7 +190,7 @@ const heroToneClass = loading
         const allRequests = await safeLoad<QuoteRequestLite[]>(async () => {
           const { data, error } = await supabase
             .from("quote_requests")
-.select("id, stage, status, job_booked_at, read_at, snoozed_until, created_at")
+.select("id, customer_name, customer_email, job_type, stage, status, job_booked_at, read_at, snoozed_until, created_at")
 .eq("plumber_id", user.id);
 
           if (error) {
@@ -217,6 +220,19 @@ const quoteMap = Object.fromEntries(
     {
       request_id: row.request_id || null,
       status: row.status || null,
+    },
+  ])
+);
+
+const requestMap = Object.fromEntries(
+  allRequests.map((r) => [
+    r.id,
+    {
+      customerName:
+        r.customer_name?.trim() ||
+        r.customer_email?.trim() ||
+        "Customer",
+      jobType: r.job_type?.trim() || "job",
     },
   ])
 );
@@ -347,53 +363,75 @@ const invoiceRows = await safeLoad(async () => {
 const activity: RecentActivity[] = [
   ...allRequests.map((r) => ({
     id: `enquiry-${r.id}`,
-    label: "New enquiry",
-    detail: "A customer enquiry was created",
+    label: `New enquiry from ${requestMap[r.id]?.customerName || "Customer"}`,
+    detail: `${requestMap[r.id]?.jobType || "Job"} enquiry received`,
     href: `/dashboard/enquiries?id=${r.id}`,
     created_at: r.created_at,
   })),
 
-  ...messageRows.map((m: any) => ({
-    id: `message-${m.request_id}-${m.created_at}`,
-    label: m.direction === "outbound" ? "Message sent" : "Customer replied",
-    detail:
-      m.direction === "outbound"
-        ? "You sent a message to a customer"
-        : "A customer sent a message",
-    href: `/dashboard/enquiries?id=${m.request_id}`,
-    created_at: m.created_at,
-  })),
+  ...messageRows.map((m: any) => {
+    const customer = requestMap[m.request_id]?.customerName || "Customer";
+    const jobType = requestMap[m.request_id]?.jobType || "job";
 
-  ...estimateRows.map((e: any) => ({
-    id: `estimate-${e.request_id}-${e.created_at}`,
-    label: "Estimate created",
-    detail: e.status ? `Status: ${e.status}` : "An estimate was created",
-    href: `/dashboard/enquiries?id=${e.request_id}`,
-    created_at: e.created_at,
-  })),
+    return {
+      id: `message-${m.request_id}-${m.created_at}`,
+      label:
+        m.direction === "outbound"
+          ? `Message sent to ${customer}`
+          : `${customer} replied`,
+      detail:
+        m.direction === "outbound"
+          ? `Reply sent about ${jobType}`
+          : `New customer message about ${jobType}`,
+      href: `/dashboard/enquiries?id=${m.request_id}`,
+      created_at: m.created_at,
+    };
+  }),
 
-  ...visitRows.map((v: any) => ({
-    id: `visit-${v.request_id}-${v.starts_at}`,
-    label: "Site visit booked",
-    detail: new Date(v.starts_at).toLocaleString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-    href: `/dashboard/enquiries?id=${v.request_id}`,
-    created_at: v.starts_at,
-  })),
+  ...estimateRows.map((e: any) => {
+    const customer = requestMap[e.request_id]?.customerName || "Customer";
+    const jobType = requestMap[e.request_id]?.jobType || "job";
 
-  ...invoiceRows.map((inv: any) => ({
-    id: `invoice-${inv.id}`,
-    label: "Invoice created",
-    detail: inv.invoice_number
-      ? `Invoice ${inv.invoice_number}`
-      : "An invoice was created",
-    href: "/dashboard/invoices",
-    created_at: inv.created_at,
-  })),
+    return {
+      id: `estimate-${e.request_id}-${e.created_at}`,
+      label: `Estimate created for ${customer}`,
+      detail: `${jobType} estimate${e.status ? ` • ${e.status}` : ""}`,
+      href: `/dashboard/enquiries?id=${e.request_id}`,
+      created_at: e.created_at,
+    };
+  }),
+
+  ...visitRows.map((v: any) => {
+    const customer = requestMap[v.request_id]?.customerName || "Customer";
+    const jobType = requestMap[v.request_id]?.jobType || "job";
+
+    return {
+      id: `visit-${v.request_id}-${v.starts_at}`,
+      label: `Site visit booked with ${customer}`,
+      detail: `${jobType} • ${new Date(v.starts_at).toLocaleString("en-GB", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })}`,
+      href: `/dashboard/enquiries?id=${v.request_id}`,
+      created_at: v.starts_at,
+    };
+  }),
+
+  ...invoiceRows.map((inv: any) => {
+    const customer = requestMap[inv.request_id]?.customerName || "Customer";
+
+    return {
+      id: `invoice-${inv.id}`,
+      label: `Invoice created for ${customer}`,
+      detail: inv.invoice_number
+        ? `${inv.invoice_number}`
+        : "Invoice created",
+      href: "/dashboard/invoices",
+      created_at: inv.created_at,
+    };
+  }),
 ]
   .filter((item) => item.created_at)
   .sort(

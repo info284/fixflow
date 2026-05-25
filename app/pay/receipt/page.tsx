@@ -14,9 +14,8 @@ function ReceiptInner() {
         display: "grid",
         placeItems: "center",
         padding: 20,
-        background: "#eef4f8",
-       fontFamily:
-  "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
+        background: "#F6F8FC",
+fontFamily: "Arial, sans-serif",
           
       }}
     >
@@ -33,7 +32,7 @@ function ReceiptInner() {
       >
         <div
           style={{
-            background: "#1F355C",
+           background: "#0B2A55",
             padding: "38px 30px",
           }}
         >
@@ -41,7 +40,7 @@ function ReceiptInner() {
             style={{
               color: "rgba(255,255,255,0.72)",
               fontSize: 12,
-              fontWeight: 900,
+              fontWeight: 700,
               letterSpacing: "0.14em",
               textTransform: "uppercase",
               marginBottom: 12,
@@ -116,7 +115,7 @@ function ReceiptInner() {
                 <div
                   style={{
                     fontSize: 11,
-                    fontWeight: 900,
+                    fontWeight: 700,
                     color: "#5F708A",
                     textTransform: "uppercase",
                     letterSpacing: "0.12em",
@@ -146,11 +145,11 @@ function ReceiptInner() {
             style={{
               height: 54,
               padding: "0 34px",
-              borderRadius: 999,
+              borderRadius: 12,
               border: "none",
-              background: "#1F355C",
+              background: "#0B2A55",
               color: "#FFFFFF",
-              fontWeight: 900,
+              fontWeight: 700,
               fontSize: 16,
               cursor: "pointer",
               boxShadow: "0 12px 28px rgba(31, 53, 92, 0.18)",

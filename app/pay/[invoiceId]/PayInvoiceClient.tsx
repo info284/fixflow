@@ -82,12 +82,12 @@ return (
 <main
 style={{
 minHeight: "100vh",
-background: "#eef4f8",
+background: "#F6F8FC",
 display: "grid",
 placeItems: "center",
 padding: 20,
-fontFamily:
-  "system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif",
+fontFamily: "Arial, sans-serif",
+
 }}
 >
 <div
@@ -106,7 +106,7 @@ boxShadow:
 
 <div
 style={{
-background: "#1F355C",
+background: "#0B2A55",
 padding: "34px 30px",
 textAlign: "center",
 }}
@@ -131,7 +131,7 @@ border: "1px solid rgba(255,255,255,0.14)",
 style={{
 color: "rgba(255,255,255,0.72)",
 fontSize: 12,
-fontWeight: 900,
+fontWeight: 700,
 letterSpacing: "0.14em",
 textTransform: "uppercase",
 marginBottom: 12,
@@ -190,7 +190,7 @@ borderBottom: "1px solid #E6ECF5",
 <div
 style={{
 fontSize: 11,
-fontWeight: 900,
+fontWeight: 700,
 color: "#5F708A",
 marginBottom: 8,
 textTransform: "uppercase",
@@ -266,14 +266,14 @@ disabled={loading || amount <= 0}
 style={{
 width: "100%",
 height: 58,
-borderRadius: 999,
+borderRadius: 12,
 border: "none",
 background:
 loading || amount <= 0
 ? "#94A3B8"
 : "#1F355C",
 color: "#FFFFFF",
-fontWeight: 900,
+fontWeight: 700,
 fontSize: 16,
 cursor:
 loading || amount <= 0

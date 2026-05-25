@@ -368,7 +368,7 @@ const buttonStyle: React.CSSProperties = {
   padding: "0 18px",
   border: "none",
   borderRadius: 999,
-  background: "#1f355c",
+  background: "#0B2A55",
   color: "#ffffff",
   fontSize: 14,
   fontWeight: 800,

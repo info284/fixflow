@@ -91,7 +91,7 @@ onClick={() => router.back()}
 style={{
 height: 56,
 padding: "0 34px",
-borderRadius: 999,
+borderRadius: 12,
 border: "none",
 background: "#163A70",
 color: "#FFFFFF",

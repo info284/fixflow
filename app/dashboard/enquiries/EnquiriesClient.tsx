@@ -4191,8 +4191,8 @@ await sendReply({
     const { error } = await supabase
       .from("quote_requests")
       .update({
-        status: "declined",
-        stage: "lost",
+status: "lost",
+stage: "lost",
         declined_at: declinedAt,
         decline_reason: declineReason,
         decline_note: declineNote || null,
@@ -4208,8 +4208,8 @@ await sendReply({
         r.id === selectedRow.id
           ? {
               ...r,
-              status: "declined",
-              stage: "lost",
+             status: "lost",
+stage: "lost",
               declined_at: declinedAt,
               decline_reason: declineReason,
               decline_note: declineNote || null,

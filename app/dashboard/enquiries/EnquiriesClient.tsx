@@ -4028,6 +4028,7 @@ async function sendReply(
         body: finalBody,
         customerName: selectedRow.customer_name,
         isFollowUp: wasAiFollowUp,
+        isDecline: Boolean(override?.isDecline),
         followUpNumber: wasAiFollowUp
           ? (selectedRow.ai_follow_up_count || 0) + 1
           : null,

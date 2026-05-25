@@ -259,10 +259,14 @@ ${messageUrl}`,
       return json(500, { ok: false, error: ins.error.message });
     }
 
-    const upd = await admin
+const shouldSkipStatusUpdate = Boolean(body?.isDecline);
+
+const upd = shouldSkipStatusUpdate
+  ? { error: null }
+  : await admin
       .from("quote_requests")
       .update({
-        status: "replied",
+        stage: "contacted",
       })
       .eq("id", requestId)
       .eq("plumber_id", user.id);

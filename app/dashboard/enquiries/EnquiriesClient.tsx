@@ -3988,15 +3988,30 @@ job_booked_at: null,
   }
 }
 
-async function sendReply() {
+async function sendReply(
+  override?: {
+    to?: string;
+    subject?: string;
+    body?: string;
+    isDecline?: boolean;
+  }
+) {
   if (!selectedRow || !uid) return;
-  if (!replyTo.trim() || !replyBody.trim()) return;
+
+  const finalTo = (override?.to ?? replyTo).trim();
+  const finalSubject =
+    (override?.subject ?? replySubject).trim() ||
+    `Re: ${selectedRow.job_type || "Your enquiry"}`;
+  const finalBody = (override?.body ?? replyBody).trim();
+
+  if (!finalTo || !finalBody) return;
 
   try {
     setReplySending(true);
     setReplySent(false);
 
     const wasAiFollowUp =
+      !override?.isDecline &&
       selectedRow.ai_thread_status === "awaiting_trader_review" &&
       !!selectedRow.ai_suggested_reply;
 
@@ -4008,10 +4023,9 @@ async function sendReply() {
       body: JSON.stringify({
         requestId: selectedRow.id,
         plumberId: uid,
-        to: replyTo.trim(),
-        subject:
-          replySubject.trim() || `Re: ${selectedRow.job_type || "Your enquiry"}`,
-        body: replyBody.trim(),
+        to: finalTo,
+        subject: finalSubject,
+        body: finalBody,
         customerName: selectedRow.customer_name,
         isFollowUp: wasAiFollowUp,
         followUpNumber: wasAiFollowUp
@@ -4026,65 +4040,70 @@ async function sendReply() {
       throw new Error(json?.error || "Couldn’t send");
     }
 
-    const nextFollowUpCount = wasAiFollowUp
-      ? (selectedRow.ai_follow_up_count || 0) + 1
-      : selectedRow.ai_follow_up_count || 0;
+    if (!override?.isDecline) {
+      const nextFollowUpCount = wasAiFollowUp
+        ? (selectedRow.ai_follow_up_count || 0) + 1
+        : selectedRow.ai_follow_up_count || 0;
 
-    const isFinalFollowUp = wasAiFollowUp && nextFollowUpCount >= 3;
+      const isFinalFollowUp = wasAiFollowUp && nextFollowUpCount >= 3;
 
-    await supabase
-      .from("quote_requests")
-      .update({
-        ai_thread_status: isFinalFollowUp
-          ? "cold_after_follow_up"
-          : "awaiting_customer_reply",
-        ai_suggested_reply: null,
-        ai_follow_up_count: nextFollowUpCount,
-        ai_next_action_due_at:
-          wasAiFollowUp && !isFinalFollowUp
-            ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
-            : selectedRow.ai_next_action_due_at ?? null,
-        ai_last_ai_message_at: new Date().toISOString(),
-      })
-      .eq("id", selectedRow.id);
+      await supabase
+        .from("quote_requests")
+        .update({
+          ai_thread_status: isFinalFollowUp
+            ? "cold_after_follow_up"
+            : "awaiting_customer_reply",
+          ai_suggested_reply: null,
+          ai_follow_up_count: nextFollowUpCount,
+          ai_next_action_due_at:
+            wasAiFollowUp && !isFinalFollowUp
+              ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+              : selectedRow.ai_next_action_due_at ?? null,
+          ai_last_ai_message_at: new Date().toISOString(),
+        })
+        .eq("id", selectedRow.id);
 
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === selectedRow.id
-          ? {
-              ...r,
-              ai_thread_status: isFinalFollowUp
-                ? "cold_after_follow_up"
-                : "awaiting_customer_reply",
-              ai_suggested_reply: null,
-              ai_follow_up_count: nextFollowUpCount,
-              ai_next_action_due_at:
-                wasAiFollowUp && !isFinalFollowUp
-                  ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
-                  : r.ai_next_action_due_at ?? null,
-            }
-          : r
-      )
-    );
+      setRows((prev) =>
+        prev.map((r) =>
+          r.id === selectedRow.id
+            ? {
+                ...r,
+                ai_thread_status: isFinalFollowUp
+                  ? "cold_after_follow_up"
+                  : "awaiting_customer_reply",
+                ai_suggested_reply: null,
+                ai_follow_up_count: nextFollowUpCount,
+                ai_next_action_due_at:
+                  wasAiFollowUp && !isFinalFollowUp
+                    ? new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+                    : r.ai_next_action_due_at ?? null,
+              }
+            : r
+        )
+      );
 
-    setReplyBody("");
-    await loadThread(selectedRow.id, uid);
-
-    if (String(selectedRow.stage || "").toLowerCase() === "new") {
-      await updateStage("contacted");
+      if (String(selectedRow.stage || "").toLowerCase() === "new") {
+        await updateStage("contacted");
+      }
     }
 
-    setReplySent(true);
-    window.setTimeout(() => setReplySent(false), 2000);
+    if (!override?.isDecline) {
+      setReplyBody("");
+      setReplySent(true);
+      window.setTimeout(() => setReplySent(false), 2000);
+      pushToast(wasAiFollowUp ? "Follow-up sent" : "Message sent");
+    }
 
-    pushToast(wasAiFollowUp ? "Follow-up sent" : "Message sent");
-  } catch (err) {
+    await loadThread(selectedRow.id, uid);
+  } catch (err: any) {
     console.error(err);
-    pushToast("Couldn’t send message", "error");
+    pushToast(err?.message || "Couldn’t send message", "error");
+    throw err;
   } finally {
     setReplySending(false);
   }
 }
+
 async function deleteEnquiry() {
   if (!selectedRow) return;
 
@@ -4147,21 +4166,34 @@ async function handleDeclineEnquiry() {
   try {
     setDeclineBusy(true);
 
+    if (!selectedRow.customer_email) {
+      throw new Error("Customer email missing");
+    }
+
     const message = buildDeclineMessage(declineReason);
+    const subject = `Re: ${selectedRow.job_type || "Your enquiry"}`;
 
-    // send message using your existing reply box flow
-setReplyBody(message);
-setReplyTo(selectedRow.customer_email || "");
-setReplySubject(`Re: ${selectedRow.job_type || "Your enquiry"}`);
+    setReplyTo(selectedRow.customer_email);
+    setReplySubject(subject);
+    setReplyBody(message);
 
-await sendReply();
+    // IMPORTANT:
+    // This only works if sendReply can accept direct values.
+await sendReply({
+  to: selectedRow.customer_email,
+  subject,
+  body: message,
+  isDecline: true,
+});
+
+    const declinedAt = new Date().toISOString();
 
     const { error } = await supabase
       .from("quote_requests")
       .update({
         status: "declined",
         stage: "lost",
-        declined_at: new Date().toISOString(),
+        declined_at: declinedAt,
         decline_reason: declineReason,
         decline_note: declineNote || null,
         ai_thread_status: "closed_declined",
@@ -4178,7 +4210,7 @@ await sendReply();
               ...r,
               status: "declined",
               stage: "lost",
-              declined_at: new Date().toISOString(),
+              declined_at: declinedAt,
               decline_reason: declineReason,
               decline_note: declineNote || null,
               ai_thread_status: "closed_declined",
@@ -4188,10 +4220,13 @@ await sendReply();
     );
 
     setShowDeclineModal(false);
-    pushToast("Polite decline prepared", "success");
-  } catch (err) {
+    setDeclineReason("too_busy");
+    setDeclineNote("");
+
+    pushToast("Polite decline sent", "success");
+  } catch (err: any) {
     console.error(err);
-    pushToast("Couldn’t decline enquiry", "error");
+    pushToast(err?.message || "Couldn’t decline enquiry", "error");
   } finally {
     setDeclineBusy(false);
   }
@@ -8444,7 +8479,7 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
   <button
     className="ff-btn ff-btnPrimary ff-btnSm"
     type="button"
-    onClick={sendReply}
+    onClick={() => sendReply()}
     disabled={!replyTo.trim() || !replyBody.trim()}
   >
     Send to customer
@@ -8755,11 +8790,15 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
   <div className="ff-modalBackdrop">
     <div className="ff-modal">
       <div className="ff-modalTop">
-        <div>
-          <h2>Politely decline enquiry</h2>
-          <p>
-            Send the customer a respectful reply instead of leaving them waiting.
-          </p>
+        <div className="ff-declineHeader">
+          <div className="ff-declineIcon">✉️</div>
+
+          <div>
+            <h2>Close this enquiry respectfully</h2>
+            <p>
+              Send the customer a professional reply instead of leaving them waiting.
+            </p>
+          </div>
         </div>
 
         <button
@@ -8794,9 +8833,20 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
         />
       </div>
 
-      <div className="ff-previewBox">
-        <strong>Message preview</strong>
-        <pre>{buildDeclineMessage(declineReason)}</pre>
+      <div className="ff-declinePreview">
+        <div className="ff-declinePreviewTop">
+          <span>Customer will receive</span>
+          <strong>Respectful reply</strong>
+        </div>
+
+        <div className="ff-declineEmailCard">
+          {buildDeclineMessage(declineReason)
+            .split("\n")
+            .filter(Boolean)
+            .map((line, index) => (
+              <p key={index}>{line}</p>
+            ))}
+        </div>
       </div>
 
       <div className="ff-modalActions">
@@ -8814,12 +8864,13 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
           disabled={declineBusy}
           onClick={handleDeclineEnquiry}
         >
-          {declineBusy ? "Sending..." : "Send polite reply"}
+          {declineBusy ? "Sending..." : "Send and close enquiry"}
         </button>
       </div>
     </div>
   </div>
 ) : null}
-   </>
-  );
+
+</>
+);
 }

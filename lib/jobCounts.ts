@@ -28,16 +28,18 @@ export function isRealJob(
     Boolean(request.job_booked_at) ||
 
     requestStatus === "booked" ||
-    requestStatus === "in progress" ||
-    requestStatus === "complete" ||
-    requestStatus === "completed" ||
+requestStatus === "in progress" ||
+requestStatus === "in_progress" ||
+requestStatus === "complete" ||
+requestStatus === "completed" ||
     requestStatus === "invoiced" ||
     requestStatus === "paid" ||
 
     quoteStatus === "booked" ||
-    quoteStatus === "in progress" ||
-    quoteStatus === "complete" ||
-    quoteStatus === "completed" ||
+quoteStatus === "in progress" ||
+quoteStatus === "in_progress" ||
+quoteStatus === "complete" ||
+quoteStatus === "completed" ||
     quoteStatus === "invoiced" ||
     quoteStatus === "paid"
   );

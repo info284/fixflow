@@ -40,6 +40,8 @@ type QuoteRequestRow = {
   details: string | null;
 
   status: string | null;
+  stage: string | null;
+ai_thread_status?: string | null;
   created_at: string;
   trader_notes: string | null;
 
@@ -331,18 +333,18 @@ function normalizeJobStatus(
   quote?: QuoteRow | null,
   request?: QuoteRequestRow | null,
   visit?: SiteVisitRow | null
-) {
+): "approved" | "booked" | "in_progress" | "completed" | "invoiced" | "paid" {
   const qStatus = String(quote?.status || "").toLowerCase().trim();
   const rStatus = String(request?.status || "").toLowerCase().trim();
 
   if (qStatus.includes("paid")) return "paid";
   if (qStatus.includes("invoice")) return "invoiced";
-  if (qStatus.includes("complete")) return "complete";
+if (qStatus.includes("complete")) return "completed";
   if (qStatus.includes("progress")) return "in_progress";
 
   if (rStatus.includes("paid")) return "paid";
   if (rStatus.includes("invoice")) return "invoiced";
-  if (rStatus.includes("complete")) return "complete";
+  if (rStatus.includes("complete")) return "completed";
   if (rStatus.includes("progress")) return "in_progress";
 
   if (
@@ -375,7 +377,9 @@ function jobStatusChip(
 
   if (s === "paid") return { text: "Paid", cls: "ff-chip ff-chipGreen" };
   if (s === "invoiced") return { text: "Invoiced", cls: "ff-chip ff-chipBlue" };
-  if (s === "complete") return { text: "Complete", cls: "ff-chip ff-chipGreen" };
+ if (s === "completed") {
+  return { text: "Finished", cls: "ff-chip ff-chipGreen" };
+}
   if (s === "in_progress") {
     return { text: "In progress", cls: "ff-chip ff-chipBlue" };
   }
@@ -393,7 +397,7 @@ function getStageIndex(
 
   if (s === "paid") return 5;
   if (s === "invoiced") return 4;
-  if (s === "complete") return 3;
+  if (s === "completed") return 3;
   if (s === "in_progress") return 2;
   if (s === "booked") return 1;
   return 0;
@@ -420,7 +424,7 @@ function getNextAction(
     };
   }
 
-  if (s === "complete") {
+  if (s === "completed") {
     return {
       title: "Mark invoiced",
       text: "The work is complete. Upload any final documents and move this job to invoiced.",
@@ -521,14 +525,14 @@ function getMissingItems(args: {
   }
 
   if (
-    (status === "in_progress" || status === "complete" || status === "invoiced") &&
+    (status === "in_progress" || status === "completed" || status === "invoiced") &&
     traderFiles.length === 0
   ) {
     out.push("No site files uploaded");
   }
 
   if (
-    (status === "complete" || status === "invoiced" || status === "paid") &&
+    (status === "completed" || status === "invoiced" || status === "paid") &&
     jobDocs.length === 0
   ) {
     out.push("No final documents uploaded");
@@ -614,7 +618,7 @@ export default function JobsPage() {
   const selectedQuoteId = quoteIdParam || selectedQuoteIdState;
 
   const [statusFilter, setStatusFilter] = useState<
-    "" | "approved" | "booked" | "in_progress" | "complete" | "invoiced" | "paid"
+    "" | "approved" | "booked" | "in_progress" | "completed" | "invoiced" | "paid"
   >("");
   const [postcodeFilter, setPostcodeFilter] = useState("");
 
@@ -1064,34 +1068,73 @@ async function loadDocuments(requestId: string) {
     setNotesSaving(false);
   }
 
-  async function updateJobStatus(nextStatus: string, okText: string) {
-    if (!uid || !selectedQuote) return;
+async function updateJobStatus(nextStatus: string, okText: string) {
+  if (!uid || !selectedQuote) return;
 
-    const { error } = await supabase
-      .from("quotes")
-      .update({ status: nextStatus })
-      .eq("id", selectedQuote.id)
+  const requestId = cleanId(selectedQuote.request_id);
+
+  const { error: quoteError } = await supabase
+    .from("quotes")
+    .update({ status: nextStatus })
+    .eq("id", selectedQuote.id)
+    .eq("plumber_id", uid);
+
+  if (quoteError) {
+    pushToast(`Update failed: ${quoteError.message}`, "error");
+    return;
+  }
+
+  if (requestId) {
+    const requestPatch =
+      nextStatus === "completed"
+        ? {
+            status: "completed",
+            stage: "won",
+            ai_thread_status: "job_finished",
+          }
+        : {
+            status: nextStatus,
+            stage: "won",
+          };
+
+    const { error: requestError } = await supabase
+      .from("quote_requests")
+      .update(requestPatch)
+      .eq("id", requestId)
       .eq("plumber_id", uid);
 
-    if (error) {
-      pushToast(`Update failed: ${error.message}`, "error");
+    if (requestError) {
+      pushToast(`Request update failed: ${requestError.message}`, "error");
       return;
     }
 
-    setQuotes((prev) =>
-      prev.map((q) => (q.id === selectedQuote.id ? { ...q, status: nextStatus } : q))
-    );
-
-    pushToast(okText);
+    setRequestMap((prev) => ({
+      ...prev,
+      [requestId]: prev[requestId]
+        ? {
+            ...prev[requestId],
+            ...requestPatch,
+          }
+        : prev[requestId],
+    }));
   }
+
+  setQuotes((prev) =>
+    prev.map((q) =>
+      q.id === selectedQuote.id ? { ...q, status: nextStatus } : q
+    )
+  );
+
+  pushToast(okText);
+}
 
   async function markInProgress() {
     await updateJobStatus("in progress", "Job marked in progress");
   }
 
-  async function markComplete() {
-    await updateJobStatus("complete", "Job marked complete");
-  }
+ async function markComplete() {
+  await updateJobStatus("completed", "Job marked finished");
+}
 
   async function markInvoiced() {
     await updateJobStatus("invoiced", "Job marked invoiced");
@@ -1577,7 +1620,7 @@ useEffect(() => {
       const request = requestMap[cleanId(q.request_id)] || null;
       const visit = request ? visitMap[request.id] || null : null;
       const s = normalizeJobStatus(q, request, visit);
-      return s === "in_progress" || s === "complete";
+      return s === "in_progress" || s === "completed";
     }).length;
 
     const paid = quotes.filter((q) => {
@@ -1682,7 +1725,7 @@ return (
                     ["", "All"],
                     ["booked", "Booked"],
                     ["in_progress", "Live"],
-                    ["complete", "Complete"],
+                    ["completed", "Complete"],
                     ["invoiced", "Invoiced"],
                     ["paid", "Paid"],
                   ].map(([value, label]) => (
@@ -1773,25 +1816,25 @@ return (
                       </div>
 
                       <div
-                        className={`ff-leftHint ${
-                          state === "booked" || state === "paid"
-                            ? "ff-leftHintGreen"
-                            : state === "complete" || state === "invoiced"
-                            ? "ff-leftHintBlue"
-                            : "ff-leftHintAmber"
-                        }`}
+className={`ff-leftHint ${
+  state === "booked" || state === "paid"
+    ? "ff-leftHintGreen"
+    : state === "completed" 
+    ? "ff-leftHintBlue"
+    : "ff-leftHintAmber"
+}`}
                       >
-                        {state === "paid"
-                          ? "Job paid"
-                          : state === "invoiced"
-                          ? "Awaiting payment"
-                          : state === "complete"
-                          ? "Ready for invoice"
-                          : state === "in_progress"
-                          ? "Job in progress"
-                          : state === "booked"
-                          ? "Booked and ready"
-                          : "Needs booking"}
+{state === "paid"
+  ? "Job paid"
+  : state === "invoiced"
+  ? "Awaiting payment"
+  : state === "completed" 
+  ? "Finished"
+  : state === "in_progress"
+  ? "Job in progress"
+  : state === "booked"
+  ? "Booked and ready"
+  : "Needs booking"}
                       </div>
                     </button>
                   );

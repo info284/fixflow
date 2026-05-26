@@ -106,7 +106,7 @@ type JobStatus =
   | "approved"
   | "booked"
   | "in_progress"
-  | "complete"
+  | "completed"
   | "invoiced"
   | "paid";
 
@@ -217,7 +217,7 @@ const jobDate = request?.job_booked_at || null;
     };
   }
 
-  if (status === "complete") {
+  if (status === "completed") {
     return {
       text: "Send invoice",
       cls: "ff-leftHintAmber",
@@ -233,7 +233,7 @@ const jobDate = request?.job_booked_at || null;
 
   if (status === "paid") {
     return {
-      text: "Complete",
+      text: "Completed",
       cls: "ff-leftHintGreen",
     };
   }
@@ -458,7 +458,7 @@ function getJobNextAction(
     };
   }
 
-  if (status === "complete") {
+  if (status === "completed") {
     return {
       title: "Send the invoice",
       description: "Don’t delay — send the invoice while the job is fresh.",
@@ -511,34 +511,39 @@ function normalizeJobStatus(
   visit?: SiteVisitRow | null
 ) {
   const qStatus = String(quote?.status || "").toLowerCase().trim();
-const rStatus = String(request?.stage || request?.status || "").toLowerCase().trim();
+  const rStatus = String(request?.stage || request?.status || "").toLowerCase().trim();
 
-  if (qStatus.includes("paid")) return "paid";
-  if (qStatus.includes("invoice")) return "invoiced";
-  if (qStatus.includes("complete")) return "complete";
-  if (qStatus.includes("progress")) return "in_progress";
+  // clean current statuses
+  if (qStatus === "paid") return "paid";
+  if (qStatus === "invoiced") return "invoiced";
+  if (qStatus === "completed") return "completed";
+  if (qStatus === "in_progress") return "in_progress";
 
-  if (rStatus.includes("paid")) return "paid";
-  if (rStatus.includes("invoice")) return "invoiced";
-  if (rStatus.includes("complete")) return "complete";
-  if (rStatus.includes("progress")) return "in_progress";
+  if (rStatus === "paid") return "paid";
+  if (rStatus === "invoiced") return "invoiced";
+  if (rStatus === "completed") return "completed";
+  if (rStatus === "in_progress") return "in_progress";
 
-  if (
-    qStatus.includes("approved") ||
-    qStatus.includes("accepted") ||
-    rStatus.includes("approved") ||
-    rStatus.includes("accepted")
-  ) {
-   return request?.job_booked_at ? "booked" : "approved";
+  // old/backwards-compatible statuses
+  if (qStatus === "complete") return "completed";
+  if (rStatus === "complete") return "completed";
+
+  if (qStatus === "in progress") return "in_progress";
+  if (rStatus === "in progress") return "in_progress";
+
+  if (qStatus === "booked" || rStatus === "booked" || request?.job_booked_at) {
+    return "booked";
   }
 
-if (
-  qStatus.includes("book") ||
-  rStatus.includes("book") ||
-  request?.job_booked_at
-) {
-  return "booked";
-}
+  if (
+    qStatus === "approved" ||
+    qStatus === "accepted" ||
+    rStatus === "approved" ||
+    rStatus === "accepted" ||
+    rStatus === "won"
+  ) {
+    return request?.job_booked_at ? "booked" : "approved";
+  }
 
   return "approved";
 }
@@ -552,8 +557,8 @@ function jobStatusChip(
 
   if (s === "paid") return { text: "Paid", cls: "ff-jobChip ff-jobChipGreen" };
   if (s === "invoiced") return { text: "Invoiced", cls: "ff-jobChip ff-jobChipBlue" };
-  if (s === "complete") return { text: "Complete", cls: "ff-jobChip ff-jobChipGreen" };
-  if (s === "in_progress") return { text: "In_progress", cls: "ff-jobChip ff-jobChipBlue" };
+if (s === "completed") return { text: "Finished", cls: "ff-jobChip ff-jobChipGreen" };
+  if (s === "in_progress") return { text: "In progress", cls: "ff-jobChip ff-jobChipBlue" };
   if (s === "booked") return { text: "Booked", cls: "ff-jobChip ff-jobChipGreen" };
 
   return { text: "Approved", cls: "ff-jobChip ff-jobChipAmber" };
@@ -636,14 +641,14 @@ if (!request?.job_booked_at && status === "approved") {
   }
 
   if (
-    (status === "in_progress" || status === "complete" || status === "invoiced") &&
+    (status === "in_progress" || status === "completed" || status === "invoiced") &&
     traderFiles.length === 0
   ) {
     out.push("No site files uploaded");
   }
 
   if (
-    (status === "complete" || status === "invoiced" || status === "paid") &&
+    (status === "completed" || status === "invoiced" || status === "paid") &&
     jobDocs.length === 0
   ) {
     out.push("No final documents uploaded");
@@ -727,9 +732,9 @@ const [selectedRequestIdState, setSelectedRequestIdState] = useState<string | nu
 );
 const selectedRequestId = requestIdParam || selectedRequestIdState;
 
-  const [statusFilter, setStatusFilter] = useState<
-    "" | "approved" | "booked" | "in_progress" | "complete" | "invoiced" | "paid"
-  >("");
+const [statusFilter, setStatusFilter] = useState<
+  "" | "approved" | "booked" | "in_progress" | "completed" | "invoiced" | "paid"
+>("");
   const [postcodeFilter, setPostcodeFilter] = useState("");
 
   const [rightTab, setRightTab] = useState<JobTab>("overview");
@@ -1199,7 +1204,7 @@ async function markInProgress() {
 }
 
   async function markComplete() {
-    await updateJobStatus("complete", "Job marked complete");
+    await updateJobStatus("completed", "Job marked finished");
   }
 
   async function markInvoiced() {
@@ -2078,7 +2083,7 @@ const counts = useMemo(() => {
     const quote = quoteMap[request.id] || null;
     const visit = visitMap[request.id] || null;
     const s = normalizeJobStatus(quote, request, visit);
-    return s === "in_progress" || s === "complete";
+    return s === "in_progress" || s === "completed";
   }).length;
 
   const paid = visibleJobs.filter((request) => {
@@ -2319,7 +2324,7 @@ const hours =
     };
   }
 
-  if (status === "complete") {
+  if (status === "completed") {
     return {
       title: "Send invoice",
       text: "Don’t delay — sending now increases chance of fast payment.",
@@ -2534,11 +2539,11 @@ return (
                 <button
                   type="button"
                   className={`ff-pillSmall ${
-                    statusFilter === "complete" ? "ff-pillNeutralActive" : ""
+                    statusFilter === "completed" ? "ff-pillNeutralActive" : ""
                   }`}
-                  onClick={() => setStatusFilter("complete")}
+                  onClick={() => setStatusFilter("completed")}
                 >
-                  Complete
+                  Finished
                 </button>
               </div>
 
@@ -2628,16 +2633,17 @@ return (
     In progress
   </button>
 
-  <button
-    type="button"
-    className={`ff-segBtn ${statusFilter === "complete" ? "isActive" : ""}`}
-    onClick={() => {
-      setIssueOnly(false);
-      setStatusFilter("complete");
-    }}
-  >
-    Complete
-  </button>
+
+<button
+  type="button"
+  className={`ff-segBtn ${statusFilter === "completed" ? "isActive" : ""}`}
+  onClick={() => {
+    setIssueOnly(false);
+    setStatusFilter("completed");
+  }}
+>
+  Finished
+</button>
 </div>
 {issueOnly && (
   <div className="ff-filterHint">
@@ -3399,7 +3405,7 @@ className={`ff-leftItem
                               selectedQuote,
                               selectedRequest,
                               selectedVisit
-                            ) === "complete" ? (
+                            ) === "completed" ? (
                               <button
                                 type="button"
                                 className="ff-btn ff-btnGreen"
@@ -3976,7 +3982,7 @@ const body = (m.body_text ?? "").trim();
                               selectedQuote,
                               selectedRequest,
                               selectedVisit
-                            ) === "complete" ? (
+                            ) === "completed" ? (
                               <button
                                 type="button"
                                 className="ff-btn ff-btnGreen"

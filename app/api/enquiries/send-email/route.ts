@@ -128,11 +128,11 @@ const followUpNumber =
 
     const admin = supabaseAdmin();
 
-    const { data: reqRow, error: reqErr } = await admin
-      .from("quote_requests")
-      .select("id, plumber_id, status, job_type, customer_name")
-      .eq("id", requestId)
-      .maybeSingle();
+const { data: reqRow, error: reqErr } = await admin
+  .from("quote_requests")
+  .select("id, plumber_id, status, stage, job_type, customer_name")
+  .eq("id", requestId)
+  .maybeSingle();
 
     if (reqErr) {
       return json(500, { ok: false, error: reqErr.message });
@@ -259,7 +259,24 @@ ${messageUrl}`,
       return json(500, { ok: false, error: ins.error.message });
     }
 
-const shouldSkipStatusUpdate = Boolean(body?.isDecline);
+const currentStage = String(reqRow.stage || "").toLowerCase();
+const currentStatus = String(reqRow.status || "").toLowerCase();
+
+const protectedStages = [
+  "won",
+  "lost",
+  "declined",
+  "booked",
+  "in_progress",
+  "completed",
+  "invoiced",
+  "paid",
+];
+
+const shouldSkipStatusUpdate =
+  Boolean(body?.isDecline) ||
+  protectedStages.includes(currentStage) ||
+  protectedStages.includes(currentStatus);
 
 const upd = shouldSkipStatusUpdate
   ? { error: null }

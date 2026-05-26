@@ -36,7 +36,9 @@ photo_count: number | null;
 
   created_at: string;
   trader_notes: string | null;
-
+declined_at?: string | null;
+decline_reason?: string | null;
+decline_note?: string | null;
   is_still_working: string | null;
   has_happened_before: string | null;
   budget: string | null;
@@ -3375,6 +3377,7 @@ async function loadThread(requestId: string, userId: string) {
     .from("enquiry_messages")
     .select("*")
     .eq("request_id", requestId)
+.eq("plumber_id", userId)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -3418,7 +3421,8 @@ async function loadThread(requestId: string, userId: string) {
 const { data, error } = await supabase
   .from("enquiry_messages")
   .select("*")
-  .in("request_id", requestIds)
+ .eq("plumber_id", userId)
+.in("request_id", requestIds)
   .order("created_at", { ascending: true });
 
   if (error) {
@@ -3588,15 +3592,17 @@ const res = await fetch("/api/ai/analyse-enquiry", {
       return;
     }
 
-    const patch = {
-      ai_urgency_score: data.ai_urgency_score,
-      ai_job_value_band: data.ai_job_value_band,
-      ai_conversion_score: data.ai_conversion_score,
-      ai_recommended_action: data.ai_recommended_action,
-      ai_summary: data.ai_summary,
-      ai_suggested_reply: data.ai_suggested_reply,
-      ai_last_processed_at: data.ai_last_processed_at,
-    };
+const updated = data?.updatedRow;
+
+const patch = {
+  ai_urgency_score: updated?.ai_urgency_score ?? null,
+  ai_job_value_band: updated?.ai_job_value_band ?? null,
+  ai_conversion_score: updated?.ai_conversion_score ?? null,
+  ai_recommended_action: updated?.ai_recommended_action ?? null,
+  ai_summary: updated?.ai_summary ?? data?.decision?.summary ?? null,
+  ai_suggested_reply: updated?.ai_suggested_reply ?? data?.decision?.draft_message ?? null,
+  ai_last_processed_at: updated?.ai_last_processed_at ?? new Date().toISOString(),
+};
 
     setRows((prev) =>
       prev.map((row) =>
@@ -4790,7 +4796,7 @@ const { data, error } = await supabase
     }
 
     const loaded = (data || []) as QuoteRequestRow[];
-    const history = await getCustomerHistoryMap(user.id, loaded);
+  
 
 
     setRows(loaded);
@@ -4800,13 +4806,13 @@ await loadThreadMapForRows(loaded, user.id);
 
     setLoading(false);
   })();
-}, [router]);
+}, [router, limitCount]);
 
 useEffect(() => {
   if (!selectedRow || !uid) return;
 
-  if (!urlTab) {
-  setRightTab("messages");
+if (!urlTab) {
+  setRightTab("details");
 }
 
   setTraderNotes(selectedRow.trader_notes || "");
@@ -5094,8 +5100,8 @@ useEffect(() => {
 
   return (
     <>
-     <div className="ff-appShell"></div>
-      <div className="ff-page">
+  <div className="ff-appShell">
+  <div className="ff-page">
         <div className="ff-wrap">
           <div className="ff-top">
             <div className="ff-hero">
@@ -5109,6 +5115,7 @@ useEffect(() => {
                     Keep every lead organised — quote faster, follow up properly,
                     and never lose a job because something slipped through.
                   </div>
+                </div>
                 </div>
                 
 

@@ -271,7 +271,7 @@ export async function POST(req: Request) {
 
     const pdfDownloadUrl = signedPdf.signedUrl;
 
-const payUrl = `https://www.thefixflowapp.com/pay/${inv.id}`;
+const payUrl = `https://thefixflowapp.com/pay/${inv.id}`;
 
     const customerName = String(linkedRequest?.customer_name || "there").trim();
     const invoiceNumber = String(inv.invoice_number || refDefault).trim();
@@ -442,25 +442,36 @@ console.log("📧 Invoice email sent to:", to);
 console.log("📧 Invoice from:", from);
 
     const update1 = await admin
-      .from("invoices")
-      .update({ status: "sent", issued_at: sentAtISO })
-      .eq("id", inv.id)
-      .eq("user_id", uid);
+  .from("invoices")
+  .update({ status: "sent", issued_at: sentAtISO })
+  .eq("id", inv.id)
+  .eq("user_id", uid);
 
-    if (update1.error) {
-      await admin
-        .from("invoices")
-        .update({ status: "sent" })
-        .eq("id", inv.id)
-        .eq("user_id", uid);
-    }
+if (update1.error) {
+  await admin
+    .from("invoices")
+    .update({ status: "sent" })
+    .eq("id", inv.id)
+    .eq("user_id", uid);
+}
 
-    return NextResponse.json({
-      ok: true,
-      sent,
-      sent_at: sentAtISO,
-      pdfDownloadUrl,
-    });
+if (rqId && isUuid(rqId)) {
+  await admin
+    .from("quote_requests")
+    .update({
+      stage: "invoiced",
+      status: "invoiced",
+    })
+    .eq("id", rqId)
+    .eq("plumber_id", uid);
+}
+
+return NextResponse.json({
+  ok: true,
+  sent,
+  sent_at: sentAtISO,
+  pdfDownloadUrl,
+});
   } catch (e: any) {
     console.error("❌ invoice send-email crashed:", e);
     return NextResponse.json(

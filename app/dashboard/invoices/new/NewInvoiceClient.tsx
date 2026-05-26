@@ -634,13 +634,22 @@ async function saveInvoice() {
       return;
     }
 
-    if (data) {
-      const next = data as InvoiceRow;
-      setInvoices((prev) => prev.map((i) => (i.id === invoiceId ? next : i)));
-      if (selectedInvoice?.id === invoiceId) {
-        setDetailStatus(next.status || "draft");
-      }
-    }
+if (data) {
+  const next = data as InvoiceRow;
+  setInvoices((prev) => prev.map((i) => (i.id === invoiceId ? next : i)));
+
+  if (nextStatus === "paid" && next.request_id) {
+    await supabase
+      .from("quote_requests")
+      .update({ stage: "paid", status: "paid" })
+      .eq("id", next.request_id)
+      .eq("plumber_id", userId);
+  }
+
+  if (selectedInvoice?.id === invoiceId) {
+    setDetailStatus(next.status || "draft");
+  }
+}
 
     pushToast("Updated ✓", "success");
     setBusy(false);

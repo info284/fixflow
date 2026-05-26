@@ -104,7 +104,15 @@ export async function POST(req: Request) {
         { status: 404 }
       );
     }
+const enquiryStage = String(enquiry.stage || "").toLowerCase();
 
+if (enquiryStage === "won" || enquiryStage === "lost") {
+  return NextResponse.json({
+    ok: true,
+    skipped: true,
+    reason: `Enquiry is already ${enquiryStage}`,
+  });
+}
     const { data: messages, error: messagesError } = await supabaseAdmin
       .from("enquiry_messages")
       .select("*")

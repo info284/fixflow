@@ -87,7 +87,23 @@ export async function POST(req: Request) {
       })
       .eq("id", invoice.id);
 
-    if (paidError) console.error("Invoice update failed:", paidError.message);
+      if (paidError) {
+  console.error("Invoice update failed:", paidError.message);
+} else if (invoice.request_id) {
+  const { error: requestPaidError } = await supabase
+    .from("quote_requests")
+    .update({
+      status: "paid",
+      stage: "won",
+    })
+    .eq("id", invoice.request_id);
+
+  if (requestPaidError) {
+    console.error("Quote request paid update failed:", requestPaidError.message);
+  }
+}
+
+
 
     const { data: requestRow } = await supabase
       .from("quote_requests")

@@ -1918,18 +1918,19 @@ const pricingInsight = useMemo(() => {
     `${selectedRow.job_type || ""} ${selectedRow.details || ""}`
   );
 
-  // 💰 2. ONLY use WON jobs
-  const relevantJobs = pricingHistory.filter((j) => {
-    const jobType =
-      j.quote_requests?.job_type ||
-      j.job_type ||
-      "";
+const quotedJobs = pricingHistory.filter((j) => {
+  const jobType =
+    j.quote_requests?.job_type ||
+    j.job_type ||
+    "";
 
-    return (
-      j.status === "accepted" &&
-      getJobCategory(jobType) === category
-    );
-  });
+  return getJobCategory(jobType) === category;
+});
+
+  // 💰 2. ONLY use WON jobs
+const relevantJobs = quotedJobs.filter(
+(j) => j.status === "accepted"
+);
 
   const prices = relevantJobs
   .map((j) => j.total || 0)
@@ -2023,15 +2024,24 @@ const confidence =
       ? Math.round((profit / suggested) * 100)
       : 0;
 
+const quotedCount = quotedJobs.length;
+const acceptedCount = relevantJobs.length;
+
+const acceptanceRate =
+  quotedCount > 0 ? Math.round((acceptedCount / quotedCount) * 100) : null;
+
 return {
   suggested,
   base,
-  avgFromHistory, // 👈 important
+  avgFromHistory,
   multiplier,
   cost,
   profit,
   margin,
   jobsUsed: relevantJobs.length,
+  acceptanceRate,
+  quotedCount,
+  acceptedCount,
 
   // 👇 NEW (for UI range)
   rangeLow: Math.round(base * 0.85),
@@ -2857,7 +2867,7 @@ const activeEnquiryRows = useMemo(() => {
       messages,
     });
 
-    return stage !== "won";
+    return stage !== "won" && stage !== "lost";
   });
 }, [sortedRows, estimateMap, visitMap, threadMap]);
 
@@ -4588,19 +4598,27 @@ async function loadPricingHistory(userId: string) {
   const { data, error } = await supabase
     .from("estimates")
     .select(`
-      total,
-      status,
+      id,
       request_id,
+      total,
+      subtotal,
+      status,
+      accepted_at,
+      first_viewed_at,
+      last_viewed_at,
+      view_count,
       quote_requests (
-        job_type
+        job_type,
+        urgency,
+        stage,
+        customer_email
       )
     `)
     .eq("plumber_id", userId)
-    .eq("status", "accepted") // ✅ ONLY REAL WON JOBS
     .not("total", "is", null);
 
   if (error) {
-    console.error("Pricing history load error:", JSON.stringify(error, null, 2));
+    console.error("Pricing history load error:", error);
     return;
   }
 
@@ -5435,8 +5453,8 @@ const isRepeat = repeatCount > 0;
     derivedStage,
   });
 
-  const aiActionMeta =
-    displayedAiAction === "follow_up"
+const aiActionMeta =
+  derivedStage !== "lost" && displayedAiAction === "follow_up"
       ? { text: "Follow up now", cls: "ff-leftHint ff-leftHintAmber" }
       : getAiActionMeta(
           displayedAiAction as QuoteRequestRow["ai_recommended_action"]
@@ -5469,7 +5487,8 @@ const nextAction = getLeftNextAction({
 
 const showBottomHint = nextAction.type === "hint";
 
-const followUp = followUpMap[r.id];
+const isLost = derivedStage === "lost";
+const followUp = isLost ? null : followUpMap[r.id];
 
 return (
   <div

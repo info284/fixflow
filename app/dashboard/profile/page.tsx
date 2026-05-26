@@ -68,6 +68,17 @@ type TraderCertificate = {
 
 };
 
+type ReviewRow = {
+  id: string;
+  trader_id: string;
+  request_id: string | null;
+  rating: number;
+  comment: string | null;
+  customer_name: string | null;
+  created_at: string;
+  verified: boolean | null;
+};
+
 function slugify(input: string) {
   return input
     .toLowerCase()
@@ -252,6 +263,8 @@ const [confirmState, setConfirmState] = useState<{
 });
 const [editingCertId, setEditingCertId] = useState<string | null>(null);
 const [certificates, setCertificates] = useState<TraderCertificate[]>([]);
+const [reviews, setReviews] = useState<ReviewRow[]>([]);
+const [reviewsLoading, setReviewsLoading] = useState(false);
 const [certName, setCertName] = useState("");
 const [certNumber, setCertNumber] = useState("");
 const [certExpiry, setCertExpiry] = useState("");
@@ -457,6 +470,32 @@ const loadCertificates = async (uid: string) => {
     setServicesLoading(false);
   };
 
+const loadReviews = async (uid: string) => {
+  setReviewsLoading(true);
+
+  const { data, error } = await supabase
+    .from("reviews")
+    .select(`
+      id,
+      trader_id,
+      request_id,
+      rating,
+      comment,
+      customer_name,
+      created_at,
+      verified
+    `)
+    .eq("trader_id", uid)
+    .eq("status", "published")
+    .order("created_at", { ascending: false });
+
+  if (!error) {
+    setReviews((data || []) as ReviewRow[]);
+  }
+
+  setReviewsLoading(false);
+};
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -517,8 +556,8 @@ await Promise.all([
   loadTrades(),
   loadServices(user.id),
   loadCertificates(user.id),
+  loadReviews(user.id),
 ]);
-
       setLoading(false);
     };
 
@@ -1421,6 +1460,22 @@ const certificateWarnings = useMemo(() => {
 
   return { expiringSoon, expired };
 }, [certificates]);
+
+const reviewStats = useMemo(() => {
+  const count = reviews.length;
+
+  const average =
+    count > 0
+      ? reviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / count
+      : 0;
+
+  return {
+    count,
+    average,
+    rounded: average ? average.toFixed(1) : "—",
+  };
+}, [reviews]);
+
   return (
     <div className="ff-page">
       <div className="ff-wrap">
@@ -1860,7 +1915,73 @@ const certificateWarnings = useMemo(() => {
               )}
             </div>
           </div>
+<div className="ff-card">
+  <div className="ff-cardHead">
+    <div className="ff-cardHeading">
+      <div className="ff-cardAccent" />
+      <div>
+        <div className="ff-cardTitle">REVIEWS</div>
+        <div className="ff-cardSub">
+          Verified customer reviews collected through FixFlow.
+        </div>
+      </div>
+    </div>
+  </div>
 
+  <div className="ff-cardBody">
+    {reviewsLoading ? (
+      <div className="ff-help">Loading reviews…</div>
+    ) : reviews.length === 0 ? (
+      <div className="ff-help">
+        No reviews yet. Use “Ask for review” from a completed job.
+      </div>
+    ) : (
+      <>
+        <div className="ff-reviewSummary">
+          <div>
+            <div className="ff-reviewStars">★★★★★</div>
+
+            <div className="ff-reviewScore">
+              {reviewStats.rounded} average rating
+            </div>
+          </div>
+
+          <div className="ff-reviewCount">
+            {reviewStats.count}
+            <span>
+              review{reviewStats.count === 1 ? "" : "s"}
+            </span>
+          </div>
+        </div>
+
+        <div className="ff-reviewList">
+          {reviews.slice(0, 3).map((r) => (
+            <div key={r.id} className="ff-reviewItem">
+              <div className="ff-reviewTop">
+                <strong>{r.customer_name || "Customer"}</strong>
+
+                <span>
+                  {r.verified ? "Verified" : "Review"}
+                </span>
+              </div>
+
+              <div className="ff-reviewMiniStars">
+                {"★".repeat(r.rating)}
+                {"☆".repeat(5 - r.rating)}
+              </div>
+
+              {r.comment ? (
+                <div className="ff-reviewComment">
+                  “{r.comment}”
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </>
+    )}
+  </div>
+</div>
           <div className="ff-card">
   <div className="ff-cardHead">
     <div className="ff-cardHeading">
@@ -2621,6 +2742,89 @@ Choose PDF / image
 }
 
 const styles = `
+
+.ff-reviewSummary{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  padding:16px;
+  border:1px solid #e6ecf5;
+  border-radius:18px;
+  background:linear-gradient(180deg,#f8fbff,#ffffff);
+}
+
+.ff-reviewStars{
+  color:#f5b301;
+  font-size:22px;
+  letter-spacing:2px;
+}
+
+.ff-reviewScore{
+  margin-top:4px;
+  font-size:13px;
+  font-weight:900;
+  color:#1f355c;
+}
+
+.ff-reviewCount{
+  font-size:30px;
+  font-weight:950;
+  color:#102a56;
+  text-align:right;
+}
+
+.ff-reviewCount span{
+  display:block;
+  font-size:12px;
+  color:#5c6b84;
+  font-weight:800;
+}
+
+.ff-reviewList{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  margin-top:14px;
+}
+
+.ff-reviewItem{
+  padding:14px;
+  border:1px solid #e6ecf5;
+  border-radius:16px;
+  background:#fff;
+}
+
+.ff-reviewTop{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  font-size:13px;
+  color:#102a56;
+}
+
+.ff-reviewTop span{
+  padding:4px 8px;
+  border-radius:999px;
+  background:#ecfdf3;
+  color:#116b3a;
+  font-size:11px;
+  font-weight:900;
+}
+
+.ff-reviewMiniStars{
+  margin-top:6px;
+  color:#f5b301;
+  font-size:14px;
+  letter-spacing:1px;
+}
+
+.ff-reviewComment{
+  margin-top:8px;
+  font-size:13px;
+  line-height:1.5;
+  color:#5c6b84;
+}
 
 .ff-docWarning{
   margin:16px 20px 0;

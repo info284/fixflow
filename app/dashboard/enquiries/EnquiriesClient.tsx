@@ -5116,7 +5116,7 @@ useEffect(() => {
                     and never lose a job because something slipped through.
                   </div>
                 </div>
-                </div>
+               
                 
 
                 <div className="ff-heroStats">
@@ -8505,6 +8505,7 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {toast ? (

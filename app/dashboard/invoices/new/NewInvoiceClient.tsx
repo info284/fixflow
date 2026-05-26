@@ -836,7 +836,7 @@ return (
             </div>
 
             <div className="ff-actions">
-              <button className="ff-btnGhost" type="button" onClick={loadAll}>
+              <button className="ff-btn ff-btnGhost" type="button" onClick={loadAll}>
                 Refresh
               </button>
             </div>
@@ -1570,7 +1570,7 @@ const total = s + vatAmount;
 
                         <div className="ff-noteFoot">
                           <button
-                            className="ff-btnGhost"
+                           className="ff-btn ff-btnGhost"
                             type="button"
                             onClick={() => setDetailNotes("")}
                           >
@@ -1606,7 +1606,7 @@ const total = s + vatAmount;
 <div className="ff-modalActions">
 <button
 type="button"
-className="ff-btnGhost"
+className="ff-btn ff-btnGhost"
 onClick={() => setConfirmModal(null)}
 >
 Cancel
@@ -1770,10 +1770,10 @@ gap: 10px;
     grid-column: 1 / -1;
   }
 
-  .ff-fieldFull .ff-btnPrimary {
-    width: 100%;
-    margin-top: 2px;
-  }
+.ff-fieldFull .ff-btnFull {
+  width: 100%;
+  margin-top: 2px;
+}
 
   .ff-inputWide {
     height: 38px;

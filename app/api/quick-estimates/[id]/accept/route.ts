@@ -38,6 +38,28 @@ function niceDateTime(value?: string | null) {
   });
 }
 
+async function trackQuickEstimateView(id: string) {
+  const supabase = getSupabase();
+  const nowIso = new Date().toISOString();
+
+  const { data: existing, error: loadError } = await supabase
+    .from("quick_estimates")
+    .select("id, view_count, first_viewed_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (loadError || !existing) return;
+
+  await supabase
+    .from("quick_estimates")
+    .update({
+      view_count: Number(existing.view_count || 0) + 1,
+      first_viewed_at: existing.first_viewed_at || nowIso,
+      last_viewed_at: nowIso,
+    })
+    .eq("id", id);
+}
+
 async function acceptQuickEstimate(id: string) {
   const supabase = getSupabase();
   const acceptedAt = new Date().toISOString();

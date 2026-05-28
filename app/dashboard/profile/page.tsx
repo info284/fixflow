@@ -523,7 +523,7 @@ const loadReviews = async (uid: string) => {
       const { data, error } = await supabase
         .from("profiles")
 .select(
-  "id, slug, display_name, headline, notify_email, logo_url, profile_photo_url, business_phone, business_description, years_in_business, trading_address, insurance_cover, after_job_guarantee, completion_email_enabled, default_completion_messag, vat_number, bank_name, bank_account_name, bank_sort_code, bank_account_number"
+"id, slug, display_name, headline, notify_email, logo_url, profile_photo_url, business_phone, business_description, years_in_business, trading_address, insurance_cover, after_job_guarantee, completion_email_enabled, default_completion_message, vat_number, bank_name, bank_account_name, bank_sort_code, bank_account_number"
 )
         .eq("id", user.id)
         .maybeSingle();

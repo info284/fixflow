@@ -1622,30 +1622,53 @@ const reviewStats = useMemo(() => {
 
                     <div className="ff-logoPick">
                       <div className="ff-logoMiniTitle">Your brand</div>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={onLogoPicked}
-                        className="ff-file"
-                        disabled={logoUploading || loading}
-                      />
-                      <div className="ff-help">
-                        PNG or JPG up to 5MB. This shows on estimates and documents.
-                      </div>
+<label className="ff-btn ff-btnSoftPrimary">
+  {profile?.logo_url ? "Change brand image" : "Upload brand image"}
+
+  <input
+    type="file"
+    accept="image/*"
+    onChange={onLogoPicked}
+    disabled={logoUploading || loading}
+    style={{ display: "none" }}
+  />
+</label>
+
+<div className="ff-helpOk">
+  {profile?.logo_url
+    ? "Brand image saved ✅"
+    : "No brand image uploaded yet."}
+</div>
+
+<div className="ff-help">
+  PNG or JPG up to 5MB. This shows on estimates and documents.
+</div>
 <div style={{ marginTop: 14 }}>
-  <label className="ff-label">Profile photo</label>
+<label className="ff-label">Profile photo</label>
 
-<input
-  type="file"
-  accept="image/*"
-  onChange={onProfilePhotoPicked}
-  className="ff-file"
-  disabled={profilePhotoUploading || loading}
-/>
+<label className="ff-btn ff-btnSoftPrimary">
+  {profile?.profile_photo_url
+    ? "Change profile photo"
+    : "Upload profile photo"}
 
-  <div className="ff-help">
-    A friendly face builds trust with customers.
-  </div>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={onProfilePhotoPicked}
+    disabled={profilePhotoUploading || loading}
+    style={{ display: "none" }}
+  />
+</label>
+
+<div className="ff-helpOk">
+  {profile?.profile_photo_url
+    ? "Profile photo saved ✅"
+    : "No profile photo uploaded yet."}
+</div>
+
+<div className="ff-help">
+  A friendly face builds trust with customers.
+</div>
 
   {profilePhotoUploading ? <div className="ff-help">Uploading…</div> : null}
   {profilePhotoError ? <div className="ff-helpBad">{profilePhotoError}</div> : null}
@@ -2854,6 +2877,11 @@ const styles = `
   font-size:13px;
   color:#1f355c;
 }
+.ff-logoPick .ff-btn {
+  width: fit-content;
+  margin-bottom: 8px;
+}
+
 .ff-progressWrap{
   margin-top:16px;
   padding:14px;

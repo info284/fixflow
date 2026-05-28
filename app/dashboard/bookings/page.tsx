@@ -1944,6 +1944,12 @@ if (!mounted) return;
 
 setUid(userId);
 
+if (!userId) {
+  setLoading(false);
+  pushToast("Please log in.", "error");
+  return;
+}
+
 const { data: profileData } = await supabase
   .from("profiles")
   .select(
@@ -1956,11 +1962,7 @@ setProfileSettings(
   (profileData || null) as ProfileSettings | null
 );
 
-if (!userId) {
-  setLoading(false);
-  pushToast("Please log in.", "error");
-  return;
-}
+
 
       await loadJobsForTrader(userId);
 
@@ -3772,6 +3774,15 @@ className={`ff-leftItem
   onClick={sendHappyCheckMessage}
 >
   🙂 Ask if happy
+</button>
+
+<button
+  className="ff-btn ff-btnGhost ff-btnSm"
+  type="button"
+  onClick={sendCompletionSummary}
+  disabled={!selectedRequest?.customer_email}
+>
+  ✅ Completion summary
 </button>
 
   <button

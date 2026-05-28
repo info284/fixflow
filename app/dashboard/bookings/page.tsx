@@ -54,6 +54,16 @@ type ProfileSettings = {
   default_completion_message: string | null;
 };
 
+type InvoiceRow = {
+  id: string;
+  request_id: string;
+  amount: number | null;
+  status: string | null;
+  created_at: string;
+  issued_at: string | null;
+  due_at: string | null;
+};
+
 type QuoteRow = {
   id: string;
   plumber_id: string;
@@ -722,6 +732,7 @@ export default function JobsPage() {
 
 const [jobs, setJobs] = useState<QuoteRequestRow[]>([]);
 const [quoteMap, setQuoteMap] = useState<Record<string, QuoteRow | null>>({});
+const [invoiceMap, setInvoiceMap] = useState<Record<string, InvoiceRow[]>>({});
 
   const [requestMap, setRequestMap] = useState<Record<string, QuoteRequestRow | null>>(
     {}
@@ -863,11 +874,12 @@ async function loadJobsForTrader(plumberId: string) {
   });
   setRequestMap(requestMapData);
 
-  await Promise.all([
-    loadQuoteMap(plumberId, requestIds),
-    loadSiteVisitMap(plumberId, requestIds),
-    loadThreadMapForRows(requestIds, plumberId),
-  ]);
+await Promise.all([
+  loadQuoteMap(plumberId, requestIds),
+  loadInvoiceMap(plumberId, requestIds),
+  loadSiteVisitMap(plumberId, requestIds),
+  loadThreadMapForRows(requestIds, plumberId),
+]);
 }
 
 async function loadQuoteMap(plumberId: string, requestIds: string[]) {
@@ -947,7 +959,39 @@ for (const est of estimates || []) {
   setQuoteMap(map);
 }
 
+async function loadInvoiceMap(userId: string, requestIds: string[]) {
+  if (!requestIds.length) {
+    setInvoiceMap({});
+    return;
+  }
 
+  const { data, error } = await supabase
+    .from("invoices")
+    .select("id, request_id, amount, status, created_at, issued_at, due_at")
+    .eq("user_id", userId)
+    .in("request_id", requestIds)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("loadInvoiceMap error:", error);
+    setInvoiceMap({});
+    return;
+  }
+
+  const map: Record<string, InvoiceRow[]> = {};
+
+  requestIds.forEach((id) => {
+    map[id] = [];
+  });
+
+  for (const invoice of (data || []) as InvoiceRow[]) {
+    if (!invoice.request_id) continue;
+    if (!map[invoice.request_id]) map[invoice.request_id] = [];
+    map[invoice.request_id].push(invoice);
+  }
+
+  setInvoiceMap(map);
+}
 
   async function loadSiteVisitMap(plumberId: string, requestIds: string[]) {
     if (!requestIds.length) {
@@ -2191,23 +2235,8 @@ const counts = useMemo(() => {
 }, [visibleJobs, quoteMap, visitMap]);
 
 const revenue = useMemo(() => {
-  if (!jobs.length) {
-    return {
-      invoiced: 0,
-      paid: 0,
-      outstanding: 0,
-      overdue: 0,
-      overdueCount: 0,
-    };
-  }
-
   const now = new Date();
-
-  const startOfMonth = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1
-  );
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   let invoiced = 0;
   let paid = 0;
@@ -2215,53 +2244,40 @@ const revenue = useMemo(() => {
   let overdue = 0;
   let overdueCount = 0;
 
-  for (const request of jobs) {
-    const quote = quoteMap[request.id];
-    if (!quote) continue;
+  Object.values(invoiceMap).forEach((invoices) => {
+    invoices.forEach((invoice) => {
+      const created = new Date(invoice.issued_at || invoice.created_at);
+      if (created < startOfMonth) return;
 
-    const value = Number(quote.subtotal || 0);
+      const amount = Number(invoice.amount || 0);
+      const status = String(invoice.status || "").toLowerCase();
 
-    // ✅ use SENT date if available
-    const baseDate = quote.sent_at || quote.created_at;
-    const created = new Date(baseDate);
+      if (["sent", "paid", "overdue"].includes(status)) {
+        invoiced += amount;
+      }
 
-    const isThisMonth = created >= startOfMonth;
+      if (status === "paid") {
+        paid += amount;
+      }
 
-    if (!isThisMonth) continue;
+      if (status === "sent" || status === "overdue") {
+        outstanding += amount;
+      }
 
-    const status = String(quote.status || "").toLowerCase();
+      const dueDate = invoice.due_at ? new Date(invoice.due_at) : null;
 
-    if (status === "invoiced" || status === "paid") {
-      invoiced += value;
-    }
-
-    if (status === "paid") {
-      paid += value;
-    }
-
-    if (status === "invoiced") {
-      outstanding += value;
-
-      // ⏰ OVERDUE LOGIC (simple version)
-      const ageHours =
-        (now.getTime() - created.getTime()) /
-        (1000 * 60 * 60);
-
-      if (ageHours > 72) {
-        overdue += value;
+      if (
+        status !== "paid" &&
+        ((dueDate && dueDate < now) || status === "overdue")
+      ) {
+        overdue += amount;
         overdueCount++;
       }
-    }
-  }
+    });
+  });
 
-  return {
-    invoiced,
-    paid,
-    outstanding,
-    overdue,
-    overdueCount,
-  };
-}, [jobs, quoteMap]);
+  return { invoiced, paid, outstanding, overdue, overdueCount };
+}, [invoiceMap]);
 
 const paymentInsights = useMemo(() => {
   const now = new Date();

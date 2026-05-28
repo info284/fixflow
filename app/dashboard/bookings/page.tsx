@@ -47,6 +47,13 @@ stage: string | null;
   photo_count: number | null;
 };
 
+type ProfileSettings = {
+  display_name: string | null;
+  after_job_guarantee: string | null;
+  completion_email_enabled: boolean | null;
+  default_completion_message: string | null;
+};
+
 type QuoteRow = {
   id: string;
   plumber_id: string;
@@ -704,6 +711,8 @@ export default function JobsPage() {
  const requestIdParam = cleanId(sp.get("requestId"));
 
   const [uid, setUid] = useState<string | null>(null);
+  const [profileSettings, setProfileSettings] =
+  useState<ProfileSettings | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [toast, setToast] = useState<{
@@ -1604,6 +1613,77 @@ async function sendHappyCheckMessage() {
     pushToast("Couldn’t send check-in", "error");
   }
 }
+
+async function sendCompletionSummary() {
+  if (!selectedRequest || !uid) return;
+
+  if (!selectedRequest.customer_email) {
+    pushToast("Customer email missing.", "error");
+    return;
+  }
+
+  const customerName = selectedRequest.customer_name
+    ? titleCase(selectedRequest.customer_name)
+    : "there";
+
+  const guarantee =
+    profileSettings?.after_job_guarantee ||
+    "Any workmanship guarantee will be confirmed by your trader.";
+
+  const customMessage =
+    profileSettings?.default_completion_message ||
+    "Thank you for choosing us. The work has now been completed.";
+
+  const workDone =
+    workDescription ||
+    selectedQuote?.job_details ||
+    selectedRequest.details ||
+    selectedRequest.job_type ||
+    "the agreed work";
+
+  const message = `Hi ${customerName},
+
+${customMessage}
+
+Work completed:
+${workDone}
+
+Guarantee / aftercare:
+${guarantee}
+
+If anything doesn’t seem right, please reply to this email and I’ll help.
+
+Thanks,
+${profileSettings?.display_name || "Your trader"}`;
+
+  try {
+    const res = await fetch("/api/enquiries/send-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        requestId: selectedRequest.id,
+        plumberId: uid,
+        to: selectedRequest.customer_email,
+        subject: `Job completed — ${selectedRequest.job_type || "Your job"}`,
+        body: message,
+        customerName: selectedRequest.customer_name,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Couldn’t send completion summary");
+
+    await loadThread(selectedRequest.id, uid);
+    await loadThreadMapForRows([selectedRequest.id], uid);
+
+    pushToast("Completion summary sent");
+  } catch (err) {
+    console.error(err);
+    pushToast("Couldn’t send completion summary", "error");
+  }
+}
+
 async function sendReviewRequest() {
   if (!selectedRequest) return;
 
@@ -1860,14 +1940,27 @@ const {
 
 const userId = session?.user?.id ?? null;
 
-      if (!mounted) return;
-      setUid(userId);
+if (!mounted) return;
 
-      if (!userId) {
-        setLoading(false);
-        pushToast("Please log in.", "error");
-        return;
-      }
+setUid(userId);
+
+const { data: profileData } = await supabase
+  .from("profiles")
+  .select(
+    "display_name, after_job_guarantee, completion_email_enabled, default_completion_message"
+  )
+  .eq("id", userId)
+  .maybeSingle();
+
+setProfileSettings(
+  (profileData || null) as ProfileSettings | null
+);
+
+if (!userId) {
+  setLoading(false);
+  pushToast("Please log in.", "error");
+  return;
+}
 
       await loadJobsForTrader(userId);
 
@@ -1901,8 +1994,8 @@ const userId = session?.user?.id ?? null;
         )
         .subscribe();
 
-      setLoading(false);
-    })();
+setLoading(false);
+  })();
 
     return () => {
       mounted = false;
@@ -3088,6 +3181,14 @@ className={`ff-leftItem
     >
       🙂 Ask if happy
     </button>
+    <button
+  className="ff-btn ff-btnGhost ff-btnSm"
+  type="button"
+  onClick={sendCompletionSummary}
+  disabled={!selectedRequest?.customer_email}
+>
+  ✅ Send completion summary
+</button>
   </div>
 </div>
 

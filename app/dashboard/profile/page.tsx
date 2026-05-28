@@ -664,6 +664,50 @@ await Promise.all([
     window.open(publicProfileUrl, "_blank", "noopener,noreferrer");
   };
 
+async function connectStripe() {
+  try {
+    // 1. Create account
+    const createRes = await fetch(
+      "/api/stripe/connect/create-account",
+      {
+        method: "POST",
+      }
+    );
+
+    const createJson = await createRes.json();
+
+    if (!createRes.ok) {
+      throw new Error(createJson?.error || "Could not create account");
+    }
+
+    // 2. Create onboarding link
+    const linkRes = await fetch(
+      "/api/stripe/connect/create-link",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accountId: createJson.accountId,
+        }),
+      }
+    );
+
+    const linkJson = await linkRes.json();
+
+    if (!linkRes.ok) {
+      throw new Error(linkJson?.error || "Could not create onboarding link");
+    }
+
+    // 3. Redirect to Stripe
+    window.location.href = linkJson.url;
+  } catch (err) {
+    console.error(err);
+    alert("Could not connect Stripe");
+  }
+}
+
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     if (!userId) return;
@@ -1583,6 +1627,13 @@ const reviewStats = useMemo(() => {
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
+        <button
+  type="button"
+  className="ff-btn ff-btnDark"
+  onClick={connectStripe}
+>
+  Connect Stripe
+</button>
       </div>
     </div>
   </div>

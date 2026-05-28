@@ -47,6 +47,12 @@ const clientId = process.env.GOOGLE_CLIENT_ID!;
 const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
 const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${origin}/api/calendar/callback`;
 
+console.log("Google env check", {
+  hasClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
+  hasClientSecret: Boolean(process.env.GOOGLE_CLIENT_SECRET),
+  redirectUri,
+});
+
 if (!clientId || !clientSecret || !redirectUri) {
 return NextResponse.json(
 { ok: false, error: "Missing GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI" },

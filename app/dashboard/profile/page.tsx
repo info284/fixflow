@@ -28,6 +28,9 @@ type ProfileRow = {
   bank_account_name: string | null;
   bank_sort_code: string | null;
   bank_account_number: string | null;
+  after_job_guarantee: string | null;
+  completion_email_enabled: boolean | null;
+default_completion_message: string | null;
 };
 
 type LocationRow = {
@@ -272,6 +275,9 @@ const [certShowEstimates, setCertShowEstimates] = useState(true);
 const [certShowInvoices, setCertShowInvoices] = useState(true);
 const [certFile, setCertFile] = useState<File | null>(null);
 const [insuranceCover, setInsuranceCover] = useState("");
+const [afterJobGuarantee, setAfterJobGuarantee] = useState("");
+const [completionEmailEnabled, setCompletionEmailEnabled] = useState(true);
+const [defaultCompletionMessage, setDefaultCompletionMessage] = useState("");
   const [services, setServices] = useState<Service[]>([]);
   const [servicesLoading, setServicesLoading] = useState(false);
   const [serviceBusy, setServiceBusy] = useState(false);
@@ -517,7 +523,7 @@ const loadReviews = async (uid: string) => {
       const { data, error } = await supabase
         .from("profiles")
 .select(
-  "id, slug, display_name, headline, notify_email, logo_url, profile_photo_url, business_phone, business_description, years_in_business, trading_address, insurance_cover, vat_number, bank_name, bank_account_name, bank_sort_code, bank_account_number"
+  "id, slug, display_name, headline, notify_email, logo_url, profile_photo_url, business_phone, business_description, years_in_business, trading_address, insurance_cover, after_job_guarantee, completion_email_enabled, default_completion_messag, vat_number, bank_name, bank_account_name, bank_sort_code, bank_account_number"
 )
         .eq("id", user.id)
         .maybeSingle();
@@ -541,6 +547,21 @@ const loadReviews = async (uid: string) => {
 setInsuranceCover(
   p?.insurance_cover ? String(p.insurance_cover) : ""
 );
+
+setAfterJobGuarantee(
+  p?.after_job_guarantee
+    ? String(p.after_job_guarantee)
+    : ""
+);
+
+setCompletionEmailEnabled(
+  p?.completion_email_enabled ?? true
+);
+
+setDefaultCompletionMessage(
+  p?.default_completion_message || ""
+);
+
 setTradingAddress(p?.trading_address || "");
       setNotifyEmail(p?.notify_email || user.email || "");
       setBusinessPhone(p?.business_phone || "");
@@ -665,6 +686,10 @@ await Promise.all([
   ? Number(yearsInBusiness)
   : null,
 insurance_cover: insuranceCover.trim() || null,
+after_job_guarantee: afterJobGuarantee.trim() || null,
+completion_email_enabled: completionEmailEnabled,
+default_completion_message:
+  defaultCompletionMessage.trim() || null,
   trading_address: tradingAddress.trim() || null,
         notify_email: notifyEmail.trim() || null,
         business_phone: businessPhone.trim() || null,
@@ -694,6 +719,10 @@ insurance_cover: insuranceCover.trim() || null,
   ? Number(yearsInBusiness)
   : null,
 insurance_cover: insuranceCover.trim() || null,
+after_job_guarantee: afterJobGuarantee.trim() || null,
+completion_email_enabled: completionEmailEnabled,
+default_completion_message:
+  defaultCompletionMessage.trim() || null,
   trading_address: tradingAddress.trim() || null,
   business_phone: businessPhone.trim() || null,
       vat_number: vatNumber.trim() || null,
@@ -1761,6 +1790,69 @@ const reviewStats = useMemo(() => {
   />
   <div className="ff-help">
     This can later show as “£2m public liability cover” on your marketplace profile.
+  </div>
+</div>
+
+<div className="ff-field">
+  <label className="ff-label">After-job guarantee</label>
+
+  <input
+    className="ff-input"
+    value={afterJobGuarantee}
+    onChange={(e) => setAfterJobGuarantee(e.target.value)}
+    placeholder="e.g. 12-month workmanship guarantee"
+    disabled={loading}
+  />
+
+  <div className="ff-help">
+    Reassure customers with a workmanship or aftercare guarantee.
+  </div>
+</div>
+<div className="ff-divider" />
+
+<div className="ff-sectionTitle">
+  Job completion & aftercare
+</div>
+
+<div className="ff-help">
+  Automatically send a professional completion summary after work is finished.
+</div>
+
+<div className="ff-field" style={{ marginTop: 14 }}>
+  <label className="ff-checkRow">
+    <input
+      type="checkbox"
+      checked={completionEmailEnabled}
+      onChange={(e) =>
+        setCompletionEmailEnabled(e.target.checked)
+      }
+    />
+    Automatically send completion summary emails
+  </label>
+</div>
+
+<div className="ff-field">
+  <label className="ff-label">
+    Default completion message
+  </label>
+
+  <textarea
+    className="ff-input"
+    value={defaultCompletionMessage}
+    onChange={(e) =>
+      setDefaultCompletionMessage(e.target.value)
+    }
+    placeholder="Thank you for choosing us. Your work has now been completed and is covered by our workmanship guarantee."
+    disabled={loading}
+    style={{
+      minHeight: 120,
+      paddingTop: 12,
+      resize: "vertical",
+    }}
+  />
+
+  <div className="ff-help">
+    FixFlow can later use this in automatic completion emails.
   </div>
 </div>
                 <div className="ff-two">

@@ -146,8 +146,10 @@ export async function POST(req: Request) {
         parking: parking || null,
         property_type: property_type || null,
         details,
-        status: "requested",
-        read_at: null,
+status: "new",
+stage: "new",
+read_at: null,
+source: "public_form",
       })
       .select("id, job_number")
       .single();

@@ -149,7 +149,7 @@ export async function POST(req: Request) {
 status: "new",
 stage: "new",
 read_at: null,
-source: "public_form",
+
       })
       .select("id, job_number")
       .single();

@@ -180,7 +180,7 @@ export default function InvoicesPage() {
   const [userId, setUserId] = useState<string | null>(null);
 
   const [requests, setRequests] = useState<RequestRow[]>([]);
-  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
+ const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [estimateMap, setEstimateMap] = useState<Record<string, EstimateRow | null>>({});
 const [extras, setExtras] = useState("0");
 const [detailExtras, setDetailExtras] = useState("0");
@@ -397,7 +397,7 @@ function pushToast(text: string, type: "success" | "error" = "success") {
       pushToast(`Invoices load error: ${invErr.message}`, "error");
     } else {
       const list = (invs || []) as InvoiceRow[];
-      setInvoices(list);
+ setInvoices(list);
 
    if (invoiceIdFromUrl) {
   setSelectedInvoiceId(invoiceIdFromUrl);
@@ -453,6 +453,7 @@ setEstimateMap(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
    const visibleInvoices = useMemo(() => {
+
   let list = [...invoices];
 
     if (statusFilter) {
@@ -820,7 +821,9 @@ if (!isValidEmail(to)) return pushToast("This invoice email looks invalid.", "er
     );
   }
 
-  const mobileDetail = selectedInvoice ? "1" : "0";
+const hasNoInvoicesYet = invoices.length === 0;
+
+const mobileDetail = selectedInvoice ? "1" : "0";
 
 return (
   <React.Fragment>
@@ -1175,11 +1178,29 @@ const total = s + vatAmount;
                 );
               })
             ) : (
+
               <div className="ff-emptyWrap">
-                <EmptyState
-                  title="No invoices yet"
-                  sub="Create one from the form above."
-                />
+                {hasNoInvoicesYet ? (
+                  <div className="ff-invoiceEmptyMini">
+                    <div className="ff-invoiceEmptyIcon">£</div>
+                    <div className="ff-invoiceEmptyMiniTitle">No invoices yet</div>
+                    <div className="ff-invoiceEmptyMiniText">
+                      Once a job is complete, create an invoice and send it straight to the customer.
+                    </div>
+                    <button
+                      type="button"
+                      className="ff-btn ff-btnPrimary ff-btnSm"
+                      onClick={() => router.push("/dashboard/bookings")}
+                    >
+                      Go to jobs
+                    </button>
+                  </div>
+                ) : (
+                  <EmptyState
+                    title="No matching invoices"
+                    sub="Try clearing your filters."
+                  />
+                )}
               </div>
             )}
           </div>
@@ -1189,12 +1210,31 @@ const total = s + vatAmount;
           <div className="ff-rightBody">
             {!selectedInvoice ? (
               <div className="ff-emptyWrap">
-                <div className="ff-empty">
-                  <div className="ff-emptyTitle">Select an invoice</div>
-                  <div className="ff-emptySub">
-                    Pick one from the list to view details.
+                {hasNoInvoicesYet ? (
+                  <div className="ff-invoiceEmptyHero">
+                <div className="ff-sectionBadge">Payment ready</div>
+
+<div className="ff-invoiceEmptyTitle">
+  No invoices yet
+</div>
+
+<div className="ff-invoiceEmptyText">
+  When a job is complete, create an invoice, send it to the customer and track payment here.
+</div>
+                    <button
+                      type="button"
+                      className="ff-btn ff-btnPrimary"
+                      onClick={() => router.push("/dashboard/bookings")}
+                    >
+                      Open jobs
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <EmptyState
+                    title="Select an invoice"
+                    sub="Pick one from the list to view details."
+                  />
+                )}
               </div>
             ) : (
               <>
@@ -1635,6 +1675,152 @@ action();
 ) : null}
 
 <style jsx>{`
+
+.ff-invoiceEmptyMini {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid #e6ecf5;
+  background:
+    radial-gradient(circle at top left, rgba(36, 91, 255, 0.14), transparent 38%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.ff-invoiceEmptyIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: #eef4ff;
+  border: 1px solid rgba(36, 91, 255, 0.2);
+  color: #1f355c;
+  font-weight: 950;
+}
+
+.ff-invoiceEmptyMiniTitle {
+  font-size: 15px;
+  font-weight: 950;
+  color: #1f355c;
+}
+
+.ff-invoiceEmptyMiniText {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+.ff-invoiceEmptyHero {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px solid #dbe4ef;
+  background:
+    radial-gradient(circle at top left, rgba(36, 91, 255, 0.16), transparent 42%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 14px 30px rgba(15, 23, 42, 0.06);
+}
+
+
+.ff-invoiceEmptyTitle {
+  margin-top: 14px;
+  font-size: 30px;
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: #1f355c;
+}
+
+.ff-invoiceEmptyText {
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #64748b;
+  max-width: 520px;
+}
+
+.ff-invoiceEmptySteps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.ff-invoiceEmptyStep {
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid #e6ecf5;
+  background: rgba(255, 255, 255, 0.82);
+  color: #1f355c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ff-invoiceEmptyStep span {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-bottom: 8px;
+  border-radius: 999px;
+  background: #1f355c;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.ff-invoiceEmptyPreview {
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid #e6ecf5;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ff-invoicePreviewTitle {
+  font-size: 14px;
+  font-weight: 950;
+  color: #1f355c;
+}
+
+.ff-invoicePreviewMeta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.ff-invoiceEmptyHero .ff-btn {
+  margin-top: 18px;
+}
+
+@media (max-width: 720px) {
+  .ff-invoiceEmptyHero {
+    padding: 20px;
+  }
+
+  .ff-invoiceEmptySteps {
+    grid-template-columns: 1fr;
+  }
+
+  .ff-invoiceEmptyPreview {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ff-invoiceEmptyTitle {
+    font-size: 22px;
+  }
+}
 
 .ff-modalOverlay {
 position: fixed;

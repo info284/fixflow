@@ -5535,3 +5535,25 @@ grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   color: #dc2626;
 }
 }
+.ff-sectionBadge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 13px;
+  border-radius: 999px;
+  background: rgba(11, 42, 85, 0.06);
+  border: 1px solid rgba(11, 42, 85, 0.08);
+  color: #1f355c;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.ff-emptyStateTitle,
+.ff-invoiceEmptyTitle {
+  font-size: 26px;
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #1f355c;
+}

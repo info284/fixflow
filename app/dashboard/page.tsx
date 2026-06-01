@@ -647,7 +647,52 @@ const lastLogin = "—";
             </div>
           </div>
         </header>
+{!loading &&
+  stats.enquiriesOpen === 0 &&
+  stats.wonJobs === 0 &&
+  stats.invoices === 0 && (
+<section className="ffdash-card ffdash-cardPad ffdash-setupCard">
+  <div className="ffdash-sectionTop">
+    <div>
+      <div className="ffdash-eyebrow">GET STARTED</div>
 
+      <div className="ffdash-setupTitle">
+        Your FixFlow workspace is ready
+      </div>
+
+      <div className="ffdash-muted">
+        Complete a few steps to start receiving enquiries.
+      </div>
+    </div>
+
+    <span className="ffdash-chip">New account</span>
+  </div>
+
+  <div className="ffdash-setupGrid">
+    <Link href="/dashboard/profile" className="ffdash-setupItem">
+<strong>Complete your profile</strong>
+<br />
+<span>Add business info, logo and contact details</span>
+    </Link>
+
+    <Link href="/dashboard/profile" className="ffdash-setupItem">
+      <strong>Add services</strong>
+      <br />
+      <span>Tell customers what work you offer</span>
+    </Link>
+
+    <button type="button" onClick={copyLink} className="ffdash-setupItem">
+      <strong>Copy your quote link</strong>
+      <span>Share it on Facebook, Google and WhatsApp</span>
+    </button>
+
+    <button type="button" onClick={openTraderPage} className="ffdash-setupItem">
+      <strong>Preview quote form</strong>
+      <span>See what customers will experience</span>
+    </button>
+  </div>
+</section>
+  )}
         <section className="ffdash-card ffdash-cardPad ffdash-aiPanel">
           <div className="ffdash-sectionTop">
             <div>
@@ -659,7 +704,16 @@ const lastLogin = "—";
             <span className="ffdash-chip">{focusChipLabel}</span>
           </div>
 
-          <div className="ffdash-aiGrid">
+         <div
+  className={`ffdash-aiGrid ${
+    !loading &&
+    stats.enquiriesOpen === 0 &&
+    stats.wonJobs === 0 &&
+    stats.invoices === 0
+      ? "ffdash-aiGridMuted"
+      : ""
+  }`}
+>
             <Link
               href="/dashboard/enquiries"
   className={`ffdash-aiCard ${
@@ -991,6 +1045,77 @@ const lastLogin = "—";
       </div>
 
       <style jsx>{`
+
+      .ffdash-aiGridMuted {
+  opacity: 0.55;
+}
+
+.ffdash-setupCard {
+  margin-bottom: 14px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(248, 251, 255, 0.92),
+      rgba(255,255,255,1)
+    );
+  border: 1px solid #e7edf5;
+}
+
+.ffdash-setupTitle {
+  margin: 8px 0 12px;
+  font-size: 24px;
+  font-weight: 950;
+  color: #1f355c;
+  letter-spacing: 0.015em;
+  line-height: 1.1;
+}
+
+.ffdash-setupGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.ffdash-setupItem {
+  text-decoration: none;
+  color: inherit;
+  text-align: left;
+  border-radius: 14px;
+  padding: 13px 14px;
+  border: 1px solid #e6ecf5;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.ffdash-setupItem:hover {
+  transform: translateY(-1px);
+  border-color: #cfd9e8;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.ffdash-setupItem strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #1f355c;
+}
+
+.ffdash-setupItem span {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #6b7a90;
+}
+
+@media (max-width: 640px) {
+  .ffdash-setupGrid {
+    grid-template-columns: 1fr;
+  }
+}
         .ffdash-page {
           min-height: 100vh;
           background: #f6f8fc;

@@ -18,6 +18,7 @@ type AlertItem = {
   score: number;
   href: string;
   date?: string | null;
+  actionLabel: string;
 };
 
 function niceDate(value?: string | null) {
@@ -54,6 +55,13 @@ function priorityFromScore(score: number): AlertPriority {
   if (score >= 70) return "high";
   if (score >= 45) return "medium";
   return "low";
+}
+
+function priorityLabel(priority: AlertPriority) {
+  if (priority === "critical") return "Urgent";
+  if (priority === "high") return "Needs action";
+  if (priority === "medium") return "Watch";
+  return "Low";
 }
 
 export default function AlertsPage() {
@@ -149,11 +157,8 @@ export default function AlertsPage() {
         .from("enquiry_messages")
         .select("id, request_id, body_text, created_at, from_email, direction")
         .eq("plumber_id", user.id)
-        .eq("direction", "inbound")
-        .gte(
-          "created_at",
-          new Date(Date.now() - 60 * 60 * 1000).toISOString()
-        )
+        .in("direction", ["in", "inbound"])
+        .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
         .order("created_at", { ascending: false })
         .limit(30),
 
@@ -181,12 +186,13 @@ export default function AlertsPage() {
       next.push({
         id: `reply-${m.id}`,
         title: `Customer replied ${minutesAgo(m.created_at)}`,
-        text: m.body_text?.slice(0, 110) || "New customer reply waiting.",
+        text: m.body_text?.slice(0, 120) || "New customer reply waiting.",
         tone: "red",
         score: 98,
         priority: "critical",
         href: `/dashboard/enquiries?requestId=${m.request_id}&tab=messages`,
         date: m.created_at,
+        actionLabel: "Reply now",
       });
     });
 
@@ -203,6 +209,7 @@ export default function AlertsPage() {
         priority: priorityFromScore(score),
         href: `/dashboard/enquiries?requestId=${r.id}&tab=messages`,
         date: r.created_at,
+        actionLabel: "Open enquiry",
       });
     });
 
@@ -216,6 +223,7 @@ export default function AlertsPage() {
         priority: "critical",
         href: `/dashboard/enquiries?requestId=${r.id}&tab=messages`,
         date: r.ai_last_customer_message_at,
+        actionLabel: "Act now",
       });
     });
 
@@ -229,6 +237,7 @@ export default function AlertsPage() {
         priority: "high",
         href: `/dashboard/enquiries?requestId=${r.id}&tab=messages`,
         date: r.ai_next_action_due_at,
+        actionLabel: "Follow up",
       });
     });
 
@@ -236,12 +245,13 @@ export default function AlertsPage() {
       next.push({
         id: `cold-${r.id}`,
         title: "Customer gone cold",
-        text: `${r.job_number || "No job number"} • ${r.customer_name || "Customer"} • Needs a final decision or close-out.`,
+        text: `${r.job_number || "No job number"} • ${r.customer_name || "Customer"} • Final decision or close-out needed.`,
         tone: "amber",
         score: 66,
         priority: "medium",
         href: `/dashboard/enquiries?requestId=${r.id}&tab=messages`,
         date: r.ai_last_customer_message_at,
+        actionLabel: "Review",
       });
     });
 
@@ -255,6 +265,7 @@ export default function AlertsPage() {
         priority: "medium",
         href: `/dashboard/enquiries?requestId=${e.request_id}&tab=estimate`,
         date: e.created_at,
+        actionLabel: "Check estimate",
       });
     });
 
@@ -268,6 +279,7 @@ export default function AlertsPage() {
         priority: "high",
         href: `/dashboard/invoices?invoiceId=${i.id}`,
         date: i.due_at,
+        actionLabel: "Chase payment",
       });
     });
 
@@ -281,6 +293,7 @@ export default function AlertsPage() {
         priority: "low",
         href: `/dashboard/enquiries?requestId=${v.request_id}&tab=visit`,
         date: v.visit_at,
+        actionLabel: "View visit",
       });
     });
 
@@ -298,6 +311,7 @@ export default function AlertsPage() {
         priority: priorityFromScore(score),
         href: `/dashboard/profile?tab=certificates`,
         date: c.expiry_date,
+        actionLabel: "Update certificate",
       });
     });
 
@@ -314,11 +328,13 @@ export default function AlertsPage() {
   const counts = useMemo(() => {
     return {
       all: alerts.length,
-      critical: alerts.filter((a) => a.priority === "critical").length,
-      high: alerts.filter((a) => a.priority === "high").length,
+      urgent: alerts.filter((a) => a.priority === "critical").length,
+      action: alerts.filter((a) => a.priority === "high").length,
       money: alerts.filter((a) => a.title.toLowerCase().includes("invoice")).length,
     };
   }, [alerts]);
+
+  const topAlert = alerts[0];
 
   return (
     <div className="ff-page">
@@ -332,7 +348,7 @@ export default function AlertsPage() {
                 <div className="ff-heroTitle">Alerts</div>
                 <div className="ff-heroRule" />
                 <div className="ff-heroSub">
-                  AI-prioritised alerts for leads, jobs, invoices and certificates.
+                  Your most important customer, job and payment actions — ranked by urgency.
                 </div>
               </div>
 
@@ -345,24 +361,42 @@ export default function AlertsPage() {
           </div>
         </div>
 
+        {topAlert && (
+          <div className="ff-commandCard">
+            <div>
+              <div className="ff-commandEyebrow">Best next action</div>
+              <div className="ff-commandTitle">{topAlert.title}</div>
+              <div className="ff-commandText">{topAlert.text}</div>
+            </div>
+
+            <button
+              type="button"
+              className="ff-btn ff-btnPrimary"
+              onClick={() => router.push(topAlert.href)}
+            >
+              ⚡ {topAlert.actionLabel}
+            </button>
+          </div>
+        )}
+
         <div className="ff-alertStats">
           <div className="ff-statCard">
-            <div className="ff-statLabel">Total alerts</div>
+            <div className="ff-statLabel">Action queue</div>
             <div className="ff-statValue">{counts.all}</div>
           </div>
 
           <div className="ff-statCard">
-            <div className="ff-statLabel">Critical</div>
-            <div className="ff-statValue">{counts.critical}</div>
+            <div className="ff-statLabel">Urgent</div>
+            <div className="ff-statValue">{counts.urgent}</div>
           </div>
 
           <div className="ff-statCard">
-            <div className="ff-statLabel">High priority</div>
-            <div className="ff-statValue">{counts.high}</div>
+            <div className="ff-statLabel">Needs attention</div>
+            <div className="ff-statValue">{counts.action}</div>
           </div>
 
           <div className="ff-statCard">
-            <div className="ff-statLabel">Money alerts</div>
+            <div className="ff-statLabel">Payment risk</div>
             <div className="ff-statValue">{counts.money}</div>
           </div>
         </div>
@@ -382,11 +416,11 @@ export default function AlertsPage() {
                   <div className="ff-alertMain">
                     <div className="ff-alertTop">
                       <span className={`ff-priority ff-priority-${a.priority}`}>
-                        {a.priority}
+                        {priorityLabel(a.priority)}
                       </span>
 
                       <span className="ff-alertScore">
-                        AI score {a.score}
+                        Score {a.score}
                       </span>
                     </div>
 
@@ -394,7 +428,10 @@ export default function AlertsPage() {
                     <div className="ff-alertText">{a.text}</div>
                   </div>
 
-                  <div className="ff-alertDate">{niceDate(a.date)}</div>
+                  <div className="ff-alertSide">
+                    <div className="ff-alertDate">{niceDate(a.date)}</div>
+                    <div className="ff-alertAction">{a.actionLabel} →</div>
+                  </div>
                 </button>
               ))
             ) : (
@@ -402,7 +439,7 @@ export default function AlertsPage() {
                 <div className="ff-empty">
                   <div className="ff-emptyTitle">No alerts right now</div>
                   <div className="ff-emptySub">
-                    Nothing is slipping through the cracks.
+                    Nothing urgent needs your attention.
                   </div>
                 </div>
               </div>
@@ -412,128 +449,208 @@ export default function AlertsPage() {
       </div>
 
       <style jsx>{`
-        .ff-alertStats {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 12px;
-        }
+.ff-commandCard {
+  margin-bottom: 14px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(230, 236, 245, 0.95);
+  background:
+    radial-gradient(circle at top left, rgba(11, 42, 85, 0.06), transparent 38%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
 
-        .ff-alertList {
-          display: grid;
-          gap: 12px;
-          padding: 16px;
-        }
+.ff-commandEyebrow {
+  font-size: 11px;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
 
-        .ff-alertCard {
-          width: 100%;
-          text-align: left;
-          border-radius: 22px;
-          padding: 16px;
-          border: 1px solid rgba(230, 236, 245, 0.95);
-          background: #fff;
-          display: flex;
-          justify-content: space-between;
-          gap: 14px;
-          cursor: pointer;
-          box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
-        }
+.ff-commandTitle {
+  margin-top: 6px;
+  font-size: 19px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0b1320;
+}
 
-        .ff-alertMain {
-          min-width: 0;
-        }
+.ff-commandText {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 600;
+}
 
-        .ff-alertTop {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-          margin-bottom: 8px;
-        }
+.ff-alertStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
 
-        .ff-priority,
-        .ff-alertScore {
-          border-radius: 999px;
-          padding: 5px 9px;
-          font-size: 11px;
-          font-weight: 900;
-          text-transform: uppercase;
-        }
+.ff-alertList {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
 
-        .ff-alertScore {
-          background: #eef4ff;
-          color: #1f355c;
-        }
+.ff-alertCard {
+  width: 100%;
+  text-align: left;
+  border-radius: 22px;
+  padding: 16px;
+  border: 1px solid rgba(230, 236, 245, 0.95);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.035);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
 
-        .ff-priority-critical {
-          background: #fff1f2;
-          color: #9f1239;
-        }
+.ff-alertCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.065);
+}
 
-        .ff-priority-high {
-          background: #fff7ed;
-          color: #9a3412;
-        }
+.ff-alertMain {
+  min-width: 0;
+}
 
-        .ff-priority-medium {
-          background: #eef4ff;
-          color: #1e3a8a;
-        }
+.ff-alertTop {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 9px;
+}
 
-        .ff-priority-low {
-          background: #ecfdf3;
-          color: #166534;
-        }
+.ff-priority,
+.ff-alertScore {
+  border-radius: 999px;
+  padding: 5px 9px;
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
 
-        .ff-alertTitle {
-          font-size: 16px;
-          font-weight: 950;
-          color: #0b1320;
-        }
+.ff-alertScore {
+  background: rgba(11, 42, 85, 0.055);
+  color: #1f355c;
+}
 
-        .ff-alertText {
-          margin-top: 5px;
-          font-size: 13px;
-          line-height: 1.45;
-          color: #64748b;
-          font-weight: 650;
-        }
+.ff-priority-critical {
+  background: rgba(220, 38, 38, 0.08);
+  color: #9f1239;
+}
 
-        .ff-alertDate {
-          flex-shrink: 0;
-          font-size: 12px;
-          font-weight: 800;
-          color: #64748b;
-          white-space: nowrap;
-        }
+.ff-priority-high {
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+}
 
-        .ff-alert-red {
-          border-color: rgba(239, 68, 68, 0.26);
-          background: linear-gradient(180deg, #fff5f5, #fff);
-        }
+.ff-priority-medium {
+  background: rgba(11, 42, 85, 0.055);
+  color: #1f355c;
+}
 
-        .ff-alert-amber {
-          border-color: rgba(245, 158, 11, 0.28);
-          background: linear-gradient(180deg, #fff7ed, #fff);
-        }
+.ff-priority-low {
+  background: rgba(22, 101, 52, 0.08);
+  color: #166534;
+}
 
-        .ff-alert-blue {
-          border-color: rgba(59, 130, 246, 0.24);
-          background: linear-gradient(180deg, #f8fbff, #fff);
-        }
+.ff-alertTitle {
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: -0.01em;
+  color: #0b1320;
+}
 
-        .ff-alert-green {
-          border-color: rgba(34, 197, 94, 0.24);
-          background: linear-gradient(180deg, #f0fdf4, #fff);
-        }
+.ff-alertText {
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #64748b;
+  font-weight: 600;
+}
 
-        @media (max-width: 760px) {
-          .ff-alertStats {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
+.ff-alertSide {
+  flex-shrink: 0;
+  display: grid;
+  justify-items: end;
+  align-content: space-between;
+  gap: 10px;
+}
 
-          .ff-alertCard {
-            flex-direction: column;
-          }
-        }
+.ff-alertDate {
+  font-size: 12px;
+  font-weight: 750;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.ff-alertAction {
+  font-size: 12px;
+  font-weight: 850;
+  color: #1f355c;
+  white-space: nowrap;
+}
+
+.ff-alert-red {
+  border-color: rgba(220, 38, 38, 0.14);
+  background:
+    radial-gradient(circle at top left, rgba(220, 38, 38, 0.055), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #fffafa 100%);
+}
+
+.ff-alert-amber {
+  border-color: rgba(245, 158, 11, 0.14);
+  background:
+    radial-gradient(circle at top left, rgba(245, 158, 11, 0.06), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #fffdfa 100%);
+}
+
+.ff-alert-blue {
+  border-color: rgba(11, 42, 85, 0.1);
+  background:
+    radial-gradient(circle at top left, rgba(11, 42, 85, 0.05), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.ff-alert-green {
+  border-color: rgba(22, 101, 52, 0.12);
+  background:
+    radial-gradient(circle at top left, rgba(22, 101, 52, 0.05), transparent 34%),
+    linear-gradient(180deg, #ffffff 0%, #fbfffc 100%);
+}
+
+@media (max-width: 760px) {
+  .ff-commandCard {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ff-alertStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ff-alertCard {
+    flex-direction: column;
+  }
+
+  .ff-alertSide {
+    justify-items: start;
+  }
+}
       `}</style>
     </div>
   );

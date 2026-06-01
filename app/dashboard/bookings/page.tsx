@@ -2093,11 +2093,20 @@ setVatRate(vr === 5 || vr === 20 ? (String(vr) as VatRate) : "0");
     loadDocuments(selectedRequest.id);
   }, [selectedRequest?.id, selectedVisit?.id, uid, selectedQuote?.job_type]);
 
-const visibleJobs = useMemo(() => {
-  let list = [...jobs].filter((request) => {
+const realJobRows = useMemo(() => {
+  return jobs.filter((request) => {
     const quote = quoteMap[request.id] || null;
     return isRealJob(request, quote);
   });
+}, [jobs, quoteMap]);
+
+const hasNoJobsYet = !loading && realJobRows.length === 0;
+
+const hasJobFilters =
+  Boolean(statusFilter) || Boolean(postcodeFilter.trim()) || issueOnly;
+
+const visibleJobs = useMemo(() => {
+  let list = [...realJobRows];
 
   if (statusFilter) {
     list = list.filter((request) => {
@@ -2128,7 +2137,7 @@ if (issueOnly) {
   );
 }
   return list;
-}, [jobs, statusFilter, postcodeFilter, quoteMap, visitMap, issueOnly, threadMap]);
+}, [realJobRows, statusFilter, postcodeFilter, quoteMap, visitMap, issueOnly, threadMap]);
 
 const sortedJobs = useMemo(() => {
   return [...visibleJobs].sort((a, b) => {
@@ -2891,10 +2900,51 @@ className={`ff-leftItem
         })
       ) : (
         <div className="ff-emptyWrap">
-          <EmptyState
-            title="No jobs found"
-            sub="Approved and active jobs will appear here."
-          />
+          {hasNoJobsYet ? (
+            <div className="ff-jobsEmptyMini">
+              <div className="ff-jobsEmptyIcon">✓</div>
+
+              <div className="ff-jobsEmptyMiniTitle">
+                No jobs yet
+              </div>
+
+              <div className="ff-jobsEmptyMiniText">
+                When an enquiry is won, accepted or booked, it will appear here.
+              </div>
+
+              <button
+                type="button"
+                className="ff-btn ff-btnPrimary ff-btnSm"
+                onClick={() => router.push("/dashboard/enquiries")}
+              >
+                Go to enquiries
+              </button>
+            </div>
+          ) : (
+            <div className="ff-jobsEmptyMini">
+              <div className="ff-jobsEmptyIcon">⌕</div>
+
+              <div className="ff-jobsEmptyMiniTitle">
+                No matching jobs
+              </div>
+
+              <div className="ff-jobsEmptyMiniText">
+                Try clearing your filters or choosing another job status.
+              </div>
+
+              <button
+                type="button"
+                className="ff-btn ff-btnGhost ff-btnSm"
+                onClick={() => {
+                  setStatusFilter("");
+                  setPostcodeFilter("");
+                  setIssueOnly(false);
+                }}
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -2903,12 +2953,67 @@ className={`ff-leftItem
   {/* RIGHT */}
   <div className="ff-card ff-rightPane">
     <div className="ff-rightInner">
-                {!selectedRequest ? (
+{!selectedRequest ? (
   <div className="ff-emptyWrap">
-    <EmptyState
-      title="Select a job"
-      sub="Pick one from the list to view full job details, files, notes and progress."
-    />
+    {hasNoJobsYet ? (
+      <div className="ff-jobsEmptyHero">
+        <div className="ff-jobsEmptyBadge">OPERATIONS READY</div>
+
+        <div className="ff-jobsEmptyTitle">
+          Jobs will appear here once work is won
+        </div>
+
+        <div className="ff-jobsEmptyText">
+          This is where approved work becomes a live job — with bookings,
+          customer updates, files, notes, documents and invoices all kept together.
+        </div>
+
+        <div className="ff-jobsEmptySteps">
+          <div className="ff-jobsEmptyStep">
+            <span>1</span>
+            Win an enquiry
+          </div>
+
+          <div className="ff-jobsEmptyStep">
+            <span>2</span>
+            Book the job
+          </div>
+
+          <div className="ff-jobsEmptyStep">
+            <span>3</span>
+            Manage work and get paid
+          </div>
+        </div>
+
+        <div className="ff-jobsEmptyPreview">
+          <div>
+            <div className="ff-jobsPreviewTitle">
+              Example job — Bathroom repair
+            </div>
+            <div className="ff-jobsPreviewMeta">
+              Booked • Customer update due • Invoice ready next
+            </div>
+          </div>
+
+          <span className="ff-jobChip ff-jobChipGreen">
+            Booked
+          </span>
+        </div>
+
+        <button
+          type="button"
+          className="ff-btn ff-btnPrimary"
+          onClick={() => router.push("/dashboard/enquiries")}
+        >
+          Open enquiries
+        </button>
+      </div>
+    ) : (
+      <EmptyState
+        title="Select a job"
+        sub="Pick one from the list to view full job details, files, notes and progress."
+      />
+    )}
   </div>
 ) : (
                   <>

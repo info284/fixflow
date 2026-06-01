@@ -6007,15 +6007,52 @@ onClick={() => selectEnquiry(r.id, "details")}
                     </div>
                   )}
                 </>
-              ) : (
-              
-                  <div className="ff-emptyWrap">
-                    <EmptyState
-                      title="No matching enquiries"
-                      sub="Try changing your filters."
-                    />
-                  </div>
-                )}
+            ) : rows.length === 0 ? (
+  <div className="ff-emptyWrap">
+    <div className="ff-emptySales">
+      <div className="ff-emptyBadge">⚡ Sales engine ready</div>
+
+      <div className="ff-emptyTitleBig">No enquiries yet</div>
+
+      <div className="ff-emptyText">
+        When customers submit your quote form, their enquiries will appear here.
+      </div>
+
+      <button
+        type="button"
+        className="ff-btn ff-btnPrimary ff-btnSm"
+        onClick={() => setShowCallModal(true)}
+      >
+        + Add first enquiry
+      </button>
+    </div>
+  </div>
+) : (
+  <div className="ff-emptyWrap">
+    <div className="ff-emptySales">
+      <div className="ff-emptyBadge">🔎 No matches</div>
+
+      <div className="ff-emptyTitleBig">No enquiries match this view</div>
+
+      <div className="ff-emptyText">
+        Try clearing your search, urgency filter or changing tabs.
+      </div>
+
+      <button
+        type="button"
+        className="ff-btn ff-btnGhost ff-btnSm"
+        onClick={() => {
+          setTab("all");
+          setSearchFilter("");
+          setUrgencyFilter("");
+          setLostReasonFilter("");
+        }}
+      >
+        Clear filters
+      </button>
+    </div>
+  </div>
+)}
               </div>
             </div>
 

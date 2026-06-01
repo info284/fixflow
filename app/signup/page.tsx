@@ -88,16 +88,24 @@ export default function SignupPage() {
       const slug = await findAvailableSlug(businessName);
       if (!slug) throw new Error("Could not create your branded link.");
 
-      const { error: profileError } = await supabase.from("profiles").upsert(
-        {
-          id: userId,
-          business_name: businessName.trim(),
-          slug,
-        },
-        { onConflict: "id" }
-      );
+const profileRes = await fetch("/api/signup/create-profile", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    userId,
+    businessName,
+    slug,
+    email,
+  }),
+});
 
-      if (profileError) throw profileError;
+const profileJson = await profileRes.json().catch(() => ({}));
+
+if (!profileRes.ok) {
+  throw new Error(profileJson?.error || "Could not create profile");
+}
 
       await fetch("/api/onboarding/send-welcome", {
         method: "POST",

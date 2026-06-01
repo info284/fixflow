@@ -4817,8 +4817,7 @@ const { data, error } = await supabase
   
 
 
-    setRows(loaded);
-
+ setRows(loaded);
 
 await loadThreadMapForRows(loaded, user.id);
 

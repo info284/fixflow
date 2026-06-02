@@ -872,6 +872,13 @@ min-height: calc(100vh - 110px);
  padding: 18px;
  -webkit-overflow-scrolling: touch; }
 
+ .ff-emptyStateTop {
+  min-height: auto;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 0;
+}
+
 /* =========================
  RIGHT TABS
 ========================= */
@@ -2566,11 +2573,170 @@ height: auto !important;
 /* =========================
  EMPTY / LOADING / TOAST
 ========================= */
-.ff-loadingWrap,
+
+.ff-emptyWrapTop {
+  align-items: flex-start;
+  justify-content: center;
+  padding: 28px 18px 34px;
+}
+
+.ff-emptySales {
+  width: 100%;
+  max-width: 520px;
+  text-align: left;
+  display: grid;
+  gap: 18px;
+}
+
+.ff-emptyBadge {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 8px 14px;
+
+  background: rgba(31, 53, 92, 0.06) !important;
+  border: 1px solid rgba(31, 53, 92, 0.08) !important;
+
+  color: #4a5f86 !important;
+
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+
+  backdrop-filter: blur(10px);
+}
+
+.ff-emptyTitleBig {
+  font-size: clamp(30px, 6vw, 42px);
+  line-height: 1.02;
+  font-weight: 950;
+  letter-spacing: -0.05em;
+  color: #0b2a55;
+}
+
+.ff-emptyText {
+  font-size: 16px;
+  line-height: 1.55;
+  color: #5c6b84;
+  font-weight: 650;
+}
+
+.ff-emptyMiniList {
+  display: grid;
+  gap: 12px;
+}
+
+.ff-emptyMiniList div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 15px;
+  font-weight: 850;
+  color: #1f355c;
+}
+
+.ff-emptyMiniList span {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #f4f7ff;
+  color: #1f355c;
+  font-weight: 950;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.ff-emptyExampleCard {
+  border: 1px solid #e6ecf5;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  border-radius: 24px;
+  padding: 18px;
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
+}
+
+.ff-emptyExampleTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.ff-emptyExampleJob {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #5c6b84;
+}
+
+.ff-emptyExampleTitle {
+  margin-top: 5px;
+  font-size: 20px;
+  line-height: 1.12;
+  font-weight: 950;
+  color: #0b2a55;
+  letter-spacing: -0.035em;
+}
+
+.ff-emptyExampleMeta {
+  margin-top: 8px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: #5c6b84;
+  font-weight: 700;
+}
+
+.ff-emptyExampleAction {
+  margin-top: 14px;
+  padding: 13px 14px;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #1f355c;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.045);
+}
+
+.ff-emptySales .ff-btnPrimary {
+  width: 100%;
+  justify-content: center;
+  min-height: 48px;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 900;
+  background: #0b2a55;
+}
+
+.ff-emptyExampleUrgent {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 183, 77, 0.14);
+  border: 1px solid rgba(255, 183, 77, 0.28);
+
+  color: #9a5b00;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+
+  backdrop-filter: blur(8px);
+}
+
+.ff-loadingWrap {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
 .ff-emptyWrap {
- display: grid;
- place-items: center;
- padding: 20px; }
+  width: 100%;
+  padding: 20px;
+
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
 
 .ff-loadingWrap {
  min-height: 200px;
@@ -2593,13 +2759,21 @@ height: auto !important;
  max-width: 320px; }
 
 .ff-emptyState {
- min-height: 260px;
- display: flex;
- flex-direction: column;
- align-items: center;
- justify-content: center;
- padding: 24px;
- gap: 10px; }
+  min-height: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 24px;
+  gap: 10px;
+}
+
+.ff-emptyWrapTop {
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 24px;
+  min-height: auto;
+}
 
 .ff-emptyIcon {
  font-size: 28px;
@@ -4239,10 +4413,14 @@ height: auto !important;
 }
 
 .ff-emptyWrap {
-  display: grid;
-  place-items: center;
-  min-height: 220px;
+  width: 100%;
   padding: 20px;
+
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+
+  min-height: 220px;
 }
 
 .ff-empty {

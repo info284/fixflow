@@ -5015,101 +5015,10 @@ useEffect(() => {
   );
 }, [selectedRow?.id]);
 
-  /* ================================
-     EARLY EMPTY STATE
-  ================================= */
 
-  if (!selectedRow && !loading && filteredRows.length === 0) {
-    return (
-     <div className="ff-appShell">
-     <div className="ff-page">
-        <div className="ff-wrap">
-          <div className="ff-top">
-            <div className="ff-hero">
-              <div className="ff-heroGlow" />
-              <div className="ff-heroRow">
-                <div className="ff-heroLeft">
-                  <div className="ff-heroTitle">Enquiries</div>
-                  <div className="ff-heroRule" />
-                  <div className="ff-heroSub">
-                    Manage leads, pricing, replies and site visits in one place.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          </div>
 
-          <div className="ff-card">
-            <div className="ff-emptyWrap">
-<div className="ff-emptySales">
-  <div className="ff-emptyBadge">
-    ⚡ Your sales engine is ready
-  </div>
 
-  <div className="ff-emptyTitleBig">
-    Win your first job with FixFlow
-  </div>
-
-  <div className="ff-emptyText">
-    New customer enquiries, replies, quotes and follow-ups
-    will appear here automatically.
-  </div>
-
-  <div className="ff-emptySteps">
-    <div className="ff-emptyStep">
-      <span>1</span>
-      Share your enquiry link
-    </div>
-
-    <div className="ff-emptyStep">
-      <span>2</span>
-      Customers message you
-    </div>
-
-    <div className="ff-emptyStep">
-      <span>3</span>
-      FixFlow helps you win the work
-    </div>
-  </div>
-
-  <div className="ff-emptyDemo">
-    <div className="ff-demoTop">
-      <div>
-        <div className="ff-demoName">
-          Sarah M — Boiler repair
-        </div>
-
-        <div className="ff-demoMeta">
-          CR4 • Customer replied 2 mins ago
-        </div>
-      </div>
-
-      <div className="ff-chip ff-chipBlue">
-        Hot lead
-      </div>
-    </div>
-
-    <div className="ff-demoAction">
-      ⚡ AI suggests: Reply now
-    </div>
-  </div>
-
-  <button
-    type="button"
-    className="ff-btnPrimary"
-    onClick={() => setShowCallModal(true)}
-  >
-    + Add first enquiry
-  </button>
-</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    
-    );
-  }
+  
 
   /* ================================
      RETURN
@@ -6006,15 +5915,54 @@ onClick={() => selectEnquiry(r.id, "details")}
                     </div>
                   )}
                 </>
-            ) : rows.length === 0 ? (
-  <div className="ff-emptyWrap">
+) : rows.length === 0 ? (
+  <div className="ff-emptyWrap ff-emptyWrapTop">
     <div className="ff-emptySales">
       <div className="ff-emptyBadge">⚡ Sales engine ready</div>
 
-      <div className="ff-emptyTitleBig">No enquiries yet</div>
+      <div className="ff-emptyTitleBig">
+        Win your first job with FixFlow
+      </div>
 
       <div className="ff-emptyText">
-        When customers submit your quote form, their enquiries will appear here.
+        New enquiries, replies, quotes and follow-ups will appear here
+        automatically.
+      </div>
+
+      <div className="ff-emptyMiniList">
+        <div>
+          <span>1</span>
+          Share your enquiry link
+        </div>
+        <div>
+          <span>2</span>
+          Customer sends a job request
+        </div>
+        <div>
+          <span>3</span>
+          FixFlow shows the next best move
+        </div>
+      </div>
+
+      <div className="ff-emptyExampleCard">
+        <div className="ff-emptyExampleTop">
+          <div>
+            <div className="ff-emptyExampleJob">Example enquiry</div>
+            <div className="ff-emptyExampleTitle">
+              Sarah M — Boiler repair
+            </div>
+          </div>
+
+<div className="ff-emptyExampleUrgent">ASAP</div>
+        </div>
+
+        <div className="ff-emptyExampleMeta">
+          CR4 • Customer replied 2 mins ago
+        </div>
+
+        <div className="ff-emptyExampleAction">
+          ⚡ Next: Reply now
+        </div>
       </div>
 
       <button
@@ -6057,7 +6005,7 @@ onClick={() => selectEnquiry(r.id, "details")}
 
             <div className="ff-rightPane">
               {!selectedRow ? (
-                <div className="ff-emptyWrap">
+                <div className="ff-emptyWrap ff-emptyWrapTop">
                   <EmptyState
                     title="Select an enquiry"
                     sub="Choose one from the left to view full details."
@@ -8346,7 +8294,7 @@ onClick={() => setAutoFollowUpsEnabled((v) => !v)}
           );
         })
       ) : (
-        <div className="ff-emptyState">
+        <div className="ff-emptyState ff-emptyStateTop">
           <div className="ff-emptyIcon">💬</div>
           <div className="ff-emptyTitle">No messages yet</div>
           <div className="ff-emptyText">

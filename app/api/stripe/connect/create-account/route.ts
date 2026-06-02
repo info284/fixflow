@@ -2,11 +2,29 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+function supabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    const body = await req.json();
+const userId = body.userId;
+
+if (!userId) {
+  return NextResponse.json(
+    { error: "Missing userId" },
+    { status: 400 }
+  );
+}
+
+const supabase = supabaseAdmin();
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://thefixflowapp.com";
 
@@ -18,7 +36,12 @@ export async function POST() {
         transfers: { requested: true },
       },
     });
-
+await supabase
+  .from("profiles")
+  .update({
+    stripe_account_id: account.id,
+  })
+  .eq("id", userId);
     const accountLink = await stripe.accountLinks.create({
       account: account.id,
       refresh_url: `${siteUrl}/dashboard/profile?stripe=refresh`,

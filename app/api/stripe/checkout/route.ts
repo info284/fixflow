@@ -35,14 +35,15 @@ export async function POST(req: Request) {
     // 1. Get invoice
     const { data: inv, error } = await supabase
       .from("invoices")
-      .select(`
-        id,
-        amount,
-        currency,
-        invoice_number,
-        to_email,
-        request_id
-      `)
+.select(`
+  id,
+  amount,
+  currency,
+  invoice_number,
+  to_email,
+  request_id,
+  user_id
+`)
       .eq("id", invoiceId)
       .maybeSingle();
 
@@ -61,7 +62,21 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+// 2. Get trader Stripe Connect account
+const { data: profile } = await supabase
+  .from("profiles")
+  .select("stripe_account_id")
+  .eq("id", inv.user_id)
+  .maybeSingle();
 
+const stripeAccountId = profile?.stripe_account_id;
+
+if (!stripeAccountId) {
+  return NextResponse.json(
+    { error: "Trader has not connected Stripe" },
+    { status: 400 }
+  );
+}
 
     // 2. Create Stripe checkout session
   const origin =
@@ -72,6 +87,12 @@ export async function POST(req: Request) {
       mode: "payment",
 
       payment_method_types: ["card"],
+      payment_intent_data: {
+  application_fee_amount: Math.round(amount * 0.05 * 100), // 5% FixFlow fee
+  transfer_data: {
+    destination: stripeAccountId,
+  },
+},
 
       customer_email: inv.to_email || undefined,
 

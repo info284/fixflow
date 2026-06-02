@@ -666,42 +666,31 @@ await Promise.all([
 
 async function connectStripe() {
   try {
-    // 1. Create account
-    const createRes = await fetch(
-      "/api/stripe/connect/create-account",
-      {
-        method: "POST",
-      }
-    );
-
-    const createJson = await createRes.json();
-
-    if (!createRes.ok) {
-      throw new Error(createJson?.error || "Could not create account");
+    if (!userId) {
+      alert("Missing user");
+      return;
     }
 
-    // 2. Create onboarding link
-    const linkRes = await fetch(
-      "/api/stripe/connect/create-link",
+    const res = await fetch(
+      "/api/stripe/connect/create-account",
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          accountId: createJson.accountId,
+          userId,
         }),
       }
     );
 
-    const linkJson = await linkRes.json();
+    const data = await res.json();
 
-    if (!linkRes.ok) {
-      throw new Error(linkJson?.error || "Could not create onboarding link");
+    if (!res.ok) {
+      throw new Error(data?.error || "Could not connect Stripe");
     }
 
-    // 3. Redirect to Stripe
-    window.location.href = linkJson.url;
+    window.location.href = data.url;
   } catch (err) {
     console.error(err);
     alert("Could not connect Stripe");
@@ -1581,6 +1570,29 @@ const reviewStats = useMemo(() => {
     Complete your profile to win more jobs and build trust with customers.
   </div>
 </div>
+
+<div className="ff-trustMetrics">
+  <div className="ff-trustMetric">
+    <strong>{locations.length}</strong>
+    <span>Coverage areas</span>
+  </div>
+
+  <div className="ff-trustMetric">
+    <strong>{services.length}</strong>
+    <span>Services</span>
+  </div>
+
+  <div className="ff-trustMetric">
+    <strong>{certificates.length}</strong>
+    <span>Certificates</span>
+  </div>
+
+  <div className="ff-trustMetric">
+    <strong>{reviewStats.rounded}</strong>
+    <span>Rating</span>
+  </div>
+</div>
+
 {profileCompleteness < 100 && (
   <div className="ff-profileMissingBox">
     <div className="ff-profileMissingTitle">To improve your profile</div>
@@ -2908,6 +2920,39 @@ Choose PDF / image
 }
 
 const styles = `
+
+.ff-trustMetrics{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
+  margin-top:16px;
+}
+
+.ff-trustMetric{
+  padding:14px;
+  border-radius:16px;
+  border:1px solid #e6ecf5;
+  background:#fff;
+}
+
+.ff-trustMetric strong{
+  display:block;
+  font-size:22px;
+  font-weight:950;
+  color:#102a56;
+}
+
+.ff-trustMetric span{
+  font-size:12px;
+  color:#5c6b84;
+  font-weight:800;
+}
+
+@media(max-width:720px){
+  .ff-trustMetrics{
+    grid-template-columns:1fr 1fr;
+  }
+}
 
 .ff-reviewSummary{
   display:flex;

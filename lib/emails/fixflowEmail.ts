@@ -4,6 +4,7 @@ type FixFlowEmailOptions = {
   title: string;
   introHtml: string;
   bodyHtml: string;
+  traderName?: string;
   ctaHtml?: string;
   closingHtml?: string;
 };
@@ -21,11 +22,12 @@ export function buildFixFlowEmail({
   title,
   introHtml,
   bodyHtml,
+  traderName = "Your trader",
   ctaHtml = "",
 closingHtml = `
   <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
     Thanks,<br />
-    <span style="font-weight:800; color:#1F355C;">Your trader</span><br/>
+    <span style="font-weight:800; color:#1F355C;">${traderName}</span><br/>
     <span style="font-size:12px; color:#8A94A6;">via FixFlow</span>
   </div>
 `,
@@ -70,7 +72,7 @@ export function buildFixFlowButton(label: string, href: string) {
 
 export function buildFixFlowInfoCard(innerHtml: string) {
   return `
-   <div style="border:1px solid #E6ECF5; border-radius:18px; margin-bottom:20px; background:#F4F7FF;">
+  <div style="border:1px solid #E6ECF5; border-radius:18px; margin-bottom:20px; background:#F4F7FF; text-align:left !important;">
       ${innerHtml}
     </div>
   `;

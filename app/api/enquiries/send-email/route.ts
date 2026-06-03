@@ -173,6 +173,7 @@ const replyTo = `enquiries+${requestId}@send.thefixflowapp.com`;
 
     const html = buildFixFlowEmail({
       title: "New message",
+      traderName: traderName,
       introHtml: `
         <div style="font-size:16px; font-weight:700; margin-bottom:10px;">
           Hi ${safeCustomerName},
@@ -187,7 +188,7 @@ bodyHtml: `
     <div style="padding:18px; text-align:left;">
       ${buildFixFlowSectionLabel("Message preview")}
 
-<div style="font-size:16px; line-height:1.8; color:#0B1320; white-space:pre-wrap; text-align:left; width:100%; word-break:break-word;">${safePreview}</div>
+<div style="display:block; width:100%; max-width:100%; margin:0; padding:0; font-size:16px; line-height:1.8; color:#0B1320; white-space:pre-wrap; text-align:left !important; word-break:break-word;">${safePreview}</div>
 
       <div style="
         margin-top:24px;

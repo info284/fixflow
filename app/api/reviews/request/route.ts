@@ -19,25 +19,26 @@ export async function POST(req: Request) {
     const resend = new Resend(process.env.RESEND_API_KEY);
 
 const { data: job, error: jobError } = await supabaseAdmin
-.from("quote_requests")
-.select(`
-id,
-plumber_id,
-customer_name,
-customer_email,
-job_type,
-review_token,
-profiles:plumber_id (
-business_name,
-display_name
-)
-`)
-.eq("id", requestId)
-.maybeSingle();
+  .from("quote_requests")
+  .select(`
+    id,
+    plumber_id,
+    customer_name,
+    customer_email,
+    job_type,
+    review_token
+  `)
+  .eq("id", requestId)
+  .maybeSingle();
 
     if (jobError || !job) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
+const { data: profile } = await supabaseAdmin
+  .from("profiles")
+  .select("business_name, display_name")
+  .eq("id", job.plumber_id)
+  .maybeSingle();
 
     if (!job.customer_email) {
       return NextResponse.json(
@@ -69,14 +70,10 @@ const baseUrl =
     const reviewUrl = `${baseUrl}/review/${token}`;
 
     const customerName = job.customer_name || "there";
-const profile = Array.isArray(job.profiles)
-? job.profiles[0]
-: job.profiles;
-
 const traderName =
-profile?.business_name ||
-profile?.display_name ||
-"your trader";
+  profile?.business_name ||
+  profile?.display_name ||
+  "your trader";
 
 await resend.emails.send({
   from: "FixFlow Enquiries <hello@send.thefixflowapp.com>",

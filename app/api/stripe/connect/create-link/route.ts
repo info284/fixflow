@@ -18,12 +18,15 @@ export async function POST(req: Request) {
       );
     }
 
-    const accountLink = await stripe.accountLinks.create({
-      account: accountId,
-      refresh_url: "https://thefixflowapp.com/dashboard/settings",
-      return_url: "https://thefixflowapp.com/dashboard/settings",
-      type: "account_onboarding",
-    });
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL || "https://thefixflowapp.com";
+
+const accountLink = await stripe.accountLinks.create({
+  account: accountId,
+  refresh_url: `${siteUrl}/dashboard/profile?stripe=refresh`,
+  return_url: `${siteUrl}/dashboard/profile?stripe=connected`,
+  type: "account_onboarding",
+});
 
     return NextResponse.json({
       url: accountLink.url,

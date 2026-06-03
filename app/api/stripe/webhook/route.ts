@@ -94,7 +94,7 @@ export async function POST(req: Request) {
     .from("quote_requests")
     .update({
       status: "paid",
-      stage: "won",
+      stage: "paid",
     })
     .eq("id", invoice.request_id);
 

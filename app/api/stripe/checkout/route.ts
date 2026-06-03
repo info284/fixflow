@@ -102,7 +102,7 @@ if (!transfersReady) {
 
       payment_method_types: ["card"],
       payment_intent_data: {
-  application_fee_amount: Math.round(amount * 0.05 * 100), // 5% FixFlow fee
+  application_fee_amount: Math.round(amount * 0.01 * 100), // 1% FixFlow fee
   transfer_data: {
     destination: stripeAccountId,
   },

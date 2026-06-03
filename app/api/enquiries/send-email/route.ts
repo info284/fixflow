@@ -187,17 +187,7 @@ bodyHtml: `
     <div style="padding:18px; text-align:left;">
       ${buildFixFlowSectionLabel("Message preview")}
 
-      <div style="
-        font-size:16px;
-        line-height:1.8;
-        color:#0B1320;
-        white-space:pre-wrap;
-        text-align:left;
-        width:100%;
-        word-break:break-word;
-      ">
-        ${safePreview}
-      </div>
+<div style="font-size:16px; line-height:1.8; color:#0B1320; white-space:pre-wrap; text-align:left; width:100%; word-break:break-word;">${safePreview}</div>
 
       <div style="
         margin-top:24px;

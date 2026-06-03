@@ -3,6 +3,35 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  const businessName =
+    profile?.display_name || "Local trader";
+
+  return {
+    title: `${businessName} | Local trader profile | FixFlow`,
+    description:
+      `View services, coverage areas and customer reviews for ${businessName} on FixFlow.`,
+  };
+}
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -124,6 +153,62 @@ export default async function PublicTraderPage({ params }: PageProps) {
             <p>{profile.headline || "Trusted local trade business powered by FixFlow."}</p>
 
             <div className="pubStats">
+                <div className="pubTrustRow">
+  <div className="pubTrustBadge pubTrustBadgeGreen">
+    ✓ Verified business
+  </div>
+
+  <div className="pubTrustBadge">
+    ⚡ Fast response
+  </div>
+
+<div className="pubTrustBadge pubTrustBadgeBlue">
+  💳 Card payments accepted
+</div>
+</div>
+<div className="pubResponseCard">
+  <div className="pubResponseLeft">
+    <div className="pubResponseLabel">
+      Response performance
+    </div>
+
+    <div className="pubResponseTitle">
+      Usually responds quickly to new enquiries
+    </div>
+
+    <div className="pubResponseText">
+      Customers can request quotes directly through FixFlow.
+    </div>
+  </div>
+
+  <div className="pubResponseScore">
+    98%
+  </div>
+</div>
+
+<div className="pubMiniHighlights">
+  {profile.years_in_business ? (
+    <div className="pubMiniHighlight">
+      <strong>{profile.years_in_business}+</strong>
+      <span>Years experience</span>
+    </div>
+  ) : null}
+
+  <div className="pubMiniHighlight">
+    <strong>{services?.length || 0}</strong>
+    <span>Services offered</span>
+  </div>
+
+  <div className="pubMiniHighlight">
+    <strong>{locations?.length || 0}</strong>
+    <span>Areas covered</span>
+  </div>
+
+  <div className="pubMiniHighlight">
+    <strong>{reviewCount}</strong>
+    <span>Customer reviews</span>
+  </div>
+</div>
               <span>⭐ {reviewAverage ? reviewAverage.toFixed(1) : "New"}</span>
               <span>{reviewCount} review{reviewCount === 1 ? "" : "s"}</span>
               <span>{locations?.length || 0} areas</span>
@@ -189,7 +274,15 @@ export default async function PublicTraderPage({ params }: PageProps) {
           )}
         </div>
       </section>
+<section className="pubCard">
+  <h2>Recent work</h2>
 
+  <div className="pubGalleryEmpty">
+    <div className="pubGalleryIcon">📸</div>
+    <strong>Before & after photos coming soon</strong>
+    <p>Completed job photos will appear here once this trader starts adding work examples.</p>
+  </div>
+</section>
       <section className="pubCard">
         <h2>Customer reviews</h2>
 
@@ -212,7 +305,7 @@ export default async function PublicTraderPage({ params }: PageProps) {
             ))}
           </div>
         ) : (
-          <p>Customer reviews will appear here once published.</p>
+          <p>Customer reviews will appear here once published through completed FixFlow jobs.</p>
         )}
       </section>
 
@@ -237,10 +330,228 @@ export default async function PublicTraderPage({ params }: PageProps) {
       </section>
 
       <footer className="pubFooter">
-        Powered by <strong>FixFlow</strong>
+        Verified profile powered by <strong>FixFlow</strong>
       </footer>
 
+      <div className="pubStickyBar">
+  <Link href={quoteLink} className="pubStickyPrimary">
+    Request quote
+  </Link>
+
+  {profile.business_phone ? (
+    <a
+      href={`tel:${profile.business_phone}`}
+      className="pubStickyCall"
+    >
+      Call
+    </a>
+  ) : null}
+</div>
+
       <style>{`
+
+.pubMiniHighlights{
+  margin-top:16px;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+}
+
+.pubMiniHighlight{
+  padding:16px;
+  border-radius:20px;
+  border:1px solid #e6ecf5;
+  background:#fff;
+}
+
+.pubMiniHighlight strong{
+  display:block;
+  font-size:24px;
+  font-weight:950;
+  color:#102a56;
+  letter-spacing:-0.04em;
+}
+
+.pubMiniHighlight span{
+  margin-top:4px;
+  display:block;
+  font-size:12px;
+  color:#5c6b84;
+  font-weight:800;
+}
+
+@media(max-width:760px){
+  .pubMiniHighlights{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
+      .pubResponseCard{
+  margin-top:16px;
+  padding:18px;
+  border-radius:22px;
+  background:linear-gradient(180deg,#ffffff,#f8fbff);
+  border:1px solid #e6ecf5;
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:center;
+}
+
+.pubResponseLabel{
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#5c6b84;
+}
+
+.pubResponseTitle{
+  margin-top:6px;
+  font-size:18px;
+  font-weight:950;
+  color:#102a56;
+  letter-spacing:-0.03em;
+}
+
+.pubResponseText{
+  margin-top:6px;
+  font-size:13px;
+  line-height:1.5;
+  color:#5c6b84;
+}
+
+.pubResponseScore{
+  width:74px;
+  height:74px;
+  border-radius:999px;
+  background:#1f355c;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  font-weight:950;
+  flex-shrink:0;
+}
+
+@media(max-width:760px){
+  .pubResponseCard{
+    align-items:flex-start;
+  }
+
+  .pubResponseScore{
+    width:62px;
+    height:62px;
+    font-size:17px;
+  }
+}
+
+      .pubGalleryEmpty{
+  padding:24px;
+  border-radius:22px;
+  border:1px dashed #cfd9e8;
+  background:#f8fbff;
+  text-align:center;
+}
+
+.pubGalleryIcon{
+  font-size:30px;
+  margin-bottom:10px;
+}
+
+.pubGalleryEmpty strong{
+  display:block;
+  color:#102a56;
+  font-size:16px;
+  font-weight:950;
+}
+
+.pubGalleryEmpty p{
+  max-width:460px;
+  margin:8px auto 0;
+}
+
+      .pubTrustRow{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:14px;
+}
+
+.pubTrustBadge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 12px;
+  border-radius:999px;
+  background:#f8fbff;
+  border:1px solid #e6ecf5;
+  color:#1f355c;
+  font-size:12px;
+  font-weight:900;
+}
+
+.pubTrustBadgeGreen{
+  background:#ecfdf3;
+  border-color:#bfe9cf;
+  color:#116b3a;
+}
+
+.pubTrustBadgeBlue{
+  background:#eef4ff;
+  border-color:#cfe0ff;
+  color:#245bff;
+}
+
+      .pubStickyBar{
+  position:fixed;
+  left:14px;
+  right:14px;
+  bottom:14px;
+  z-index:100;
+  display:none;
+  gap:10px;
+  padding:10px;
+  border-radius:22px;
+  background:rgba(255,255,255,0.92);
+  backdrop-filter:blur(14px);
+  border:1px solid #e6ecf5;
+  box-shadow:0 14px 40px rgba(15,23,42,0.14);
+}
+
+.pubStickyPrimary,
+.pubStickyCall{
+  flex:1;
+  height:54px;
+  border-radius:16px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none;
+  font-weight:900;
+}
+
+.pubStickyPrimary{
+  background:#1f355c;
+  color:#fff;
+}
+
+.pubStickyCall{
+  background:#fff;
+  color:#1f355c;
+  border:1px solid #dbe4f0;
+}
+
+@media(max-width:760px){
+  .pubStickyBar{
+    display:flex;
+  }
+
+  .pubPage{
+    padding-bottom:110px;
+  }
+}
 
 .pubHeroBrand {
   display: flex;

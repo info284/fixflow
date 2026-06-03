@@ -3577,16 +3577,21 @@ className={`ff-leftItem
                           </div>
 
 <div className="ff-detailRow">
-  <div className="ff-detailLabel">Confirm booking</div>
+  <div className="ff-detailLabel">Booking date</div>
   <div className="ff-detailValue">
-<input
-ref={bookingInputRef}
-type="datetime-local"
-className="ff-input"
-value={bookingDateTime}
-onChange={(e) => setBookingDateTime(e.target.value)}
-style={{ maxWidth: 260 }}
-/>
+    <input
+      ref={bookingInputRef}
+      type="datetime-local"
+      className="ff-input"
+      value={bookingDateTime}
+      onChange={(e) => setBookingDateTime(e.target.value)}
+      style={{
+        width: "100%",
+        maxWidth: 320,
+        minHeight: 54,
+        fontSize: 16,
+      }}
+    />
   </div>
 </div>
 
@@ -3597,7 +3602,7 @@ style={{ maxWidth: 260 }}
     onClick={saveJobBookingDate}
     disabled={notesSaving || !bookingDateTime}
   >
-   {notesSaving ? "Saving…" : bookingDateTime ? "Confirm booking" : "Pick a date first"}
+   {notesSaving ? "Saving…" : bookingDateTime ? "Confirm booking" : "Select date above"}
   </button>
 </div>
 

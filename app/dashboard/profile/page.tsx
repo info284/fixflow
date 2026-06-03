@@ -2138,7 +2138,9 @@ const reviewStats = useMemo(() => {
           {reviews.slice(0, 3).map((r) => (
             <div key={r.id} className="ff-reviewItem">
               <div className="ff-reviewTop">
-               <strong>{r.customer_name || "Customer"}</strong>
+              <strong>
+  {r.reviewer_name || r.customer_name || "Customer"}
+</strong>
 
                 <span>
                   {r.verified ? "Verified" : "Review"}

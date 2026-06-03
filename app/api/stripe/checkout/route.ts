@@ -77,7 +77,21 @@ if (!stripeAccountId) {
     { status: 400 }
   );
 }
+const connectedAccount = await stripe.accounts.retrieve(stripeAccountId);
 
+const transfersReady =
+  connectedAccount.capabilities?.transfers === "active" ||
+  connectedAccount.capabilities?.legacy_payments === "active";
+
+if (!transfersReady) {
+  return NextResponse.json(
+    {
+      error:
+        "This trader’s Stripe account is not fully ready to receive payments yet. Please complete Stripe onboarding.",
+    },
+    { status: 400 }
+  );
+}
     // 2. Create Stripe checkout session
   const origin =
   process.env.NEXT_PUBLIC_SITE_URL ||

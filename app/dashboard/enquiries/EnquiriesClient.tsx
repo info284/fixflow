@@ -5118,9 +5118,12 @@ useEffect(() => {
     {lostJobInsights.topReason && (
       <button
         className="ff-btn ff-btnGhost ff-btnSm"
-        onClick={() =>
-          setLostReasonFilter(lostJobInsights.topReason || "")
-        }
+onClick={() => {
+  setSearchFilter("");
+  setUrgencyFilter("");
+  setTab("lost");
+  setLostReasonFilter(lostJobInsights.topReason || "");
+}}
       >
         View
       </button>

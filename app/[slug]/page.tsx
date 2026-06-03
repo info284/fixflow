@@ -92,8 +92,20 @@ export default async function PublicTraderPage({ params }: PageProps) {
 
   return (
     <main className="pubPage">
-      <section className="pubHero">
-        <div className="pubBadge">Public profile · Coming soon</div>
+<section className="pubHero">
+  <div className="pubHeroBrand">
+    {profile.logo_url ? (
+      <img
+        src={profile.logo_url}
+        alt={`${profile.display_name || "Business"} logo`}
+        className="pubBrandLogo"
+      />
+    ) : (
+      <div className="pubBrandFallback">FixFlow</div>
+    )}
+
+    <div className="pubBadge">Public profile preview</div>
+  </div>
 
         <div className="pubTop">
           <div className="pubAvatar">
@@ -132,7 +144,7 @@ export default async function PublicTraderPage({ params }: PageProps) {
         </div>
 
         <div className="pubSoon">
-          Full online booking, customer portal and marketplace discovery are coming soon.
+          Online booking and customer portal are coming soon. You can request a quote today.
         </div>
       </section>
 
@@ -229,6 +241,32 @@ export default async function PublicTraderPage({ params }: PageProps) {
       </footer>
 
       <style>{`
+
+.pubHeroBrand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.pubBrandLogo {
+  max-width: 150px;
+  max-height: 54px;
+  object-fit: contain;
+}
+
+.pubBrandFallback {
+  font-size: 13px;
+  font-weight: 950;
+  color: #1f355c;
+  letter-spacing: -0.02em;
+}
+
+.pubHeroBrand .pubBadge {
+  margin-bottom: 0;
+}
+
         .pubPage {
           min-height: 100vh;
           background: #f5f8fc;

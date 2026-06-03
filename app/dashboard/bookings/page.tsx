@@ -807,6 +807,7 @@ const [reviewSent, setReviewSent] = useState(false);
 
   const detailBottomRef = useRef<HTMLDivElement | null>(null);
   const activeRowRef = useRef<HTMLButtonElement | null>(null);
+  const bookingInputRef = useRef<HTMLInputElement | null>(null);
 
 const selectedRequest = useMemo(() => {
   if (!selectedRequestId) return null;
@@ -1280,7 +1281,15 @@ function goToCreateInvoice(requestId: string) {
 }
 
 function goToCreateBooking(requestId: string) {
-  setRightTab("schedule");
+setRightTab("schedule");
+
+setTimeout(() => {
+bookingInputRef.current?.focus();
+bookingInputRef.current?.scrollIntoView({
+behavior: "smooth",
+block: "center",
+});
+}, 100);
 }
 
 async function handleJobAction(action: string | null) {
@@ -1362,14 +1371,28 @@ if (action === "happy") {
       const bookedAt =
         (json as any).booked_at || new Date(bookingDateTime).toISOString();
 
-      setRequestMap((prev) => ({
-        ...prev,
-        [selectedRequest.id]: {
-          ...selectedRequest,
-          job_booked_at: bookedAt,
-          status: "booked",
-        },
-      }));
+        setJobs((prev) =>
+prev.map((job) =>
+job.id === selectedRequest.id
+? {
+...job,
+job_booked_at: bookedAt,
+status: "booked",
+stage: "booked",
+}
+: job
+)
+);
+
+setRequestMap((prev) => ({
+...prev,
+[selectedRequest.id]: {
+...selectedRequest,
+job_booked_at: bookedAt,
+status: "booked",
+stage: "booked",
+},
+}));
 
       pushToast("Booking confirmed");
     } catch (e: any) {
@@ -3556,13 +3579,14 @@ className={`ff-leftItem
 <div className="ff-detailRow">
   <div className="ff-detailLabel">Confirm booking</div>
   <div className="ff-detailValue">
-    <input
-      type="datetime-local"
-      className="ff-input"
-      value={bookingDateTime}
-      onChange={(e) => setBookingDateTime(e.target.value)}
-      style={{ maxWidth: 260 }}
-    />
+<input
+ref={bookingInputRef}
+type="datetime-local"
+className="ff-input"
+value={bookingDateTime}
+onChange={(e) => setBookingDateTime(e.target.value)}
+style={{ maxWidth: 260 }}
+/>
   </div>
 </div>
 
@@ -3573,7 +3597,7 @@ className={`ff-leftItem
     onClick={saveJobBookingDate}
     disabled={notesSaving || !bookingDateTime}
   >
-    {notesSaving ? "Saving…" : "Confirm booking"}
+   {notesSaving ? "Saving…" : bookingDateTime ? "Confirm booking" : "Pick a date first"}
   </button>
 </div>
 

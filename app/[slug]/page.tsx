@@ -103,12 +103,12 @@ export default async function PublicTraderPage({ params }: PageProps) {
         .eq("trader_id", traderId)
         .order("expiry_date", { ascending: true }),
 
-      supabase
-        .from("reviews")
-        .select("id, rating, comment, customer_name, created_at, verified")
-        .eq("trader_id", traderId)
-        .eq("status", "published")
-        .order("created_at", { ascending: false }),
+supabase
+  .from("reviews")
+  .select("id, rating, comment, reviewer_name, customer_name, created_at, verified")
+  .eq("tradesperson_id", traderId)
+  .eq("status", "published")
+  .order("created_at", { ascending: false }),
     ]);
 
   const reviewCount = reviews?.length || 0;
@@ -289,7 +289,7 @@ export default async function PublicTraderPage({ params }: PageProps) {
             {reviews.slice(0, 6).map((r) => (
               <div key={r.id} className="pubReview">
                 <div className="pubReviewTop">
-                  <strong>{r.customer_name || "Customer"}</strong>
+                  <strong>{r.reviewer_name || r.customer_name || "Customer"}</strong>
                   <span>{r.verified ? "Verified" : "Review"}</span>
                 </div>
 

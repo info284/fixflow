@@ -18,27 +18,17 @@ const { token } = await params;
 const supabase = supabaseAdmin();
 
 const { data: job, error } = await supabase
-.from("quote_requests")
-.select(`
-id,
-plumber_id,
-customer_name,
-customer_email,
-job_type,
-review_token,
-reviews (
-id,
-rating,
-comment,
-created_at
-),
-profiles:plumber_id (
-business_name,
-display_name
-)
-`)
-.eq("review_token", token)
-.maybeSingle();
+  .from("quote_requests")
+  .select(`
+    id,
+    plumber_id,
+    customer_name,
+    customer_email,
+    job_type,
+    review_token
+  `)
+  .eq("review_token", token)
+  .maybeSingle();
 
 if (error || !job) {
 return NextResponse.json(
@@ -46,6 +36,16 @@ return NextResponse.json(
 { status: 404 }
 );
 }
+const { data: profile } = await supabase
+  .from("profiles")
+  .select("business_name, display_name")
+  .eq("id", job.plumber_id)
+  .maybeSingle();
+
+const { data: existingReviews } = await supabase
+  .from("reviews")
+  .select("id")
+  .eq("request_id", job.id);
 
 return NextResponse.json({
 review: {
@@ -55,8 +55,8 @@ request_id: job.id,
 customer_name: job.customer_name,
 customer_email: job.customer_email,
 job_type: job.job_type,
-profiles: job.profiles,
-alreadySubmitted: Array.isArray(job.reviews) && job.reviews.length > 0,
+profiles: profile,
+alreadySubmitted: Boolean(existingReviews?.length),
 },
 });
 } catch (e: any) {

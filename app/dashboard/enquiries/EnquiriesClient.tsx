@@ -191,7 +191,8 @@ type ListTab =
   | "needsAction"
   | "followUp"
   | "waiting"
-  | "cold";
+  | "cold"
+  | "lost";
 
 type BestAction = {
   title: string;
@@ -2637,6 +2638,17 @@ if (tab === "cold") {
     return followUpMap[r.id]?.bucket === "allGood";
   });
 }
+
+if (tab === "lost") {
+  out = out.filter((r) => {
+    return (
+      r.stage === "lost" ||
+      r.status === "lost" ||
+      r.status === "declined"
+    );
+  });
+}
+
 if (lostReasonFilter) {
   out = out.filter((r) => r.lost_reason === lostReasonFilter);
 }
@@ -5265,6 +5277,12 @@ salesPulse.valueWaiting > 0 || salesPulse.needsAction > 0
   onClick={() => setTab("cold")}
 >
   Cold 🧊
+</button>
+<button
+  className={`ff-chip ${tab === "lost" ? "ff-chipActive" : ""}`}
+  onClick={() => setTab("lost")}
+>
+  Lost
 </button>
   </div>
 

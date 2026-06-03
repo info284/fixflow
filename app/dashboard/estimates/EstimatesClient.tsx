@@ -569,9 +569,9 @@ export default function JobsClient() {
 } | null>(null);
 
   const [postcodeFilter, setPostcodeFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "" | "approved" | "booked" | "in_progress" | "complete"
-  >("");
+const [statusFilter, setStatusFilter] = useState<
+  "" | "approved" | "booked" | "in_progress" | "complete" | "lost"
+>("");
 
   const [quotes, setQuotes] = useState<QuoteRow[]>([]);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);

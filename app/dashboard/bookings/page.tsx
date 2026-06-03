@@ -1292,6 +1292,24 @@ block: "center",
 }, 100);
 }
 
+function openBookingPicker() {
+  const input = bookingInputRef.current;
+  if (!input) return;
+
+  input.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
+
+  input.focus();
+
+  if (typeof input.showPicker === "function") {
+    input.showPicker();
+  } else {
+    input.click();
+  }
+}
+
 async function handleJobAction(action: string | null) {
   if (!action || !selectedRequest) return;
 if (action === "message") {
@@ -3578,6 +3596,7 @@ className={`ff-leftItem
 
 <div className="ff-detailRow">
   <div className="ff-detailLabel">Booking date</div>
+
   <div className="ff-detailValue">
     <input
       ref={bookingInputRef}
@@ -3592,18 +3611,26 @@ className={`ff-leftItem
         fontSize: 16,
       }}
     />
-  </div>
-</div>
 
-<div className="ff-bookingActions" style={{ marginBottom: 14 }}>
-  <button
-    type="button"
-    className="ff-btn ff-btnPrimary"
-    onClick={saveJobBookingDate}
-    disabled={notesSaving || !bookingDateTime}
-  >
-   {notesSaving ? "Saving…" : bookingDateTime ? "Confirm booking" : "Select date above"}
-  </button>
+    <div className="ff-bookingActions" style={{ marginTop: 10 }}>
+      <button
+        type="button"
+        className="ff-btn ff-btnGhost"
+        onClick={openBookingPicker}
+      >
+        Pick date & time
+      </button>
+
+      <button
+        type="button"
+        className="ff-btn ff-btnPrimary"
+        onClick={saveJobBookingDate}
+        disabled={notesSaving || !bookingDateTime}
+      >
+        {notesSaving ? "Saving…" : "Confirm booking"}
+      </button>
+    </div>
+  </div>
 </div>
 
                           <div className="ff-bookingActions">

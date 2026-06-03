@@ -155,8 +155,16 @@ export async function POST(req: Request) {
 
     if (!requestRow) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
-    }
 
+    }
+const { data: profile } = await supabaseAdmin
+  .from("profiles")
+  .select("display_name, business_name")
+  .eq("id", userId)
+  .maybeSingle();
+
+const traderName =
+  profile?.business_name || profile?.display_name || "Your trader";
     const { error: updateError } = await supabaseAdmin
       .from("quote_requests")
       .update({
@@ -206,8 +214,9 @@ export async function POST(req: Request) {
         location,
       });
 
-      const html = buildFixFlowEmail({
-        title: "Booking confirmed",
+const html = buildFixFlowEmail({
+  title: "Booking confirmed",
+  traderName,
         introHtml: `
           <div style="font-size:16px; font-weight:700; margin-bottom:10px;">
             Hi ${safeCustomerName},
@@ -232,9 +241,9 @@ export async function POST(req: Request) {
               <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#5C6B84; margin-bottom:6px;">
                 Address
               </div>
-              <div style="font-size:18px; font-weight:800; color:#0B1320;">
-                ${safeLocation}
-              </div>
+ <div style="font-size:18px; font-weight:800; color:#1F355C;">
+  ${safeLocation}
+</div>
             </div>
           </div>
 
@@ -254,10 +263,10 @@ Address: ${location || "—"}
 We’ve attached a calendar invite so you can save this booking easily.
 
 Thanks,
-FixFlow`;
+${traderName}`;
 
       const emailResult = await resend.emails.send({
-        from: "FixFlow <bookings@send.thefixflowapp.com>",
+        from: `${traderName} <bookings@send.thefixflowapp.com>`,
         to: customerEmail,
         subject: "Your booking is confirmed",
         html,

@@ -147,74 +147,72 @@ export default async function PublicTraderPage({ params }: PageProps) {
               <span>{(profile.display_name || "F").charAt(0)}</span>
             )}
           </div>
-
-          <div>
-            <h1>{profile.display_name || "Local trader"}</h1>
-            <p>{profile.headline || "Trusted local trade business powered by FixFlow."}</p>
-
-            <div className="pubStats">
-                <div className="pubTrustRow">
-  <div className="pubTrustBadge pubTrustBadgeGreen">
-    ✓ Verified business
-  </div>
-
-  <div className="pubTrustBadge">
-    ⚡ Fast response
-  </div>
-
-<div className="pubTrustBadge pubTrustBadgeBlue">
-  💳 Card payments accepted
-</div>
-</div>
-<div className="pubResponseCard">
-  <div className="pubResponseLeft">
-    <div className="pubResponseLabel">
-      Response performance
-    </div>
-
-    <div className="pubResponseTitle">
-      Usually responds quickly to new enquiries
-    </div>
-
-    <div className="pubResponseText">
-      Customers can request quotes directly through FixFlow.
-    </div>
-  </div>
-
-  <div className="pubResponseScore">
-    98%
-  </div>
-</div>
-
-<div className="pubMiniHighlights">
-  {profile.years_in_business ? (
-    <div className="pubMiniHighlight">
-      <strong>{profile.years_in_business}+</strong>
-      <span>Years experience</span>
-    </div>
-  ) : null}
-
-  <div className="pubMiniHighlight">
-    <strong>{services?.length || 0}</strong>
-    <span>Services offered</span>
-  </div>
-
-  <div className="pubMiniHighlight">
-    <strong>{locations?.length || 0}</strong>
-    <span>Areas covered</span>
-  </div>
-
-  <div className="pubMiniHighlight">
-    <strong>{reviewCount}</strong>
-    <span>Customer reviews</span>
-  </div>
-</div>
-              <span>⭐ {reviewAverage ? reviewAverage.toFixed(1) : "New"}</span>
-              <span>{reviewCount} review{reviewCount === 1 ? "" : "s"}</span>
-              <span>{locations?.length || 0} areas</span>
-            </div>
           </div>
-        </div>
+
+<div className="pubInfo">
+  <h1>{profile.display_name || "Local trader"}</h1>
+  <p>{profile.headline || "Trusted local trade business powered by FixFlow."}</p>
+
+  <div className="pubTrustRow">
+    <div className="pubTrustBadge pubTrustBadgeGreen">
+      ✓ Verified business
+    </div>
+
+    <div className="pubTrustBadge">
+      ⚡ Fast response
+    </div>
+
+    <div className="pubTrustBadge pubTrustBadgeBlue">
+      💳 Card payments accepted
+    </div>
+  </div>
+
+  <div className="pubResponseCard">
+    <div className="pubResponseLeft">
+      <div className="pubResponseLabel">Response performance</div>
+
+      <div className="pubResponseTitle">
+        Usually responds quickly to new enquiries
+      </div>
+
+      <div className="pubResponseText">
+        Customers can request quotes directly through FixFlow.
+      </div>
+    </div>
+
+    <div className="pubResponseScore">98%</div>
+  </div>
+
+  <div className="pubMiniHighlights">
+    {profile.years_in_business ? (
+      <div className="pubMiniHighlight">
+        <strong>{profile.years_in_business}+</strong>
+        <span>Years experience</span>
+      </div>
+    ) : null}
+
+    <div className="pubMiniHighlight">
+      <strong>{services?.length || 0}</strong>
+      <span>Services offered</span>
+    </div>
+
+    <div className="pubMiniHighlight">
+      <strong>{locations?.length || 0}</strong>
+      <span>Areas covered</span>
+    </div>
+
+    <div className="pubMiniHighlight">
+      <strong>{reviewCount}</strong>
+      <span>Customer reviews</span>
+    </div>
+  </div>
+
+  <div className="pubStats">
+    <span>⭐ {reviewAverage ? reviewAverage.toFixed(1) : "New"}</span>
+    <span>{reviewCount} review{reviewCount === 1 ? "" : "s"}</span>
+    <span>{locations?.length || 0} areas</span>
+  </div>
+</div>
 
         <div className="pubActions">
           <Link href={quoteLink} className="pubBtnPrimary">
@@ -350,6 +348,11 @@ export default async function PublicTraderPage({ params }: PageProps) {
 
       <style>{`
 
+.pubInfo{
+  flex:1;
+  min-width:0;
+}
+
 .pubMiniHighlights{
   margin-top:16px;
   display:grid;
@@ -382,7 +385,29 @@ export default async function PublicTraderPage({ params }: PageProps) {
 
 @media(max-width:760px){
   .pubMiniHighlights{
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    justify-content:center;
+  }
+
+  .pubMiniHighlight{
+    width:100%;
+    max-width:190px;
+    margin:0 auto;
+    text-align:left;
+  }
+
+  .pubStats{
+    justify-content:center;
+  }
+
+  .pubActions{
+    justify-content:center;
+  }
+
+  .pubTop{
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
   }
 }
 
@@ -472,11 +497,12 @@ export default async function PublicTraderPage({ params }: PageProps) {
   margin:8px auto 0;
 }
 
-      .pubTrustRow{
+.pubTrustRow{
   display:flex;
   flex-wrap:wrap;
+  justify-content:center;
   gap:10px;
-  margin-top:14px;
+  margin-top:20px;
 }
 
 .pubTrustBadge{

@@ -2641,10 +2641,15 @@ if (tab === "cold") {
 
 if (tab === "lost") {
   out = out.filter((r) => {
+    const stage = String(r.stage || "").toLowerCase();
+    const status = String(r.status || "").toLowerCase();
+    const reason = String(r.lost_reason || "").trim();
+
     return (
-      r.stage === "lost" ||
-      r.status === "lost" ||
-      r.status === "declined"
+      stage === "lost" ||
+      status === "lost" ||
+      status === "declined" ||
+      Boolean(reason)
     );
   });
 }

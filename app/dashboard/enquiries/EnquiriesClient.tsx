@@ -5121,8 +5121,8 @@ useEffect(() => {
 onClick={() => {
   setSearchFilter("");
   setUrgencyFilter("");
+  setLostReasonFilter("");
   setTab("lost");
-  setLostReasonFilter(lostJobInsights.topReason || "");
 }}
       >
         View
@@ -5515,7 +5515,11 @@ className={`ff-leftItem
                          <div className={`ff-leftJobTitle ${isWon ? "ff-leftJobTitleWon" : ""}`}>
   {titleCase(r.job_type || "Enquiry")}
 </div>
-
+{derivedStage === "lost" && (
+  <div className="ff-leftLostReason">
+    Lost — {r.lost_reason || r.decline_reason || "No reason given"}
+  </div>
+)}
                           <div className="ff-leftCustomer">
                             {titleCase(r.customer_name || "Customer")}
                           </div>

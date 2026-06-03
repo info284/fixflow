@@ -2640,18 +2640,7 @@ if (tab === "cold") {
 }
 
 if (tab === "lost") {
-  out = out.filter((r) => {
-    const stage = String(r.stage || "").toLowerCase();
-    const status = String(r.status || "").toLowerCase();
-    const reason = String(r.lost_reason || "").trim();
-
-    return (
-      stage === "lost" ||
-      status === "lost" ||
-      status === "declined" ||
-      Boolean(reason)
-    );
-  });
+  out = out.filter((r) => String(r.stage || "").toLowerCase() === "lost");
 }
 
 if (lostReasonFilter) {
@@ -2884,9 +2873,11 @@ const activeEnquiryRows = useMemo(() => {
       messages,
     });
 
+    if (tab === "lost") return stage === "lost";
+
     return stage !== "won" && stage !== "lost";
   });
-}, [sortedRows, estimateMap, visitMap, threadMap]);
+}, [sortedRows, estimateMap, visitMap, threadMap, tab]);
 
 const bookedEnquiryRows = useMemo(() => {
   return sortedRows.filter((r) => {
@@ -5284,13 +5275,16 @@ salesPulse.valueWaiting > 0 || salesPulse.needsAction > 0
   Cold 🧊
 </button>
 <button
-  className={`ff-chip ${tab === "lost" ? "ff-chipActive" : ""}`}
-  onClick={() => setTab("lost")}
+  type="button"
+  className={`ff-segBtn ${tab === "lost" ? "isActive" : ""}`}
+  onClick={() => {
+    setLostReasonFilter("");
+    setTab("lost");
+  }}
 >
   Lost
 </button>
-  </div>
-
+</div>
                   <input
   className="ff-input"
   placeholder="Search by postcode, name or job no."
@@ -5338,7 +5332,7 @@ salesPulse.valueWaiting > 0 || salesPulse.needsAction > 0
     <div className="ff-loadingWrap">
       <div className="ff-loadingText">Loading enquiries…</div>
     </div>
-  ) : activeEnquiryRows.length || bookedEnquiryRows.length ? (
+) : activeEnquiryRows.length || (tab !== "lost" && bookedEnquiryRows.length) ? (
     
 <>
 
@@ -5705,13 +5699,13 @@ className={`ff-leftItem
                     );
                   })}
 
-                  {bookedEnquiryRows.length > 0 && (
-                    <div className="ff-divider">
-                      <span>Booked jobs</span>
-                    </div>
-                  )}
+{tab !== "lost" && bookedEnquiryRows.length > 0 && (
+  <div className="ff-divider">
+    <span>Booked jobs</span>
+  </div>
+)}
 
-                  {bookedEnquiryRows.map((r) => {
+{tab !== "lost" && bookedEnquiryRows.map((r) => {
                     const isActive = selectedId === r.id;
                     const urgency = urgencyChip(r.urgency);
                     const estimate = estimateMap[r.id];

@@ -1115,7 +1115,7 @@ const [visitBooking, setVisitBooking] = useState(false);
  const [searchFilter, setSearchFilter] = useState("");
   const [urgencyFilter, setUrgencyFilter] = useState("");
   const [lostReasonFilter, setLostReasonFilter] = useState("");
-
+const [fileCountMap, setFileCountMap] = useState<Record<string, number>>({});
   const [rows, setRows] = useState<QuoteRequestRow[]>([]);
 
   const [aiRunStatus, setAiRunStatus] = useState<
@@ -3239,6 +3239,27 @@ function getDisplayedAiAction(params: {
   /* ================================
      LOADERS
   ================================= */
+async function loadFileCountMap(userId: string) {
+  const { data, error } = await supabase
+    .from("job_files")
+    .select("request_id")
+    .eq("plumber_id", userId)
+    .eq("area", "customer");
+
+  if (error) {
+    console.error("loadFileCountMap error:", error);
+    return;
+  }
+
+  const map: Record<string, number> = {};
+
+  for (const file of data || []) {
+    if (!file.request_id) continue;
+    map[file.request_id] = (map[file.request_id] || 0) + 1;
+  }
+
+  setFileCountMap(map);
+}
 
 async function handleRunAiEngine(enquiryId: string) {
   try {
@@ -4810,6 +4831,7 @@ await Promise.all([
   loadEstimateMap(user.id),
   loadVisitMap(user.id),
   loadPricingHistory(user.id),
+  loadFileCountMap(user.id),
 ]);
 
 const { data, error } = await supabase
@@ -5340,12 +5362,12 @@ salesPulse.valueWaiting > 0 || salesPulse.needsAction > 0
     <div className="ff-loadingWrap">
       <div className="ff-loadingText">Loading enquiries…</div>
     </div>
-) : activeEnquiryRows.length || (tab !== "lost" && bookedEnquiryRows.length) ? (
+) : (tab === "lost" ? sortedRows.length : activeEnquiryRows.length || bookedEnquiryRows.length) ? (
     
 <>
 
     {/* ACTIVE */}
-{activeEnquiryRows.map((r) => {
+{(tab === "lost" ? sortedRows : activeEnquiryRows).map((r) => {
   const isActive = selectedId === r.id;
   const urgency = urgencyChip(r.urgency);
   const estimate = estimateMap[r.id];
@@ -5396,7 +5418,7 @@ const aiActionMeta =
   const isWon = derivedStage === "won";
   const stage = stageChip(derivedStage);
 
-  const photos = r.photo_count || 0;
+const photos = fileCountMap[r.id] || r.photo_count || 0;
   const strength = enquiryStrength(r, photos);
   const score = enquiryScore(r, photos);
 
@@ -5764,7 +5786,7 @@ const isRepeat = repeatCount > 0;
                     const isWon = derivedStage === "won";
                     const stage = stageChip(derivedStage);
 
-                    const photos = r.photo_count || 0;
+                   const photos = fileCountMap[r.id] || r.photo_count || 0;
                     const strength = enquiryStrength(r, photos);
                     const score = enquiryScore(r, photos);
 

@@ -73,10 +73,11 @@ type TraderCertificate = {
 
 type ReviewRow = {
   id: string;
-  trader_id: string;
+  tradesperson_id: string;
   request_id: string | null;
   rating: number;
   comment: string | null;
+  reviewer_name: string | null;
   customer_name: string | null;
   created_at: string;
   verified: boolean | null;
@@ -483,15 +484,16 @@ const loadReviews = async (uid: string) => {
     .from("reviews")
     .select(`
       id,
-      trader_id,
+      tradesperson_id,
       request_id,
       rating,
       comment,
+      reviewer_name,
       customer_name,
       created_at,
       verified
     `)
-    .eq("trader_id", uid)
+    .eq("tradesperson_id", uid)
     .eq("status", "published")
     .order("created_at", { ascending: false });
 
@@ -2136,7 +2138,7 @@ const reviewStats = useMemo(() => {
           {reviews.slice(0, 3).map((r) => (
             <div key={r.id} className="ff-reviewItem">
               <div className="ff-reviewTop">
-                <strong>{r.customer_name || "Customer"}</strong>
+               <strong>{r.customer_name || "Customer"}</strong>
 
                 <span>
                   {r.verified ? "Verified" : "Review"}

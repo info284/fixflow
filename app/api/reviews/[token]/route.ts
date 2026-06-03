@@ -116,7 +116,6 @@ const { error: insertError } = await supabase.from("reviews").insert({
 trader_id: job.plumber_id,
 request_id: job.id,
 customer_name: job.customer_name,
-customer_email: job.customer_email,
 rating: safeRating,
 comment: String(comment || "").trim() || null,
 status: "published",

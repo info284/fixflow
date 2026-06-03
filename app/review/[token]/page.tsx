@@ -165,9 +165,9 @@ export default function ReviewPage({
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    minHeight: "100vh",
-    background: "#F6F8FC",
+page: {
+  minHeight: "100vh",
+  background: "#F3F6FA",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -175,22 +175,22 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
   },
-  card: {
-    width: "100%",
-    maxWidth: 520,
-    background: "#FFFFFF",
-    border: "1px solid #E4EAF5",
+card: {
+  width: "100%",
+  maxWidth: 520,
+  background: "#FFFFFF",
+  border: "1px solid #E7EDF5",
     borderRadius: 28,
     padding: 28,
     boxShadow: "0 24px 70px rgba(15, 35, 70, 0.12)",
     textAlign: "center",
   },
-  badge: {
-    display: "inline-flex",
-    padding: "8px 12px",
-    borderRadius: 999,
-    background: "#EEF4FF",
-    color: "#245BFF",
+badge: {
+  display: "inline-flex",
+  padding: "8px 14px",
+  borderRadius: 999,
+  background: "#EEF2F8",
+  color: "#1F355C",
     fontSize: 13,
     fontWeight: 800,
     marginBottom: 16,
@@ -215,7 +215,7 @@ const styles: Record<string, React.CSSProperties> = {
   starButton: {
     border: 0,
     background: "transparent",
-    color: "#F5B301",
+    color: "#E8AE00",
     fontSize: 42,
     cursor: "pointer",
   },
@@ -230,14 +230,14 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
     outline: "none",
   },
-  button: {
-    width: "100%",
-    border: 0,
-    borderRadius: 999,
-    padding: "15px 20px",
-    marginTop: 18,
-    background: "#245BFF",
-    color: "#FFFFFF",
+button: {
+  width: "100%",
+  border: 0,
+  borderRadius: 999,
+  padding: "16px 20px",
+  marginTop: 22,
+  background: "linear-gradient(180deg, #1F355C 0%, #102A56 100%)",
+  color: "#FFFFFF",
     fontWeight: 900,
     fontSize: 15,
     cursor: "pointer",

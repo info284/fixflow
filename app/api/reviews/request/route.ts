@@ -86,7 +86,7 @@ await resend.emails.send({
    <div style="background:#0b2a55;padding:28px 36px;">
       <div style="font-size:14px;letter-spacing:2px;font-weight:700;color:#c7d2fe;">FIXFLOW</div>
       <div style="margin-top:14px;font-size:34px;line-height:1;font-weight:800;color:white;">Quick review</div>
-      <div style="margin-top:18px;height:6px;width:160px;background:#2f6bff;border-radius:999px;"></div>
+     
     </div>
 
     <div style="padding:38px 36px;color:#111827;">

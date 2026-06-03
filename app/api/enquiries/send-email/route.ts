@@ -184,7 +184,7 @@ const replyTo = `enquiries+${requestId}@send.thefixflowapp.com`;
       `,
 bodyHtml: `
   ${buildFixFlowInfoCard(`
-    <div style="padding:18px;">
+    <div style="padding:18px; text-align:left;">
       ${buildFixFlowSectionLabel("Message preview")}
 
       <div style="

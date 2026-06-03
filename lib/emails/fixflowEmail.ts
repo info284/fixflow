@@ -44,7 +44,7 @@ closingHtml = `
           <div style="width:170px; height:4px;  border-radius:999px;"></div>
         </div>
 
-       <div style="padding:24px; background:#FFFFFF;">
+       <div style="padding:24px; background:#FFFFFF; text-align:left;">
           ${introHtml}
           ${bodyHtml}
           ${ctaHtml ? `<div style="margin:24px 0;">${ctaHtml}</div>` : ""}
@@ -57,7 +57,7 @@ closingHtml = `
 
 export function buildFixFlowButton(label: string, href: string) {
   return `
-    <div style="text-align:center;">
+    <div style="text-align:left;">
       <a
         href="${href}"
         style="display:inline-block; padding:14px 24px; background:#1F355C; color:#FFFFFF; border-radius:12px; text-decoration:none; font-weight:700; font-size:15px;"

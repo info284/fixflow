@@ -227,12 +227,12 @@ const html = buildFixFlowEmail({
           </div>
         `,
         bodyHtml: `
-          <div style="background:#F4F7FF; border:1px solid #E6ECF5; border-radius:18px; overflow:hidden; margin-bottom:20px;">
+          <div style="background:#F7F9FC; border:1px solid #DCE6F2; border-radius:18px; overflow:hidden; margin-bottom:20px;">
             <div style="padding:18px 18px 16px 18px; border-bottom:1px solid #E6ECF5;">
               <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#5C6B84; margin-bottom:6px;">
                 Date and time
               </div>
-              <div style="font-size:18px; font-weight:800; color:#0B1320;">
+              <div style="font-size:18px; font-weight:800; color:#1F355C;">
                 ${safeHumanWhen}
               </div>
             </div>

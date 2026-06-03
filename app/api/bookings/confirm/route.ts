@@ -222,7 +222,7 @@ const html = buildFixFlowEmail({
             Hi ${safeCustomerName},
           </div>
 
-          <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+          <div style="font-size:15px; line-height:1.7; color:#4b5F7A; margin-bottom:20px;">
             Your job is now booked in. Here are the details for your appointment:
           </div>
         `,
@@ -241,13 +241,15 @@ const html = buildFixFlowEmail({
               <div style="font-size:11px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase; color:#5C6B84; margin-bottom:6px;">
                 Address
               </div>
- <div style="font-size:18px; font-weight:800; color:#1F355C;">
-  ${safeLocation}
+<div style="font-size:18px; font-weight:800; color:#1F355C;">
+  <span style="color:#1F355C !important; text-decoration:none !important;">
+    ${safeLocation}
+  </span>
 </div>
             </div>
           </div>
 
-          <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+          <div style="font-size:15px; line-height:1.7; color:#4B5F7A; margin-bottom:20px;">
             We’ve attached a calendar invite so you can save this booking easily.
           </div>
         `,

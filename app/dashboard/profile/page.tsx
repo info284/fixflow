@@ -2059,7 +2059,7 @@ const reviewStats = useMemo(() => {
                 onClick={openProfileLink}
                 disabled={loading || !publicProfileUrl}
               >
-                View profile
+                Preview profile
               </button>
             </div>
 

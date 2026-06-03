@@ -1181,7 +1181,7 @@ const [limitCount, setLimitCount] = useState(100);
   const [traderNotes, setTraderNotes] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesMsg, setNotesMsg] = useState<string | null>(null);
-
+const [storagePhotoCountMap, setStoragePhotoCountMap] = useState<Record<string, number>>({});
   const [replyTo, setReplyTo] = useState("");
   const [replySubject, setReplySubject] = useState("Re:");
   const [replyBody, setReplyBody] = useState("");
@@ -3239,6 +3239,27 @@ function getDisplayedAiAction(params: {
   /* ================================
      LOADERS
   ================================= */
+
+async function loadStoragePhotoCountMap(requests: QuoteRequestRow[]) {
+  const map: Record<string, number> = {};
+
+  await Promise.all(
+    requests.map(async (r) => {
+      const { data, error } = await supabase.storage
+        .from("quote-files")
+        .list(`request/${r.id}/customer`, {
+          limit: 100,
+        });
+
+      if (!error) {
+        map[r.id] = data?.length || 0;
+      }
+    })
+  );
+
+  setStoragePhotoCountMap(map);
+}
+
 async function loadFileCountMap(userId: string) {
   const { data, error } = await supabase
     .from("job_files")
@@ -4852,8 +4873,9 @@ const { data, error } = await supabase
   
 
 
- setRows(loaded);
+setRows(loaded);
 
+await loadStoragePhotoCountMap(loaded);
 await loadThreadMapForRows(loaded, user.id);
 
     setLoading(false);
@@ -5418,7 +5440,7 @@ const aiActionMeta =
   const isWon = derivedStage === "won";
   const stage = stageChip(derivedStage);
 
-const photos = fileCountMap[r.id] || r.photo_count || 0;
+const photos = storagePhotoCountMap[r.id] || r.photo_count || 0;
   const strength = enquiryStrength(r, photos);
   const score = enquiryScore(r, photos);
 
@@ -5786,7 +5808,7 @@ const isRepeat = repeatCount > 0;
                     const isWon = derivedStage === "won";
                     const stage = stageChip(derivedStage);
 
-                   const photos = fileCountMap[r.id] || r.photo_count || 0;
+                 const photos = storagePhotoCountMap[r.id] || r.photo_count || 0;
                     const strength = enquiryStrength(r, photos);
                     const score = enquiryScore(r, photos);
 

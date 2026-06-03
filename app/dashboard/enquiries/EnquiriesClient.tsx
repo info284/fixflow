@@ -597,10 +597,14 @@ function deriveEnquiryStage(params: {
   const hasVisit = !!visit;
   const hasOutbound = messages.some((m) => isOutboundDirection(m.direction));
 
-  if (savedStage === "lost") return "lost";
-  if (savedStage === "in_progress") return "in_progress";
-  if (savedStage === "completed") return "completed";
-  if (savedStage === "won" || estimateAccepted) return "won";
+if (savedStage === "lost") return "lost";
+
+const savedStatus = String(row.status || "").toLowerCase();
+if (savedStatus === "lost" || savedStatus === "declined") return "lost";
+
+if (savedStage === "in_progress") return "in_progress";
+if (savedStage === "completed") return "completed";
+if (savedStage === "won" || estimateAccepted) return "won";
   if (estimateStatus === "sent") return "estimate_sent";
   if (hasVisit) return "visit_booked";
   if (savedStage === "contacted" || hasOutbound) return "contacted";
@@ -1855,6 +1859,7 @@ async function markAsLost(reason: string) {
     .from("quote_requests")
     .update({
       stage: "lost",
+      status: "lost",
       lost_reason: reason,
     })
     .eq("id", rowId);
@@ -1867,7 +1872,7 @@ async function markAsLost(reason: string) {
   setRows((prev) =>
     prev.map((r) =>
       r.id === rowId
-        ? { ...r, stage: "lost", lost_reason: reason }
+        ? { ...r, stage: "lost", status: "lost", lost_reason: reason }
         : r
     )
   );

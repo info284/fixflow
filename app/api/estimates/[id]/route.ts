@@ -43,11 +43,19 @@ export async function GET(_req: Request, { params }: RouteProps) {
     return NextResponse.json({ error: "Estimate not found" }, { status: 404 });
   }
 
-  const { data: enquiry } = await supabase
-    .from("quote_requests")
-    .select("customer_name, job_type")
-    .eq("id", estimate.request_id)
-    .maybeSingle();
+const { data: enquiry } = await supabase
+  .from("quote_requests")
+  .select("customer_name, job_type, plumber_id")
+  .eq("id", estimate.request_id)
+  .maybeSingle();
+
+const { data: profile } = enquiry?.plumber_id
+  ? await supabase
+      .from("profiles")
+      .select("display_name, business_name, notify_email, phone, logo_url")
+      .eq("id", enquiry.plumber_id)
+      .maybeSingle()
+  : { data: null };
 
   return NextResponse.json({
     estimate: {
@@ -61,6 +69,11 @@ export async function GET(_req: Request, { params }: RouteProps) {
       first_viewed_at: estimate.first_viewed_at || null,
       last_viewed_at: estimate.last_viewed_at || null,
       accepted_at: estimate.accepted_at || null,
+      trader_name: profile?.display_name || null,
+business_name: profile?.business_name || null,
+trader_email: profile?.notify_email || null,
+trader_phone: profile?.phone || null,
+logo_url: profile?.logo_url || null,
     },
   });
 }

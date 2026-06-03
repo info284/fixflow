@@ -16,6 +16,11 @@ type Estimate = {
   accepted_at?: string | null;
   trader_name?: string | null;
   business_name?: string | null;
+  trader_email?: string | null;
+  trader_phone?: string | null;
+  logo_url?: string | null;
+  postcode?: string | null;
+  address?: string | null;
 };
 
 function niceDateTime(value?: string | null) {
@@ -237,22 +242,37 @@ function AcceptEstimateContent() {
       <div className="ff-acceptBgGlow ff-acceptBgGlowTwo" />
 
       <div className="ff-acceptShell">
-        <div className="ff-acceptTop">
-          <div className="ff-acceptBrandWrap">
-            <div className="ff-acceptLogo">F</div>
+<div className="ff-acceptTop ff-acceptTopPro">
+  <div className="ff-acceptBrandWrap">
+    {estimate.logo_url ? (
+      <img
+        src={estimate.logo_url}
+        alt={traderDisplayName}
+        className="ff-acceptTraderLogo"
+      />
+    ) : (
+      <div className="ff-acceptLogo">
+        {traderDisplayName.slice(0, 1).toUpperCase()}
+      </div>
+    )}
 
-            <div className="ff-acceptBrandText">
-              <div className="ff-acceptBrand">{traderDisplayName}</div>
-              <div className="ff-acceptBrandSub">
-                Estimate powered by FixFlow
-              </div>
-            </div>
-          </div>
+    <div className="ff-acceptBrandText">
+      <div className="ff-acceptBrand">{traderDisplayName}</div>
+      <div className="ff-acceptBrandSub">
+        Estimate managed with FixFlow
+      </div>
 
-          <div className="ff-acceptBadge">
-            {accepted ? "Accepted" : "Estimate"}
-          </div>
-        </div>
+      <div className="ff-acceptTraderMeta">
+        {estimate.trader_phone ? <span>{estimate.trader_phone}</span> : null}
+        {estimate.trader_email ? <span>{estimate.trader_email}</span> : null}
+      </div>
+    </div>
+  </div>
+
+  <div className="ff-acceptBadge">
+    {accepted ? "Accepted" : "Estimate"}
+  </div>
+</div>
 
         <div className="ff-acceptCard">
           <div className="ff-acceptEyebrow">Estimate review</div>
@@ -264,7 +284,7 @@ function AcceptEstimateContent() {
           <p className="ff-acceptSub">
             {accepted
               ? `Thanks — ${traderDisplayName} has received your confirmation and will be in touch shortly.`
-              : "Please review the estimate below and accept when you're happy to go ahead."}
+             : `${traderDisplayName} has sent you an estimate to review. No payment is taken when you accept — it simply confirms you're happy to go ahead.`}
           </p>
 
           {accepted ? (
@@ -282,6 +302,23 @@ function AcceptEstimateContent() {
               No payment has been taken now.
             </div>
           </div>
+
+<div className="ff-acceptTraderPanel">
+  <div>
+    <span>Estimate from</span>
+    <strong>{traderDisplayName}</strong>
+  </div>
+
+  <div>
+    <span>Customer</span>
+    <strong>{estimate.customer_name || "—"}</strong>
+  </div>
+
+  <div>
+    <span>Job</span>
+    <strong>{estimate.job_type || "—"}</strong>
+  </div>
+</div>
 
           <div className="ff-acceptSummary">
             {!accepted ? (

@@ -7,25 +7,9 @@ import type {
   TraderProfile,
 } from "@/app/dashboard/enquiries/EnquiriesClient";
 
-type QuickEstimateQuote = {
-  id: string;
-  job_number?: string | null;
-  job_type?: string | null;
-  customer_name?: string | null;
-  customer_email?: string | null;
-  urgency?: string | null;
-};
-
-type Trader = {
-  display_name?: string | null;
-  business_name?: string | null;
-  logo_url?: string | null;
-};
-
 type Props = {
   selectedQuote: QuoteRequestRow;
   trader: TraderProfile | null;
-
   onScheduleJob?: () => void;
   onCreateInvoice?: () => void;
 };
@@ -34,9 +18,10 @@ type EstimateStatus = "draft" | "sent" | "accepted";
 
 type ExistingEstimate = {
   id: string;
-  labour_amount: number;
-  materials_amount: number;
-  other_amount: number;
+  labour_amount: number | null;
+  materials_amount: number | null;
+  other_amount: number | null;
+  total_amount: number | null;
   notes: string | null;
   status: EstimateStatus;
   first_viewed_at: string | null;
@@ -53,6 +38,15 @@ type SmartSuggestion = {
   notes: string;
   label: string;
 };
+
+function moneyInputValue(value: number | null | undefined) {
+  const n = Number(value || 0);
+  return n > 0 ? String(n) : "";
+}
+
+function toNumber(value: string) {
+  return Number(value || 0);
+}
 
 function getSmartSuggestion(jobType?: string | null): SmartSuggestion | null {
   const type = String(jobType || "").toLowerCase().trim();
@@ -123,29 +117,53 @@ export default function QuickEstimateCard({
   onScheduleJob,
   onCreateInvoice,
 }: Props) {
-  const [labour, setLabour] = useState<number>(0);
-  const [materials, setMaterials] = useState<number>(0);
-  const [other, setOther] = useState<number>(0);
+  const [labour, setLabour] = useState("");
+  const [materials, setMaterials] = useState("");
+  const [other, setOther] = useState("");
   const [notes, setNotes] = useState("");
 
   const [estimateId, setEstimateId] = useState<string | null>(null);
-  const [estimateStatus, setEstimateStatus] = useState<EstimateStatus | null>(null);
+  const [estimateStatus, setEstimateStatus] = useState<EstimateStatus | null>(
+    null
+  );
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
   const [averagePrice, setAveragePrice] = useState<number | null>(null);
-  const [viewCount, setViewCount] = useState<number>(0);
+  const [viewCount, setViewCount] = useState(0);
   const [firstViewedAt, setFirstViewedAt] = useState<string | null>(null);
   const [lastViewedAt, setLastViewedAt] = useState<string | null>(null);
   const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
-const [draftSaved, setDraftSaved] = useState(false);
-const [quickPriceSent, setQuickPriceSent] = useState(false);
+
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [quickPriceSent, setQuickPriceSent] = useState(false);
+
   const isAccepted = estimateStatus === "accepted";
+
+  const labourValue = toNumber(labour);
+  const materialsValue = toNumber(materials);
+  const otherValue = toNumber(other);
+
+  const total = useMemo(() => {
+    return labourValue + materialsValue + otherValue;
+  }, [labourValue, materialsValue, otherValue]);
+
+  const LABOUR_COST_RATIO = 0.4;
+  const OVERHEAD_RATIO = 0.1;
+
+  const labourCost = labourValue * LABOUR_COST_RATIO;
+  const baseCost = materialsValue + labourCost;
+  const overhead = baseCost * OVERHEAD_RATIO;
+  const cost = baseCost + overhead;
+  const profit = total - cost;
+  const margin = total > 0 ? Math.round((profit / total) * 100) : 0;
 
   const urgency = String(selectedQuote?.urgency || "").toLowerCase();
 
   const urgencyClass =
-    urgency.includes("asap") || urgency.includes("urgent") || urgency.includes("today")
+    urgency.includes("asap") ||
+    urgency.includes("urgent") ||
+    urgency.includes("today")
       ? "ff-leftGlowASAP"
       : urgency.includes("this week") || urgency.includes("this-week")
       ? "ff-leftGlowWeek"
@@ -153,63 +171,39 @@ const [quickPriceSent, setQuickPriceSent] = useState(false);
       ? "ff-leftGlowNext"
       : "ff-leftGlowFlexible";
 
-const total = useMemo(() => {
-  return labour + materials + other;
-}, [labour, materials, other]);
-
-// 👇 assumptions (move to settings later)
-const LABOUR_COST_RATIO = 0.4;
-const OVERHEAD_RATIO = 0.1;
-
-// 👇 costs
-const labourCost = labour * LABOUR_COST_RATIO;
-const baseCost = materials + labourCost;
-const overhead = baseCost * OVERHEAD_RATIO;
-
-// 👇 final cost (ONLY defined once)
-const cost = baseCost + overhead;
-
-// 👇 profit + margin
-const profit = total - cost;
-
-const margin =
-  total > 0 ? Math.round((profit / total) * 100) : 0;
-
   const smartSuggestion = useMemo(() => {
     return getSmartSuggestion(selectedQuote?.job_type);
   }, [selectedQuote?.job_type]);
 
   function applyTemplate(type: "callout" | "repair" | "labour") {
     if (type === "callout") {
-      setLabour(90);
-      setMaterials(0);
-      setOther(0);
+      setLabour("90");
+      setMaterials("");
+      setOther("");
       setNotes("Includes initial callout and inspection.");
       return;
     }
 
     if (type === "repair") {
-      setLabour(120);
-      setMaterials(30);
-      setOther(0);
+      setLabour("120");
+      setMaterials("30");
+      setOther("");
       setNotes("Guide repair price based on the description provided.");
       return;
     }
 
-    if (type === "labour") {
-      setLabour(100);
-      setMaterials(0);
-      setOther(0);
-      setNotes("Labour-only guide price.");
-    }
+    setLabour("100");
+    setMaterials("");
+    setOther("");
+    setNotes("Labour-only guide price.");
   }
 
   function applySmartSuggestion() {
     if (!smartSuggestion) return;
 
-    setLabour(smartSuggestion.labour);
-    setMaterials(smartSuggestion.materials);
-    setOther(smartSuggestion.other);
+    setLabour(moneyInputValue(smartSuggestion.labour));
+    setMaterials(moneyInputValue(smartSuggestion.materials));
+    setOther(moneyInputValue(smartSuggestion.other));
     setNotes((prev) => prev || smartSuggestion.notes);
   }
 
@@ -220,9 +214,9 @@ const margin =
       setMsg(null);
       setEstimateId(null);
       setEstimateStatus(null);
-      setLabour(0);
-      setMaterials(0);
-      setOther(0);
+      setLabour("");
+      setMaterials("");
+      setOther("");
       setNotes("");
       setViewCount(0);
       setFirstViewedAt(null);
@@ -233,7 +227,7 @@ const margin =
       const { data, error } = await supabase
         .from("quick_estimates")
         .select(
-          "id, labour_amount, materials_amount, other_amount, notes, status, first_viewed_at, last_viewed_at, view_count, accepted_at"
+          "id, labour_amount, materials_amount, other_amount, total_amount, notes, status, first_viewed_at, last_viewed_at, view_count, accepted_at"
         )
         .eq("request_id", selectedQuote.id)
         .order("created_at", { ascending: false })
@@ -245,46 +239,41 @@ const margin =
         return;
       }
 
-if (selectedQuote?.job_type) {
-  const { data: historyData, error } = await supabase
-    .from("quick_estimates")
-    .select("*")
-    .limit(10);
+      const { data: historyData, error: historyError } = await supabase
+        .from("quick_estimates")
+        .select("total_amount")
+        .limit(10);
 
-  if (error) {
-    console.error("quick_estimates history error:", error);
-    return;
-  }
+      if (!historyError && historyData?.length) {
+        const avg =
+          historyData.reduce(
+            (sum, r) => sum + Number(r.total_amount || 0),
+            0
+          ) / historyData.length;
 
-  if (historyData && historyData.length > 0) {
-    const avg =
-      historyData.reduce(
-        (sum, r) => sum + Number(r.total_amount || 0),
-        0
-      ) / historyData.length;
-
-    setAveragePrice(Math.round(avg));
-  }
-}
+        setAveragePrice(Math.round(avg));
+      }
 
       const existing = data as ExistingEstimate | null;
 
       if (!existing) {
         const suggestion = getSmartSuggestion(selectedQuote?.job_type);
+
         if (suggestion) {
-          setLabour(suggestion.labour);
-          setMaterials(suggestion.materials);
-          setOther(suggestion.other);
+          setLabour(moneyInputValue(suggestion.labour));
+          setMaterials(moneyInputValue(suggestion.materials));
+          setOther(moneyInputValue(suggestion.other));
           setNotes(suggestion.notes);
         }
+
         return;
       }
 
       setEstimateId(existing.id);
       setEstimateStatus(existing.status);
-      setLabour(Number(existing.labour_amount || 0));
-      setMaterials(Number(existing.materials_amount || 0));
-      setOther(Number(existing.other_amount || 0));
+      setLabour(moneyInputValue(existing.labour_amount));
+      setMaterials(moneyInputValue(existing.materials_amount));
+      setOther(moneyInputValue(existing.other_amount));
       setNotes(existing.notes || "");
       setViewCount(Number(existing.view_count || 0));
       setFirstViewedAt(existing.first_viewed_at || null);
@@ -295,134 +284,129 @@ if (selectedQuote?.job_type) {
     loadExistingEstimate();
   }, [selectedQuote?.id, selectedQuote?.job_type]);
 
-async function saveEstimate(nextStatus: EstimateStatus) {
-  if (!selectedQuote?.id) return;
+  async function saveEstimate(nextStatus: EstimateStatus) {
+    if (!selectedQuote?.id) return;
 
-  setSaving(true);
-  setMsg(null);
+    setSaving(true);
+    setMsg(null);
 
-if (nextStatus === "draft") {
-  setDraftSaved(false);
-}
+    if (nextStatus === "draft") setDraftSaved(false);
+    if (nextStatus === "sent") setQuickPriceSent(false);
 
-if (nextStatus === "sent") {
-  setQuickPriceSent(false);
-}
+    let savedEstimateId = estimateId;
 
-  let savedEstimateId = estimateId;
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-  try {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      if (!user) throw new Error("You must be logged in.");
 
-    if (!user) throw new Error("You must be logged in.");
+      const payload = {
+        request_id: selectedQuote.id,
+        plumber_id: user.id,
+        estimate_type: "rough",
+        labour_amount: labourValue,
+        materials_amount: materialsValue,
+        other_amount: otherValue,
+        total_amount: total,
+        notes,
+        status: nextStatus,
+      };
 
-    const payload = {
-      request_id: selectedQuote.id,
-      plumber_id: user.id,
-      estimate_type: "rough",
-      labour_amount: labour,
-      materials_amount: materials,
-      other_amount: other,
-      total_amount: total,
-      notes,
-      status: nextStatus,
-    };
+      if (estimateId) {
+        const { error } = await supabase
+          .from("quick_estimates")
+          .update(payload)
+          .eq("id", estimateId)
+          .eq("plumber_id", user.id);
 
-    if (estimateId) {
-      const { error } = await supabase
-        .from("quick_estimates")
-        .update(payload)
-        .eq("id", estimateId)
-        .eq("plumber_id", user.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from("quick_estimates")
+          .insert(payload)
+          .select("id, status")
+          .single();
 
-      if (error) throw error;
-    } else {
-      const { data, error } = await supabase
-        .from("quick_estimates")
-        .insert(payload)
-        .select("id, status")
-        .single();
+        if (error) throw error;
 
-      if (error) throw error;
-
-      savedEstimateId = data.id;
-      setEstimateId(data.id);
-      setEstimateStatus(data.status as EstimateStatus);
-    }
-
-    if (nextStatus === "sent") {
-      const to = String(selectedQuote.customer_email || "").trim();
-      if (!to) throw new Error("Customer email is missing.");
-      if (!savedEstimateId) throw new Error("Estimate ID missing.");
-
-      const traderName =
-        trader?.business_name || trader?.display_name || "Your business";
-
-      const traderLogoUrl = trader?.logo_url || null;
-
-      const res = await fetch("/api/enquiries/send-estimate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          estimateId: savedEstimateId,
-          requestId: selectedQuote.id,
-          plumberId: user.id,
-          to,
-          customerName: selectedQuote.customer_name || "there",
-          traderName,
-          traderLogoUrl,
-          jobNumber: selectedQuote.job_number || "Estimate",
-          jobType: selectedQuote.job_type || "Job",
-          labourAmount: labour,
-          materialsAmount: materials,
-          otherAmount: other,
-          totalAmount: total,
-          notes,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data?.error || "Estimate email failed.");
+        savedEstimateId = data.id;
+        setEstimateId(data.id);
+        setEstimateStatus(data.status as EstimateStatus);
       }
+
+      if (nextStatus === "sent") {
+        const to = String(selectedQuote.customer_email || "").trim();
+        if (!to) throw new Error("Customer email is missing.");
+        if (!savedEstimateId) throw new Error("Estimate ID missing.");
+
+        const traderName =
+          trader?.business_name || trader?.display_name || "Your business";
+
+        const res = await fetch("/api/enquiries/send-estimate", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            estimateId: savedEstimateId,
+            requestId: selectedQuote.id,
+            plumberId: user.id,
+            to,
+            customerName: selectedQuote.customer_name || "there",
+            traderName,
+            traderLogoUrl: trader?.logo_url || null,
+            jobNumber: selectedQuote.job_number || "Estimate",
+            jobType: selectedQuote.job_type || "Job",
+            labourAmount: labourValue,
+            materialsAmount: materialsValue,
+            otherAmount: otherValue,
+            totalAmount: total,
+            notes,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(data?.error || "Estimate email failed.");
+        }
+      }
+
+      setEstimateStatus(nextStatus);
+
+      if (nextStatus === "accepted") {
+        setAcceptedAt(new Date().toISOString());
+      }
+
+      if (nextStatus === "draft") {
+        setDraftSaved(true);
+        window.setTimeout(() => setDraftSaved(false), 2000);
+      }
+
+      if (nextStatus === "sent") {
+        setQuickPriceSent(true);
+        window.setTimeout(() => setQuickPriceSent(false), 2000);
+      }
+
+      setMsg(
+        nextStatus === "draft"
+          ? "Guide price saved"
+          : nextStatus === "accepted"
+          ? "Guide price accepted"
+          : "Guide price sent"
+      );
+    } catch (e: any) {
+      setMsg(e?.message || "Something went wrong");
+    } finally {
+      setSaving(false);
     }
-
-    setEstimateStatus(nextStatus);
-
-    if (nextStatus === "accepted") {
-      setAcceptedAt(new Date().toISOString());
-    }
-
-    if (nextStatus === "draft") {
-      setDraftSaved(true);
-      window.setTimeout(() => setDraftSaved(false), 2000);
-    }
-
-    if (nextStatus === "sent") {
-      setQuickPriceSent(true);
-      window.setTimeout(() => setQuickPriceSent(false), 2000);
-    }
-
-    setMsg(
-      nextStatus === "draft"
-        ? "Guide price saved"
-        : nextStatus === "accepted"
-        ? "Guide price accepted"
-        : "Guide price sent"
-    );
-  } catch (e: any) {
-    setMsg(e?.message || "Something went wrong");
-  } finally {
-    setSaving(false);
   }
-}
 
   function niceActivityDate(iso?: string | null) {
     if (!iso) return "—";
+
     return new Date(iso).toLocaleString("en-GB", {
       day: "2-digit",
       month: "short",
@@ -445,18 +429,21 @@ if (nextStatus === "sent") {
               <span>Views</span>
               <strong>{viewCount}</strong>
             </div>
+
             <div className="ff-estimateActivityRow">
               <span>First viewed</span>
               <strong>
                 {firstViewedAt ? niceActivityDate(firstViewedAt) : "Not viewed yet"}
               </strong>
             </div>
+
             <div className="ff-estimateActivityRow">
               <span>Last viewed</span>
               <strong>
                 {lastViewedAt ? niceActivityDate(lastViewedAt) : "Not viewed yet"}
               </strong>
             </div>
+
             <div className="ff-estimateActivityRow">
               <span>Accepted</span>
               <strong>{acceptedAt ? niceActivityDate(acceptedAt) : "—"}</strong>
@@ -465,23 +452,23 @@ if (nextStatus === "sent") {
 
           <div className="ff-acceptedTotal">£{total.toFixed(2)}</div>
 
-<div className="ff-acceptedActions">
-<button
-  type="button"
-  className="ff-btn ff-btnPrimary ff-btnSm"
-  onClick={onScheduleJob}
->
-  Schedule job
-</button>
+          <div className="ff-acceptedActions">
+            <button
+              type="button"
+              className="ff-btn ff-btnPrimary ff-btnSm"
+              onClick={onScheduleJob}
+            >
+              Schedule job
+            </button>
 
-<button
-  type="button"
-  className="ff-btn ff-btnGhost ff-btnSm"
-  onClick={onCreateInvoice}
->
-  Create invoice
-</button>
-</div>
+            <button
+              type="button"
+              className="ff-btn ff-btnGhost ff-btnSm"
+              onClick={onCreateInvoice}
+            >
+              Create invoice
+            </button>
+          </div>
         </div>
       ) : (
         <>
@@ -504,7 +491,9 @@ if (nextStatus === "sent") {
 
             <div className="ff-estimateMetaLine">
               {selectedQuote?.job_type || "—"}
-              {selectedQuote?.customer_name ? ` • ${selectedQuote.customer_name}` : ""}
+              {selectedQuote?.customer_name
+                ? ` • ${selectedQuote.customer_name}`
+                : ""}
             </div>
           </div>
 
@@ -518,7 +507,8 @@ if (nextStatus === "sent") {
 
               <div className="ff-estimateSuggestionMain">
                 <div className="ff-estimateSuggestionPrice">
-                  £{(
+                  £
+                  {(
                     smartSuggestion.labour +
                     smartSuggestion.materials +
                     smartSuggestion.other
@@ -545,7 +535,9 @@ if (nextStatus === "sent") {
 
           {estimateStatus ? (
             <div className="ff-estimateStatusRow">
-              <span className={`ff-estimateStatus ff-estimateStatus--${estimateStatus}`}>
+              <span
+                className={`ff-estimateStatus ff-estimateStatus--${estimateStatus}`}
+              >
                 {estimateStatus === "draft"
                   ? "Draft"
                   : estimateStatus === "sent"
@@ -557,41 +549,36 @@ if (nextStatus === "sent") {
 
           {msg ? <div className="ff-estimateMsg">{msg}</div> : null}
 
-<div className="ff-estimateActivity">
-  <div className="ff-estimateActivityRow">
-    <span>Views</span>
-    <strong>{viewCount}</strong>
-  </div>
+          <div className="ff-estimateActivity">
+            <div className="ff-estimateActivityRow">
+              <span>Views</span>
+              <strong>{viewCount}</strong>
+            </div>
 
-  <div className="ff-estimateActivityRow">
-    <span>First viewed</span>
-    <strong>
-      {firstViewedAt ? niceActivityDate(firstViewedAt) : "Not viewed yet"}
-    </strong>
-  </div>
+            <div className="ff-estimateActivityRow">
+              <span>First viewed</span>
+              <strong>
+                {firstViewedAt ? niceActivityDate(firstViewedAt) : "Not viewed yet"}
+              </strong>
+            </div>
 
-  <div className="ff-estimateActivityRow">
-    <span>Last viewed</span>
-    <strong>
-      {lastViewedAt ? niceActivityDate(lastViewedAt) : "Not viewed yet"}
-    </strong>
-  </div>
-
-  {isAccepted ? (
-    <div className="ff-estimateActivityRow">
-      <span>Accepted</span>
-      <strong>{acceptedAt ? niceActivityDate(acceptedAt) : "—"}</strong>
-    </div>
-  ) : null}
-</div>
+            <div className="ff-estimateActivityRow">
+              <span>Last viewed</span>
+              <strong>
+                {lastViewedAt ? niceActivityDate(lastViewedAt) : "Not viewed yet"}
+              </strong>
+            </div>
+          </div>
 
           <div className="ff-estimateTemplates">
             <button type="button" onClick={() => applyTemplate("callout")}>
               Callout
             </button>
+
             <button type="button" onClick={() => applyTemplate("repair")}>
               Small repair
             </button>
+
             <button type="button" onClick={() => applyTemplate("labour")}>
               Labour only
             </button>
@@ -604,7 +591,7 @@ if (nextStatus === "sent") {
                 type="number"
                 min="0"
                 value={labour}
-                onChange={(e) => setLabour(Number(e.target.value) || 0)}
+                onChange={(e) => setLabour(e.target.value)}
               />
             </div>
 
@@ -614,7 +601,7 @@ if (nextStatus === "sent") {
                 type="number"
                 min="0"
                 value={materials}
-                onChange={(e) => setMaterials(Number(e.target.value) || 0)}
+                onChange={(e) => setMaterials(e.target.value)}
               />
             </div>
 
@@ -624,33 +611,28 @@ if (nextStatus === "sent") {
                 type="number"
                 min="0"
                 value={other}
-                onChange={(e) => setOther(Number(e.target.value) || 0)}
+                onChange={(e) => setOther(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="ff-estimateTotal">Guide total: £{total.toFixed(2)}</div>
+          <div className="ff-estimateTotal">
+            Guide total: £{total.toFixed(2)}
+          </div>
 
-        
-{total > 0 && (
-  <div className="ff-profitPreview">
+          {total > 0 ? (
+            <div className="ff-profitPreview">
+              <div className="ff-profitMain">Profit: £{Math.round(profit)}</div>
 
-    <div className="ff-profitMain">
-      Profit: £{Math.round(profit)}
-    </div>
+              <div className="ff-profitSub">Margin: {margin}%</div>
 
-    <div className="ff-profitSub">
-      Margin: {margin}%
-    </div>
-
-    <div className="ff-profitHint">
-      {margin > 60 && "🔥 Strong profit job"}
-      {margin > 40 && margin <= 60 && "👍 Healthy margin"}
-      {margin <= 40 && "⚠️ Low margin — consider increasing price"}
-    </div>
-
-  </div>
-)}
+              <div className="ff-profitHint">
+                {margin > 60 && "🔥 Strong profit job"}
+                {margin > 40 && margin <= 60 && "👍 Healthy margin"}
+                {margin <= 40 && "⚠️ Low margin — consider increasing price"}
+              </div>
+            </div>
+          ) : null}
 
           <textarea
             className="ff-estimateNotes"
@@ -659,29 +641,29 @@ if (nextStatus === "sent") {
             onChange={(e) => setNotes(e.target.value)}
           />
 
-<div className="ff-estimateActions">
-  <button
-    type="button"
-    className={`ff-btn ff-btnSm ${
-      draftSaved ? "ff-btnSuccess" : "ff-btnGhost"
-    }`}
-    onClick={() => saveEstimate("draft")}
-    disabled={saving || total <= 0}
-  >
-    {saving ? "Saving..." : draftSaved ? "Saved ✓" : "Save draft"}
-  </button>
+          <div className="ff-estimateActions">
+            <button
+              type="button"
+              className={`ff-btn ff-btnSm ${
+                draftSaved ? "ff-btnSuccess" : "ff-btnGhost"
+              }`}
+              onClick={() => saveEstimate("draft")}
+              disabled={saving || total <= 0}
+            >
+              {saving ? "Saving..." : draftSaved ? "Saved ✓" : "Save draft"}
+            </button>
 
-  <button
-    type="button"
-    className={`ff-btn ff-btnSm ${
-      quickPriceSent ? "ff-btnSuccess" : "ff-btnPrimary"
-    }`}
-    onClick={() => saveEstimate("sent")}
-    disabled={saving || total <= 0}
-  >
-    {saving ? "Sending..." : quickPriceSent ? "Sent ✓" : "Send quick price"}
-  </button>
-</div>
+            <button
+              type="button"
+              className={`ff-btn ff-btnSm ${
+                quickPriceSent ? "ff-btnSuccess" : "ff-btnPrimary"
+              }`}
+              onClick={() => saveEstimate("sent")}
+              disabled={saving || total <= 0}
+            >
+              {saving ? "Sending..." : quickPriceSent ? "Sent ✓" : "Send quick price"}
+            </button>
+          </div>
 
           <div className="ff-estimateDivider" />
 
@@ -692,7 +674,7 @@ if (nextStatus === "sent") {
               window.location.href = `/dashboard/estimates?requestId=${selectedQuote?.id}`;
             }}
           >
-           Create detailed estimate →
+            Create detailed estimate →
           </button>
         </>
       )}

@@ -493,119 +493,114 @@ export default function AlertsPage() {
       </div>
 
       <style jsx>{`
-
-      .ff-alertsEmptyBtn {
-  margin-top: 28px;
+.ff-alertsEmptyHero {
   width: 100%;
-  height: 64px;
-  border-radius: 22px;
-  font-size: 22px;
-  font-weight: 950;
-}
-
-      .ff-alertsEmptyHero {
-  width: 100%;
-  max-width: 620px;
+  max-width: 560px;
   margin: 0 auto;
-  padding: 34px;
-  border-radius: 32px;
+  padding: 28px;
+  border-radius: 30px;
   border: 1px solid #e6ecf5;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
 .ff-alertsEmptyBadge {
   width: fit-content;
-  padding: 10px 16px;
+  padding: 9px 14px;
   border-radius: 999px;
   background: #eef4ff;
   color: #1f355c;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 950;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
 }
 
 .ff-alertsEmptyTitle {
   margin-top: 22px;
-  font-size: clamp(36px, 7vw, 56px);
-  line-height: 0.98;
+  max-width: 460px;
+  font-size: clamp(30px, 6vw, 42px);
+  line-height: 1;
   font-weight: 950;
-  letter-spacing: -0.06em;
+  letter-spacing: -0.055em;
   color: #0b1320;
-  max-width: 520px;
 }
 
 .ff-alertsEmptyText {
-  margin-top: 20px;
-  max-width: 520px;
+  margin-top: 18px;
+  max-width: 460px;
   font-size: 16px;
-  line-height: 1.8;
+  line-height: 1.65;
   color: #64748b;
   font-weight: 700;
 }
 
-.ff-alertsEmptyBtn {
-  margin-top: 28px;
-  width: 100%;
-  height: 64px;
-  border-radius: 22px;
-  font-size: 22px;
-  font-weight: 950;
-}
-
 .ff-alertsEmptySteps {
-  margin-top: 28px;
+  margin-top: 24px;
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
 
 .ff-alertsEmptyStep {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 16px;
+  gap: 14px;
+  padding: 14px 16px;
   border-radius: 20px;
   border: 1px solid #e6ecf5;
   background: #ffffff;
   color: #1f355c;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 850;
 }
 
 .ff-alertsEmptyStep span {
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
   border-radius: 999px;
   background: #1f355c;
   color: white;
   display: grid;
   place-items: center;
   font-weight: 950;
+  font-size: 15px;
 }
 
 .ff-alertsEmptyPreview {
-  margin-top: 28px;
-  padding: 22px;
-  border-radius: 24px;
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 22px;
   border: 1px solid #e6ecf5;
   background: #ffffff;
   display: flex;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
   align-items: center;
 }
 
 .ff-alertsPreviewTitle {
-  font-size: 20px;
+  font-size: 18px;
+  line-height: 1.15;
   font-weight: 950;
   color: #1f355c;
 }
 
 .ff-alertsPreviewMeta {
-  margin-top: 8px;
-  font-size: 15px;
+  margin-top: 7px;
+  font-size: 14px;
+  line-height: 1.45;
   color: #5c6b84;
   font-weight: 700;
+}
+
+.ff-alertsEmptyBtn {
+  margin-top: 24px;
+  width: auto;
+  min-width: 210px;
+  height: 54px;
+  padding: 0 28px;
+  border-radius: 18px;
+  font-size: 17px;
+  font-weight: 950;
 }
 
       .ff-emptyIcon {

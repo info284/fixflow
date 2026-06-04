@@ -435,20 +435,56 @@ export default function AlertsPage() {
                 </button>
               ))
             ) : (
-              <div className="ff-emptyWrap">
-                <div className="ff-empty">
-                  <div className="ff-emptyTitle">No alerts right now</div>
-                  <div className="ff-emptySub">
-                    Nothing urgent needs your attention.
-                  </div>
-                </div>
-              </div>
+<div className="ff-emptyWrap">
+  <div className="ff-empty">
+    <div className="ff-emptyIcon">🎉</div>
+
+    <div className="ff-emptyTitle">
+      You're all caught up
+    </div>
+
+    <div className="ff-emptySub">
+      No alerts need your attention right now.
+      We'll notify you when a customer replies,
+      a follow-up is due, a job is at risk
+      or an invoice needs chasing.
+    </div>
+
+    <div className="ff-alertChecks">
+      <div>✓ Enquiries under control</div>
+      <div>✓ Jobs on track</div>
+      <div>✓ No payment issues</div>
+    </div>
+  </div>
+</div>
             )}
           </div>
         </div>
       </div>
 
       <style jsx>{`
+
+      .ff-emptyIcon {
+  font-size: 42px;
+  margin-bottom: 14px;
+}
+
+.ff-alertChecks {
+  margin-top: 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.ff-alertChecks div {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #f8fbff;
+  border: 1px solid #e6ecf5;
+  font-size: 13px;
+  font-weight: 800;
+  color: #1f355c;
+}
+  
 .ff-commandCard {
   margin-bottom: 14px;
   padding: 18px;

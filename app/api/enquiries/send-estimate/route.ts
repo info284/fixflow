@@ -129,8 +129,15 @@ export async function POST(req: Request) {
             </td>
           </tr>
           <tr>
-<td style="border:1px solid #E6ECF5; border-radius:16px; background:#F4F7FF; padding:24px; text-align:left;">
-  <div style="font-size:15px; line-height:1.8; color:#0B1320; white-space:pre-wrap; text-align:left;">
+<td style="border:1px solid #E6ECF5; border-radius:16px; background:#F4F7FF; padding:24px;">
+  <div style="
+    font-size:15px;
+    line-height:1.8;
+    color:#0B1320;
+    white-space:pre-wrap;
+    text-align:left;
+    margin:0;
+  ">
     ${safeNotesEsc}
   </div>
 </td>

@@ -5,6 +5,7 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+
 function supabaseAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -15,35 +16,64 @@ function supabaseAdmin() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-const userId = body.userId;
+    const userId = body.userId;
 
-if (!userId) {
-  return NextResponse.json(
-    { error: "Missing userId" },
-    { status: 400 }
-  );
-}
+    if (!userId) {
+      return NextResponse.json(
+        { error: "Missing userId" },
+        { status: 400 }
+      );
+    }
 
-const supabase = supabaseAdmin();
+    const supabase = supabaseAdmin();
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("stripe_account_id")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (profileError) {
+      return NextResponse.json(
+        { error: profileError.message },
+        { status: 500 }
+      );
+    }
+
+    let accountId = profile?.stripe_account_id;
+
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: "express",
+        country: "GB",
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+      });
+
+      accountId = account.id;
+
+      const { error: saveError } = await supabase
+        .from("profiles")
+        .update({
+          stripe_account_id: accountId,
+        })
+        .eq("id", userId);
+
+      if (saveError) {
+        return NextResponse.json(
+          { error: saveError.message },
+          { status: 500 }
+        );
+      }
+    }
+
     const siteUrl =
       process.env.NEXT_PUBLIC_SITE_URL || "https://thefixflowapp.com";
 
-    const account = await stripe.accounts.create({
-      type: "express",
-      country: "GB",
-      capabilities: {
-        card_payments: { requested: true },
-        transfers: { requested: true },
-      },
-    });
-await supabase
-  .from("profiles")
-  .update({
-    stripe_account_id: account.id,
-  })
-  .eq("id", userId);
     const accountLink = await stripe.accountLinks.create({
-      account: account.id,
+      account: accountId,
       refresh_url: `${siteUrl}/dashboard/profile?stripe=refresh`,
       return_url: `${siteUrl}/dashboard/profile?stripe=connected`,
       type: "account_onboarding",
@@ -51,7 +81,7 @@ await supabase
 
     return NextResponse.json({
       ok: true,
-      accountId: account.id,
+      accountId,
       url: accountLink.url,
     });
   } catch (err: any) {

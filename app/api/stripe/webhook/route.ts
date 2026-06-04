@@ -56,6 +56,9 @@ export async function POST(req: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+    if (session.payment_status !== "paid") {
+  return NextResponse.json({ received: true });
+}
     const invoiceId = session.metadata?.invoiceId;
 
     if (!invoiceId) return NextResponse.json({ received: true });

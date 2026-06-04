@@ -79,11 +79,10 @@ if (!stripeAccountId) {
 }
 const connectedAccount = await stripe.accounts.retrieve(stripeAccountId);
 
-const transfersReady =
-  connectedAccount.capabilities?.transfers === "active" ||
-  connectedAccount.capabilities?.legacy_payments === "active";
-
-if (!transfersReady) {
+if (
+  !connectedAccount.charges_enabled ||
+  !connectedAccount.payouts_enabled
+) {
   return NextResponse.json(
     {
       error:

@@ -24,6 +24,15 @@ type EnquiryMessageRow = {
   resolved_at?: string | null;
 };
 
+type QuickEstimateRow = {
+  id: string;
+  request_id: string | null;
+  plumber_id: string;
+  status: string | null;
+  total_amount: number | null;
+  created_at: string;
+};
+
 type QuoteRequestRow = {
   id: string;
   job_number: string | null;
@@ -732,6 +741,9 @@ export default function JobsPage() {
 
 const [jobs, setJobs] = useState<QuoteRequestRow[]>([]);
 const [quoteMap, setQuoteMap] = useState<Record<string, QuoteRow | null>>({});
+const [quickEstimateMap, setQuickEstimateMap] = useState<
+  Record<string, QuickEstimateRow | null>
+>({});
 const [invoiceMap, setInvoiceMap] = useState<Record<string, InvoiceRow[]>>({});
 
   const [requestMap, setRequestMap] = useState<Record<string, QuoteRequestRow | null>>(
@@ -819,6 +831,10 @@ const selectedQuote = useMemo(() => {
   return quoteMap[selectedRequest.id] || null;
 }, [selectedRequest, quoteMap]);
 
+const selectedQuickEstimate = useMemo(() => {
+  if (!selectedRequest) return null;
+  return quickEstimateMap[selectedRequest.id] || null;
+}, [selectedRequest, quickEstimateMap]);
 
   const selectedVisit = useMemo(() => {
     if (!selectedRequest) return null;
@@ -877,6 +893,7 @@ async function loadJobsForTrader(plumberId: string) {
 
 await Promise.all([
   loadQuoteMap(plumberId, requestIds),
+  loadQuickEstimateMap(plumberId, requestIds),
   loadInvoiceMap(plumberId, requestIds),
   loadSiteVisitMap(plumberId, requestIds),
   loadThreadMapForRows(requestIds, plumberId),
@@ -958,6 +975,49 @@ for (const est of estimates || []) {
 }
 
   setQuoteMap(map);
+}
+
+async function loadQuickEstimateMap(
+  plumberId: string,
+  requestIds: string[]
+) {
+  if (!requestIds.length) {
+    setQuickEstimateMap({});
+    return;
+  }
+
+  const emptyMap: Record<string, QuickEstimateRow | null> = {};
+
+  requestIds.forEach((id) => {
+    emptyMap[id] = null;
+  });
+
+  const { data, error } = await supabase
+    .from("quick_estimates")
+    .select(
+      "id, request_id, plumber_id, status, total_amount, created_at"
+    )
+    .eq("plumber_id", plumberId)
+    .in("request_id", requestIds)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("loadQuickEstimateMap error:", error);
+    setQuickEstimateMap(emptyMap);
+    return;
+  }
+
+  const map = { ...emptyMap };
+
+  for (const row of (data || []) as QuickEstimateRow[]) {
+    if (!row.request_id) continue;
+
+    if (!map[row.request_id]) {
+      map[row.request_id] = row;
+    }
+  }
+
+  setQuickEstimateMap(map);
 }
 
 async function loadInvoiceMap(userId: string, requestIds: string[]) {
@@ -3273,19 +3333,21 @@ className={`ff-leftItem
 <div>
   <div className="ff-summaryLabel">Value</div>
   <div className="ff-summaryValue">
-    {selectedQuote?.subtotal ? (
-      money(selectedQuote.subtotal)
-    ) : (
-      <button
-        type="button"
-        className="ff-linkAction"
-        onClick={() =>
-          selectedRequest && goToCreateInvoice(selectedRequest.id)
-        }
-      >
-        Create estimate
-      </button>
-    )}
+{selectedQuote?.subtotal ? (
+  money(selectedQuote.subtotal)
+) : selectedQuickEstimate?.total_amount ? (
+  money(selectedQuickEstimate.total_amount)
+) : (
+  <button
+    type="button"
+    className="ff-linkAction"
+    onClick={() =>
+      selectedRequest && goToCreateInvoice(selectedRequest.id)
+    }
+  >
+    Create estimate
+  </button>
+)}
   </div>
 </div>
 

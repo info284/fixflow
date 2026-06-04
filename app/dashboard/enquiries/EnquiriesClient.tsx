@@ -521,6 +521,16 @@ function telHref(phone?: string | null) {
   return `tel:${String(phone).replace(/[^\d+]/g, "")}`;
 }
 
+function formatPhone(phone?: string | null) {
+  const digits = String(phone || "").replace(/\D/g, "");
+
+  if (digits.length === 11) {
+    return `${digits.slice(0, 5)} ${digits.slice(5)}`;
+  }
+
+  return phone || "—";
+}
+
 function safeFileName(name: string) {
   return (name || "file")
     .replaceAll(" ", "-")
@@ -6929,7 +6939,7 @@ onCreateInvoice={() =>
 
           <div className="ff-customerItem">
             <span className="ff-customerLabel">Phone</span>
-            <strong>{selectedRow.customer_phone || "—"}</strong>
+            <strong>{formatPhone(selectedRow.customer_phone)}</strong>
           </div>
 
           <div className="ff-customerItem">
@@ -7181,37 +7191,29 @@ onCreateInvoice={() =>
               flexWrap: "wrap",
             }}
           >
-            <button
-              type="button"
-              className="ff-btn ff-btnGhost ff-btnSm"
-              onClick={() => {
-                openFollowUpComposer({
-                  customerName: selectedRow?.customer_name,
-                  status: selectedFollowUp.status,
-                });
-              }}
-            >
-              Follow up now
-            </button>
+           <button
+  type="button"
+  className="ff-actionChip ff-actionChipPrimary"
+  onClick={() => {
+    openFollowUpComposer({
+      customerName: selectedRow?.customer_name,
+      status: selectedFollowUp.status,
+    });
+  }}
+>
+  Follow up now
+</button>
           </div>
         ) : selectedRow?.snoozed_until &&
           isSnoozedUntilActive(selectedRow.snoozed_until) ? (
-          <div
-            style={{
-              marginTop: 14,
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
-              alignItems: "center",
-            }}
-          >
+          <div className="ff-actionGrid" style={{ marginTop: 14 }}>
             <Chip cls="ff-chip ff-chipGray">
               Snoozed until {niceDateOnly(selectedRow.snoozed_until)}
             </Chip>
 
             <button
               type="button"
-              className="ff-btn ff-btnGhost ff-btnSm"
+              className="ff-actionChip ff-actionChipSoft"
               onClick={clearSnooze}
               disabled={snoozeSaving}
             >
@@ -7220,83 +7222,85 @@ onCreateInvoice={() =>
           </div>
         ) : null}
 
-<div style={{ marginTop: 18, display: "flex", gap: 8, flexWrap: "wrap" }}>
-  <button
-    type="button"
-    className="ff-btn ff-btnGhost ff-btnSm"
-    onClick={() => markAsLost("Too expensive")}
-  >
-    Lost: Too expensive
-  </button>
+<div className="ff-actionGroup">
+  <div className="ff-actionGroupLabel">Lost reason shortcuts</div>
 
-  <button
-    type="button"
-    className="ff-btn ff-btnGhost ff-btnSm"
-    onClick={() => markAsLost("Went with another quote")}
-  >
-    Lost: Went elsewhere
-  </button>
+  <div className="ff-actionGrid">
+    <button
+      type="button"
+      className="ff-actionChip ff-actionChipLost"
+      onClick={() => markAsLost("Too expensive")}
+    >
+      Too expensive
+    </button>
 
-  <button
-    type="button"
-    className="ff-btn ff-btnGhost ff-btnSm"
-    onClick={() => markAsLost("No response")}
-  >
-    Lost: No response
-  </button>
+    <button
+      type="button"
+      className="ff-actionChip ff-actionChipLost"
+      onClick={() => markAsLost("Went with another quote")}
+    >
+      Went elsewhere
+    </button>
 
-  <button
-    type="button"
-    className="ff-btn ff-btnGhost ff-btnSm"
-    onClick={() => markAsLost("Job cancelled")}
-  >
-    Lost: Cancelled
-  </button>
+    <button
+      type="button"
+      className="ff-actionChip ff-actionChipLost"
+      onClick={() => markAsLost("No response")}
+    >
+      No response
+    </button>
+
+    <button
+      type="button"
+      className="ff-actionChip ff-actionChipLost"
+      onClick={() => markAsLost("Job cancelled")}
+    >
+      Cancelled
+    </button>
+  </div>
 </div>
 
+<div className="ff-actionGroup ff-actionGroupDanger">
+  <div className="ff-actionGroupLabel">Close enquiry</div>
 
+  <div className="ff-actionGrid">
+    <button
+      type="button"
+      className="ff-actionChip ff-actionChipDanger"
+      onClick={deleteEnquiry}
+    >
+      Delete enquiry
+    </button>
 
-        <div style={{ marginTop: 18 }}>
-          <button
-            type="button"
-            className="ff-btn ff-btnDanger ff-btnSm"
-onClick={deleteEnquiry}
-          >
-            Delete enquiry
-          </button>
+    <button
+      type="button"
+      className="ff-actionChip ff-actionChipSoft"
+      onClick={() => {
+        setDeclineReason("too_busy");
+        setDeclineNote("");
+        setShowDeclineModal(true);
+      }}
+    >
+      Politely decline
+    </button>
 
-<div style={{ marginTop: 10 }}>
-  <button
-    type="button"
-    className="ff-btn ff-btnGhost ff-btnSm"
-    onClick={() => {
-      setDeclineReason("too_busy");
-      setDeclineNote("");
-      setShowDeclineModal(true);
-    }}
-  >
-    Politely decline
-  </button>
+    <button
+      type="button"
+      className="ff-actionChip ff-actionChipSoft"
+      onClick={() =>
+        openInputModal({
+          title: "Mark as lost",
+          message: "Why did you lose this job?",
+          placeholder: "Too expensive / no response / chose another quote",
+          submitLabel: "Save",
+          onSubmit: (value) => markAsLost(value),
+        })
+      }
+    >
+      Mark as lost
+    </button>
+  </div>
 </div>
-
-<div style={{ marginTop: 10 }}>
-  <button
-    type="button"
-    className="ff-btn ff-btnGhost ff-btnSm"
-    onClick={() =>
-      openInputModal({
-        title: "Mark as lost",
-        message: "Why did you lose this job?",
-        placeholder: "Too expensive / no response / chose another quote",
-        submitLabel: "Save",
-        onSubmit: (value) => markAsLost(value),
-      })
-    }
-  >
-    Mark as lost
-  </button>
-</div>
-        </div>
       </div>
     </div>
   </>

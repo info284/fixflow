@@ -334,6 +334,16 @@ function telHref(phone?: string | null) {
   return `tel:${String(phone).replace(/[^\d+]/g, "")}`;
 }
 
+function formatPhone(phone?: string | null) {
+  const digits = String(phone || "").replace(/\D/g, "");
+
+  if (digits.length === 11) {
+    return `${digits.slice(0, 5)} ${digits.slice(5)}`;
+  }
+
+  return phone || "—";
+}
+
 function money(n: number | null | undefined) {
   const x = typeof n === "number" && Number.isFinite(n) ? n : 0;
   return new Intl.NumberFormat("en-GB", {
@@ -3506,7 +3516,7 @@ className={`ff-leftItem
           <div className="ff-customerItem">
             <span className="ff-customerLabel">Phone</span>
             <strong>
-              {nice(selectedQuote?.customer_phone || selectedRequest?.customer_phone)}
+              {formatPhone(selectedQuote?.customer_phone || selectedRequest?.customer_phone)}
             </strong>
           </div>
 

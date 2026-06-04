@@ -43,6 +43,16 @@ function escapeHtml(value: string | null | undefined) {
     .replaceAll("'", "&#39;");
 }
 
+function formatPhone(phone?: string | null) {
+  const digits = String(phone || "").replace(/\D/g, "");
+
+  if (digits.length === 11) {
+    return `${digits.slice(0, 5)} ${digits.slice(5)}`;
+  }
+
+  return phone || "—";
+}
+
 function getUrgencyBadge(urgency: string | null) {
   const value = String(urgency || "").toLowerCase().trim();
 
@@ -207,7 +217,7 @@ read_at: null,
     const safeTraderName = traderName;
     const safeCustomerName = name;
     const safeCustomerEmail = email || "Not provided";
-    const safeCustomerPhone = phone || "Not provided";
+   const safeCustomerPhone = phone ? formatPhone(phone) : "Not provided";
 
     const urgencyBadge = getUrgencyBadge(urgency);
 

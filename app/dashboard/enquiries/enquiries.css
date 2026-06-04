@@ -6463,6 +6463,66 @@ select.ff-input {
   appearance: auto;
   -webkit-appearance: menulist;
 }
+
+.ff-actionGroup {
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #e6ecf5;
+  border-radius: 22px;
+  background: #ffffff;
+}
+
+.ff-actionGroupDanger {
+  background: #fffafa;
+}
+
+.ff-actionGroupLabel {
+  margin-bottom: 12px;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.ff-actionGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ff-actionChip {
+  border: 1px solid #e6ecf5;
+  background: #fff;
+  color: #1f355c;
+  border-radius: 16px;
+  padding: 13px 16px;
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.ff-actionChipPrimary {
+  background: #0b2a55;
+  border-color: #0b2a55;
+  color: #ffffff;
+}
+
+.ff-actionChipLost {
+  background: #f8fafc;
+}
+
+.ff-actionChipDanger {
+  background: #fff1f1;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.ff-actionChipSoft {
+  background: #f4f7ff;
+  border-color: #dbe6ff;
+}
+
 /* =========================
    JOBS PAGE ONLY
 ========================== */

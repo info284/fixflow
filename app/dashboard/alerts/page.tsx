@@ -436,25 +436,50 @@ export default function AlertsPage() {
               ))
             ) : (
 <div className="ff-emptyWrap">
-  <div className="ff-empty">
-    <div className="ff-emptyIcon">🎉</div>
+  <div className="ff-alertsEmptyHero">
+    <div className="ff-alertsEmptyBadge">CONTROL CENTRE READY</div>
 
-    <div className="ff-emptyTitle">
-      You're all caught up
+    <div className="ff-alertsEmptyTitle">
+      Alerts will appear here when something needs attention
     </div>
 
-    <div className="ff-emptySub">
-      No alerts need your attention right now.
-      We'll notify you when a customer replies,
-      a follow-up is due, a job is at risk
-      or an invoice needs chasing.
+    <div className="ff-alertsEmptyText">
+      FixFlow watches customer replies, follow-ups, site visits, jobs at risk and invoices so nothing important gets missed.
     </div>
 
-    <div className="ff-alertChecks">
-      <div>✓ Enquiries under control</div>
-      <div>✓ Jobs on track</div>
-      <div>✓ No payment issues</div>
+    <div className="ff-alertsEmptySteps">
+      <div className="ff-alertsEmptyStep">
+        <span>1</span>
+        Customer replies or action is due
+      </div>
+
+      <div className="ff-alertsEmptyStep">
+        <span>2</span>
+        FixFlow ranks the urgency
+      </div>
+
+      <div className="ff-alertsEmptyStep">
+        <span>3</span>
+        You handle the next best move
+      </div>
     </div>
+
+    <div className="ff-alertsEmptyPreview">
+      <div>
+        <div className="ff-alertsPreviewTitle">
+          Example alert — Customer replied
+        </div>
+        <div className="ff-alertsPreviewMeta">
+          Boiler repair • 2 mins ago • Urgent
+        </div>
+      </div>
+
+      <span className="ff-chip ff-chipBlue">
+        Reply now
+      </span>
+    </div>
+
+  Open enquiries
   </div>
 </div>
             )}
@@ -463,6 +488,109 @@ export default function AlertsPage() {
       </div>
 
       <style jsx>{`
+
+      .ff-alertsEmptyBtn {
+  margin-top: 28px;
+  width: 100%;
+  height: 64px;
+  border-radius: 22px;
+  font-size: 22px;
+  font-weight: 950;
+}
+
+      .ff-alertsEmptyHero {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 34px;
+  border-radius: 32px;
+  border: 1px solid #e6ecf5;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+
+.ff-alertsEmptyBadge {
+  width: fit-content;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #1f355c;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: 0.14em;
+}
+
+.ff-alertsEmptyTitle {
+  margin-top: 26px;
+  font-size: clamp(32px, 6vw, 48px);
+  line-height: 0.98;
+  font-weight: 950;
+  letter-spacing: -0.06em;
+  color: #0b1320;
+}
+
+.ff-alertsEmptyText {
+  margin-top: 22px;
+  font-size: 20px;
+  line-height: 1.65;
+  color: #5c6b84;
+  font-weight: 700;
+}
+
+.ff-alertsEmptySteps {
+  margin-top: 28px;
+  display: grid;
+  gap: 14px;
+}
+
+.ff-alertsEmptyStep {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid #e6ecf5;
+  background: #ffffff;
+  color: #1f355c;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.ff-alertsEmptyStep span {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 999px;
+  background: #1f355c;
+  color: white;
+  display: grid;
+  place-items: center;
+  font-weight: 950;
+}
+
+.ff-alertsEmptyPreview {
+  margin-top: 28px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid #e6ecf5;
+  background: #ffffff;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: center;
+}
+
+.ff-alertsPreviewTitle {
+  font-size: 20px;
+  font-weight: 950;
+  color: #1f355c;
+}
+
+.ff-alertsPreviewMeta {
+  margin-top: 8px;
+  font-size: 15px;
+  color: #5c6b84;
+  font-weight: 700;
+}
 
       .ff-emptyIcon {
   font-size: 42px;
@@ -484,7 +612,7 @@ export default function AlertsPage() {
   font-weight: 800;
   color: #1f355c;
 }
-  
+
 .ff-commandCard {
   margin-bottom: 14px;
   padding: 18px;

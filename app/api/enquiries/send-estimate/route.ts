@@ -137,10 +137,10 @@ export async function POST(req: Request) {
           </tr>
         </table>
 
-        <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
-          Please use the button below to accept this estimate.
-        </div>
-        <div style="margin:18px 0 6px;">
+<div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px; text-align:center;">
+  Please use the button below to accept this estimate.
+</div>
+<div style="margin:18px 0 6px; text-align:center;">
   ${buildFixFlowButton("Accept estimate", acceptUrl)}
 </div>
       `,

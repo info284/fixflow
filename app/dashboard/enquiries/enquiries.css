@@ -6466,15 +6466,11 @@ select.ff-input {
 
 .ff-actionGroup {
   margin-top: 18px;
-  padding: 16px;
-  border: 1px solid #e6ecf5;
-  border-radius: 22px;
-  background: #ffffff;
+  padding-top: 18px;
+  border-top: 1px solid #eef2f7;
 }
 
-.ff-actionGroupDanger {
-  background: #fffafa;
-}
+
 
 .ff-actionGroupLabel {
   margin-bottom: 12px;
@@ -6488,11 +6484,13 @@ select.ff-input {
 .ff-actionGrid {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 12px;
+  align-items: center;
 }
 
 .ff-actionChip {
   border: 1px solid #e6ecf5;
+  min-height: 46px;
   background: #fff;
   color: #1f355c;
   border-radius: 16px;

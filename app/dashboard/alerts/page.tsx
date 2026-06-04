@@ -478,8 +478,13 @@ export default function AlertsPage() {
         Reply now
       </span>
     </div>
-
+<button
+  type="button"
+  className="ff-btn ff-btnPrimary ff-alertsEmptyBtn"
+  onClick={() => router.push("/dashboard/enquiries")}
+>
   Open enquiries
+</button>
   </div>
 </div>
             )}
@@ -520,20 +525,31 @@ export default function AlertsPage() {
 }
 
 .ff-alertsEmptyTitle {
-  margin-top: 26px;
-  font-size: clamp(32px, 6vw, 48px);
+  margin-top: 22px;
+  font-size: clamp(36px, 7vw, 56px);
   line-height: 0.98;
   font-weight: 950;
   letter-spacing: -0.06em;
   color: #0b1320;
+  max-width: 520px;
 }
 
 .ff-alertsEmptyText {
-  margin-top: 22px;
-  font-size: 20px;
-  line-height: 1.65;
-  color: #5c6b84;
+  margin-top: 20px;
+  max-width: 520px;
+  font-size: 16px;
+  line-height: 1.8;
+  color: #64748b;
   font-weight: 700;
+}
+
+.ff-alertsEmptyBtn {
+  margin-top: 28px;
+  width: 100%;
+  height: 64px;
+  border-radius: 22px;
+  font-size: 22px;
+  font-weight: 950;
 }
 
 .ff-alertsEmptySteps {
@@ -546,13 +562,13 @@ export default function AlertsPage() {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 18px;
-  border-radius: 22px;
+  padding: 16px;
+  border-radius: 20px;
   border: 1px solid #e6ecf5;
   background: #ffffff;
   color: #1f355c;
-  font-size: 16px;
-  font-weight: 900;
+  font-size: 15px;
+  font-weight: 850;
 }
 
 .ff-alertsEmptyStep span {

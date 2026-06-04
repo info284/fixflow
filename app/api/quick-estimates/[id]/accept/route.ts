@@ -133,6 +133,8 @@ function successHtml(traderName: string, acceptedAt: string, total: number) {
   const safeTotal = escapeHtml(money(total));
 
   return `
+
+  
 <!doctype html>
 <html>
 <head>
@@ -229,4 +231,44 @@ function successHtml(traderName: string, acceptedAt: string, total: number) {
 </body>
 </html>
 `;
+}
+export async function GET(
+  _req: Request,
+  { params }: RouteProps
+) {
+  try {
+    const { id } = await params;
+
+    await trackQuickEstimateView(id);
+
+    const result = await acceptQuickEstimate(id);
+
+    return new Response(
+      successHtml(
+        result.traderName,
+        result.accepted_at,
+        result.total
+      ),
+      {
+        headers: {
+          "Content-Type": "text/html",
+        },
+      }
+    );
+  } catch (error: any) {
+    return new Response(
+      `<html>
+        <body style="font-family:Arial;padding:40px;">
+          <h1>Something went wrong</h1>
+          <p>${escapeHtml(error?.message)}</p>
+        </body>
+      </html>`,
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "text/html",
+        },
+      }
+    );
+  }
 }

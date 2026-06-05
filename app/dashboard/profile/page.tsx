@@ -31,6 +31,9 @@ type ProfileRow = {
   after_job_guarantee: string | null;
   completion_email_enabled: boolean | null;
 default_completion_message: string | null;
+stripe_account_id: string | null;
+stripe_charges_enabled: boolean | null;
+stripe_payouts_enabled: boolean | null;
 };
 
 type LocationRow = {
@@ -525,7 +528,7 @@ const loadReviews = async (uid: string) => {
       const { data, error } = await supabase
         .from("profiles")
 .select(
-"id, slug, display_name, headline, notify_email, logo_url, profile_photo_url, business_phone, business_description, years_in_business, trading_address, insurance_cover, after_job_guarantee, completion_email_enabled, default_completion_message, vat_number, bank_name, bank_account_name, bank_sort_code, bank_account_number"
+  "id, slug, display_name, headline, notify_email, logo_url, profile_photo_url, business_phone, business_description, years_in_business, trading_address, insurance_cover, after_job_guarantee, completion_email_enabled, default_completion_message, vat_number, bank_name, bank_account_name, bank_sort_code, bank_account_number, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled"
 )
         .eq("id", user.id)
         .maybeSingle();
@@ -1641,13 +1644,23 @@ const reviewStats = useMemo(() => {
         >
           {saving ? "Saving…" : "Save changes"}
         </button>
-        <button
-  type="button"
-  className="ff-btn ff-btnDark"
-  onClick={connectStripe}
->
-  Connect Stripe
-</button>
+{profile?.stripe_account_id ? (
+  <button
+    type="button"
+    className="ff-btn ff-btnSoftPrimary"
+    disabled
+  >
+    ✅ Stripe connected
+  </button>
+) : (
+  <button
+    type="button"
+    className="ff-btn ff-btnDark"
+    onClick={connectStripe}
+  >
+    Connect Stripe
+  </button>
+)}
       </div>
     </div>
   </div>

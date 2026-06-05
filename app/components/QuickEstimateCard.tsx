@@ -670,9 +670,17 @@ export default function QuickEstimateCard({
           <button
             type="button"
             className="ff-btn ff-btnGhost ff-btnSm ff-btnFull"
-            onClick={() => {
-              window.location.href = `/dashboard/estimates?requestId=${selectedQuote?.id}`;
-            }}
+onClick={() => {
+  const params = new URLSearchParams();
+
+  params.set("requestId", selectedQuote.id);
+
+  if (estimateId) {
+    params.set("quickEstimateId", estimateId);
+  }
+
+  window.location.href = `/dashboard/estimates?${params.toString()}`;
+}}
           >
             Create detailed estimate →
           </button>

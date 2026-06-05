@@ -101,9 +101,9 @@ async function sendMagicLink(email: string) {
         className="absolute left-0 right-0 top-0 h-[4px]"
         style={{
           background: `linear-gradient(90deg,
-            rgba(31,111,255,${0.98 * a}),
-            rgba(31,111,255,${0.48 * a}),
-            rgba(31,111,255,${0.10 * a})
+            rgba(31,53,92,${0.98 * a}),
+            rgba(31,53,92,${0.48 * a}),
+            rgba(31,53,92,${0.10 * a})
           )`,
         }}
       />
@@ -115,8 +115,8 @@ async function sendMagicLink(email: string) {
 
     const color =
       bgState === "sending"
-        ? "radial-gradient(circle at 20% 10%, rgba(31,111,255,0.22), transparent 55%), radial-gradient(circle at 80% 30%, rgba(31,111,255,0.14), transparent 45%)"
-        : "radial-gradient(circle at 20% 10%, rgba(16,185,129,0.20), transparent 55%), radial-gradient(circle at 80% 30%, rgba(16,185,129,0.12), transparent 45%)";
+        ? "radial-gradient(circle at 20% 10%, rgba(31,53,92,0.18), transparent 55%), radial-gradient(circle at 80% 30%, rgba(31,53,92,0.10), transparent 45%)"
+        : "radial-gradient(circle at 20% 10%, rgba(31,53,92,0.18), transparent 55%), radial-gradient(circle at 80% 30%, rgba(31,53,92,0.10), transparent 45%)";
 
     return (
       <div
@@ -142,7 +142,7 @@ async function sendMagicLink(email: string) {
         // 👇 add the tactile scale here too
         "rounded-full px-3 py-1.5 text-[13px] font-semibold transition transform hover:scale-[1.01] active:scale-[0.99]",
         active
-          ? "bg-blue-600 text-white shadow-[0_12px_24px_rgba(31,111,255,0.18)] hover:shadow-[0_16px_30px_rgba(31,111,255,0.28)]"
+          ? "bg-[#1F355C] text-white shadow-[0_12px_24px_rgba(31,53,92,0.18)] hover:shadow-[0_16px_30px_rgba(31,53,92,0.28)]"
           : "bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50",
       ].join(" ")}
     >
@@ -155,7 +155,7 @@ async function sendMagicLink(email: string) {
       className="min-h-screen relative ff-dashboardText"
       style={{
         background:
-          "radial-gradient(circle_at_20%_10%,rgba(31,111,255,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(31,111,255,0.06),transparent_40%),#f7f9fc",
+          "radial-gradient(circle_at_20%_10%,rgba(31,53,92,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(31,53,92,0.06),transparent_40%),#f7f9fc",
 }}
     >
       <Wash />
@@ -183,7 +183,7 @@ async function sendMagicLink(email: string) {
 
           <div
             className="pointer-events-none absolute -top-28 -right-28 h-80 w-80 rounded-full blur-3xl"
-            style={{ background: "radial-gradient(circle, rgba(31,111,255,0.14), transparent 60%)" }}
+            style={{ background: "radial-gradient(circle, rgba(31,53,92,0.12), transparent 60%)" }}
           />
 
           <form onSubmit={onSubmit} className="relative p-5">
@@ -227,7 +227,7 @@ async function sendMagicLink(email: string) {
                   "w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5",
                   "text-[15.5px] text-slate-900 placeholder:text-slate-400",
                   "outline-none transition",
-                  "focus:ring-4 focus:ring-blue-100 focus:border-blue-300",
+                  "focus:ring-4 focus:ring-[#EEF4FF] focus:border-[#1F355C]",
                 ].join(" ")}
               />
             </div>
@@ -248,7 +248,7 @@ async function sendMagicLink(email: string) {
                       "w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5 pr-16",
                       "text-[15.5px] text-slate-900 placeholder:text-slate-400",
                       "outline-none transition",
-                      "focus:ring-4 focus:ring-blue-100 focus:border-blue-300",
+                      "focus:ring-4 focus:ring-[#EEF4FF] focus:border-[#1F355C]",
                     ].join(" ")}
                   />
                   <button
@@ -264,7 +264,7 @@ async function sendMagicLink(email: string) {
                   <a href="/forgot-password" className="text-slate-500 hover:text-slate-700">
                     Forgot password?
                   </a>
-                  <a href="/signup" className="font-semibold text-blue-600 hover:text-blue-700">
+                  <a href="/signup"className="font-semibold text-[#1F355C] hover:text-[#102A56]" >
                     Create account
                   </a>
                 </div>
@@ -285,8 +285,8 @@ async function sendMagicLink(email: string) {
                 disabled={!canSubmit || loading}
                 className={[
                   "w-full rounded-2xl px-6 py-4 text-[15.5px] font-extrabold text-white",
-                  "bg-gradient-to-r from-blue-600 to-blue-500 shadow-[0_12px_24px_rgba(31,111,255,0.18)]",
-                  "hover:bg-blue-700 transition transform hover:scale-[1.01] active:scale-[0.99]",
+                  "bg-gradient-to-r from-[#1F355C] to-[#102A56] shadow-[0_12px_24px_rgba(31,53,92,0.20)]",
+"hover:brightness-110 transition transform hover:scale-[1.01] active:scale-[0.99]",
                   "disabled:cursor-not-allowed disabled:opacity-50 disabled:transform-none",
                 ].join(" ")}
               >

@@ -138,9 +138,9 @@ export default function SignupPage() {
         className="absolute left-0 right-0 top-0 h-[5px]"
         style={{
           background: `linear-gradient(90deg,
-            rgba(31,53,92,${0.98 * a}),
-            rgba(36,91,255,${0.48 * a}),
-            rgba(31,53,92,${0.12 * a})
+            rgba(31,111,255,${0.98 * a}),
+            rgba(31,111,255,${0.48 * a}),
+            rgba(31,111,255,${0.10 * a})
           )`,
         }}
       />
@@ -152,7 +152,7 @@ export default function SignupPage() {
       className="min-h-screen relative ff-dashboardText"
       style={{
         background:
-          "radial-gradient(circle_at_20%_10%,rgba(36,91,255,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(31,53,92,0.08),transparent_40%),#f7f9fc",
+          "radial-gradient(circle_at_20%_10%,rgba(31,111,255,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(31,111,255,0.06),transparent_40%),#f7f9fc",
       }}
     >
       <div className="relative mx-auto max-w-md px-4 py-14">
@@ -178,7 +178,7 @@ export default function SignupPage() {
             className="pointer-events-none absolute -top-28 -right-28 h-80 w-80 rounded-full blur-3xl"
             style={{
               background:
-                "radial-gradient(circle, rgba(36,91,255,0.14), transparent 60%)",
+                "radial-gradient(circle, rgba(31,111,255,0.14), transparent 60%)",
             }}
           />
 
@@ -188,8 +188,7 @@ export default function SignupPage() {
             </h1>
 
             <p className="mt-1 text-[14px] text-slate-600">
-              Win more jobs, reply faster, and manage every enquiry in one
-              place.
+              Set up your FixFlow workspace and branded quote link.
             </p>
 
             {errorMsg && (
@@ -272,8 +271,8 @@ export default function SignupPage() {
                 disabled={!canSubmit || loading}
                 className={[
                   "w-full rounded-2xl px-6 py-4 text-[15.5px] font-extrabold text-white",
-                  "bg-gradient-to-r from-[#1F355C] to-[#102A56] shadow-[0_18px_34px_rgba(31,53,92,0.28)]",
-                  "hover:brightness-110 transition transform hover:scale-[1.01] active:scale-[0.99]",
+                  "bg-gradient-to-r from-blue-600 to-blue-500 shadow-[0_12px_24px_rgba(31,111,255,0.18)]",
+                  "hover:bg-blue-700 transition transform hover:scale-[1.01] active:scale-[0.99]",
                   "disabled:cursor-not-allowed disabled:opacity-50 disabled:transform-none",
                 ].join(" ")}
               >
@@ -284,7 +283,7 @@ export default function SignupPage() {
                 Already have an account?{" "}
                 <a
                   href="/login"
-                  className="font-semibold text-[#1F355C] hover:text-[#102A56]"
+                  className="font-semibold text-blue-600 hover:text-blue-700"
                 >
                   Log in
                 </a>

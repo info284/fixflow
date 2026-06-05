@@ -91,9 +91,9 @@ export default function LoginClient() {
         className="absolute left-0 right-0 top-0 h-[5px]"
         style={{
           background: `linear-gradient(90deg,
-            rgba(31,53,92,${0.98 * a}),
-            rgba(36,91,255,${0.48 * a}),
-            rgba(31,53,92,${0.12 * a})
+            rgba(31,111,255,${0.98 * a}),
+            rgba(31,111,255,${0.48 * a}),
+            rgba(31,111,255,${0.10 * a})
           )`,
         }}
       />
@@ -106,7 +106,7 @@ export default function LoginClient() {
     const color =
       bgState === "success"
         ? "radial-gradient(circle at 20% 10%, rgba(16,185,129,0.18), transparent 55%), radial-gradient(circle at 80% 30%, rgba(16,185,129,0.10), transparent 45%)"
-        : "radial-gradient(circle at 20% 10%, rgba(36,91,255,0.16), transparent 55%), radial-gradient(circle at 80% 30%, rgba(31,53,92,0.10), transparent 45%)";
+        : "radial-gradient(circle at 20% 10%, rgba(31,111,255,0.22), transparent 55%), radial-gradient(circle at 80% 30%, rgba(31,111,255,0.14), transparent 45%)";
 
     return (
       <div
@@ -131,7 +131,7 @@ export default function LoginClient() {
       className={[
         "rounded-full px-3 py-1.5 text-[13px] font-semibold transition transform hover:scale-[1.01] active:scale-[0.99]",
         active
-          ? "bg-[#1F355C] text-white shadow-[0_12px_24px_rgba(31,53,92,0.22)] hover:shadow-[0_16px_30px_rgba(31,53,92,0.30)]"
+          ? "bg-blue-600 text-white shadow-[0_12px_24px_rgba(31,111,255,0.18)] hover:shadow-[0_16px_30px_rgba(31,111,255,0.28)]"
           : "bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50",
       ].join(" ")}
     >
@@ -144,7 +144,7 @@ export default function LoginClient() {
       className="min-h-screen relative ff-dashboardText"
       style={{
         background:
-          "radial-gradient(circle_at_20%_10%,rgba(36,91,255,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(31,53,92,0.08),transparent_40%),#f7f9fc",
+          "radial-gradient(circle_at_20%_10%,rgba(31,111,255,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(31,111,255,0.06),transparent_40%),#f7f9fc",
       }}
     >
       <Wash />
@@ -172,7 +172,7 @@ export default function LoginClient() {
             className="pointer-events-none absolute -top-28 -right-28 h-80 w-80 rounded-full blur-3xl"
             style={{
               background:
-                "radial-gradient(circle, rgba(36,91,255,0.14), transparent 60%)",
+                "radial-gradient(circle, rgba(31,111,255,0.14), transparent 60%)",
             }}
           />
 
@@ -189,6 +189,7 @@ export default function LoginClient() {
               <Seg active={mode === "password"} onClick={() => setMode("password")}>
                 Password
               </Seg>
+
               <Seg active={mode === "magic"} onClick={() => setMode("magic")}>
                 Email link
               </Seg>
@@ -255,7 +256,7 @@ export default function LoginClient() {
 
                   <a
                     href="/signup"
-                    className="font-semibold text-[#1F355C] hover:text-[#102A56]"
+                    className="font-semibold text-blue-600 hover:text-blue-700"
                   >
                     Create account
                   </a>
@@ -275,8 +276,8 @@ export default function LoginClient() {
                 disabled={!canSubmit || loading}
                 className={[
                   "w-full rounded-2xl px-6 py-4 text-[15.5px] font-extrabold text-white",
-                  "bg-gradient-to-r from-[#1F355C] to-[#102A56] shadow-[0_18px_34px_rgba(31,53,92,0.28)]",
-                  "hover:brightness-110 transition transform hover:scale-[1.01] active:scale-[0.99]",
+                  "bg-gradient-to-r from-blue-600 to-blue-500 shadow-[0_12px_24px_rgba(31,111,255,0.18)]",
+                  "hover:bg-blue-700 transition transform hover:scale-[1.01] active:scale-[0.99]",
                   "disabled:cursor-not-allowed disabled:opacity-50 disabled:transform-none",
                 ].join(" ")}
               >

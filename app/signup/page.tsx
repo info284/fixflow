@@ -67,6 +67,7 @@ export default function SignupPage() {
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+
     if (loading || !canSubmit) return;
 
     setLoading(true);
@@ -88,24 +89,24 @@ export default function SignupPage() {
       const slug = await findAvailableSlug(businessName);
       if (!slug) throw new Error("Could not create your branded link.");
 
-const profileRes = await fetch("/api/signup/create-profile", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-  },
-  body: JSON.stringify({
-    userId,
-    businessName,
-    slug,
-    email,
-  }),
-});
+      const profileRes = await fetch("/api/signup/create-profile", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          businessName,
+          slug,
+          email: email.trim(),
+        }),
+      });
 
-const profileJson = await profileRes.json().catch(() => ({}));
+      const profileJson = await profileRes.json().catch(() => ({}));
 
-if (!profileRes.ok) {
-  throw new Error(profileJson?.error || "Could not create profile");
-}
+      if (!profileRes.ok) {
+        throw new Error(profileJson?.error || "Could not create profile");
+      }
 
       await fetch("/api/onboarding/send-welcome", {
         method: "POST",
@@ -134,14 +135,13 @@ if (!profileRes.ok) {
 
     return (
       <div
-        className="absolute left-0 right-0 top-0 h-[4px]"
+        className="absolute left-0 right-0 top-0 h-[5px]"
         style={{
-background: `linear-gradient(
-  90deg,
-  rgba(31,53,92,${0.98 * a}),
-  rgba(31,53,92,${0.48 * a}),
-  rgba(31,53,92,${0.10 * a})
-)`
+          background: `linear-gradient(90deg,
+            rgba(31,53,92,${0.98 * a}),
+            rgba(36,91,255,${0.48 * a}),
+            rgba(31,53,92,${0.12 * a})
+          )`,
         }}
       />
     );
@@ -152,7 +152,7 @@ background: `linear-gradient(
       className="min-h-screen relative ff-dashboardText"
       style={{
         background:
-          "radial-gradient(circle_at_20%_10%,rgba(31,53,92,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(31,53,92,0.06),transparent_40%),#f7f9fc",
+          "radial-gradient(circle_at_20%_10%,rgba(36,91,255,0.10),transparent_45%),radial-gradient(circle_at_80%_30%,rgba(31,53,92,0.08),transparent_40%),#f7f9fc",
       }}
     >
       <div className="relative mx-auto max-w-md px-4 py-14">
@@ -178,7 +178,7 @@ background: `linear-gradient(
             className="pointer-events-none absolute -top-28 -right-28 h-80 w-80 rounded-full blur-3xl"
             style={{
               background:
-                "radial-gradient(circle, rgba(31,53,92,0.12), transparent 60%)",
+                "radial-gradient(circle, rgba(36,91,255,0.14), transparent 60%)",
             }}
           />
 
@@ -188,7 +188,8 @@ background: `linear-gradient(
             </h1>
 
             <p className="mt-1 text-[14px] text-slate-600">
-              Set up your FixFlow workspace and branded quote link.
+              Win more jobs, reply faster, and manage every enquiry in one
+              place.
             </p>
 
             {errorMsg && (
@@ -215,7 +216,7 @@ background: `linear-gradient(
                 inputMode="email"
                 type="email"
                 placeholder="you@business.com"
-                className="w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5 text-[15.5px] text-slate-900 placeholder:text-slate-400 outline-none transition focus:ring-4 focus:ring-[#EEF4FF] focus:border-[#1F355C]"
+                className="w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5 text-[15.5px] text-slate-900 placeholder:text-slate-400 outline-none transition focus:ring-4 focus:ring-blue-100 focus:border-blue-300"
               />
             </div>
 
@@ -231,7 +232,7 @@ background: `linear-gradient(
                   autoComplete="new-password"
                   type={showPw ? "text" : "password"}
                   placeholder="Create a secure password"
-                  className="w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5 pr-16 text-[15.5px] text-slate-900 placeholder:text-slate-400 outline-none transition focus:ring-4 focus: ring-[#EEF4FF] focus:border-[#1F355C]"
+                  className="w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5 pr-16 text-[15.5px] text-slate-900 placeholder:text-slate-400 outline-none transition focus:ring-4 focus:ring-blue-100 focus:border-blue-300"
                 />
 
                 <button
@@ -254,7 +255,7 @@ background: `linear-gradient(
                 onChange={(e) => setBusinessName(e.target.value)}
                 type="text"
                 placeholder="Smith Plumbing"
-                className="w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5 text-[15.5px] text-slate-900 placeholder:text-slate-400 outline-none transition focus:ring-4  focus:ring-[#EEF4FF] focus:border-[#1F355C]"
+                className="w-full rounded-2xl border border-slate-300/70 bg-white px-4 py-3.5 text-[15.5px] text-slate-900 placeholder:text-slate-400 outline-none transition focus:ring-4 focus:ring-blue-100 focus:border-blue-300"
               />
 
               <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] text-slate-600">
@@ -271,8 +272,8 @@ background: `linear-gradient(
                 disabled={!canSubmit || loading}
                 className={[
                   "w-full rounded-2xl px-6 py-4 text-[15.5px] font-extrabold text-white",
-                 "bg-gradient-to-r from-[#1F355C] to-[#102A56] shadow-[0_12px_24px_rgba(31,53,92,0.20)]",
-"hover:brightness-110 transition transform hover:scale-[1.01] active:scale-[0.99]",
+                  "bg-gradient-to-r from-[#1F355C] to-[#102A56] shadow-[0_18px_34px_rgba(31,53,92,0.28)]",
+                  "hover:brightness-110 transition transform hover:scale-[1.01] active:scale-[0.99]",
                   "disabled:cursor-not-allowed disabled:opacity-50 disabled:transform-none",
                 ].join(" ")}
               >
@@ -281,28 +282,28 @@ background: `linear-gradient(
 
               <div className="mt-3 text-center text-[13.5px] text-slate-500">
                 Already have an account?{" "}
-<a
-  href="/login"
-  className="font-semibold text-[#1F355C] hover:text-[#102A56]"
->
-  Log in
-</a>
+                <a
+                  href="/login"
+                  className="font-semibold text-[#1F355C] hover:text-[#102A56]"
+                >
+                  Log in
+                </a>
               </div>
             </div>
           </form>
         </div>
 
-<div className="mt-6 text-center text-[13px] text-slate-500">
-  By signing up, you agree to FixFlow’s{" "}
-  <a className="font-semibold hover:text-slate-700" href="/terms">
-    terms
-  </a>{" "}
-  and{" "}
-  <a className="font-semibold hover:text-slate-700" href="/privacy">
-    privacy policy
-  </a>
-  , including how FixFlow stores trader and customer enquiry data.
-</div>
+        <div className="mt-6 text-center text-[13px] text-slate-500">
+          By signing up, you agree to FixFlow’s{" "}
+          <a className="font-semibold hover:text-slate-700" href="/terms">
+            terms
+          </a>{" "}
+          and{" "}
+          <a className="font-semibold hover:text-slate-700" href="/privacy">
+            privacy policy
+          </a>
+          , including how FixFlow stores trader and customer enquiry data.
+        </div>
       </div>
     </main>
   );

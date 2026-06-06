@@ -2010,26 +2010,28 @@ Page 18
  FOLLOW UP / HOT LEAD / SALES PULSE
 ========================= */
 .ff-hotLeadCard {
- border-color: rgba(220, 38, 38, 0.28) !important;
- box-shadow: 0 14px 34px rgba(220, 38, 38, 0.12);
+  border-color: rgba(36, 91, 255, 0.18) !important;
+  box-shadow: 0 14px 34px rgba(36, 91, 255, 0.08);
 }
-.ff-hotLeadCard::before {
- background: linear-gradient(180deg, #ef4444, #f97316) !important;
-}
-.ff-hotLeadBanner {
- margin-bottom: 14px;
- padding: 14px 16px;
- border-radius: 16px;
- border: 1px solid #ffe3e3;
- background: #fff5f5;
- display: flex;
- justify-content: space-between;
- align-items: center;
- gap: 12px;
- font-size: 14px;
 
- font-weight: 700;
- color: #b42318; }
+.ff-hotLeadCard::before {
+  background: linear-gradient(180deg, #245bff, #7aa7ff) !important;
+}
+
+.ff-hotLeadBanner {
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid #dbe7ff;
+  background: #f4f8ff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f355c;
+}
 
 .ff-followUpBar {
   display: flex;

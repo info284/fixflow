@@ -6226,20 +6226,22 @@ selectedReadinessScore >= 80 &&
   String(selectedRow?.urgency || "").toLowerCase().includes("asap") ||
   String(selectedRow?.ai_job_value_band || "").toLowerCase() === "high"
 ) ? (
-  <div className="ff-hotLeadBanner">
-    🔥 Hot lead — high chance of winning this job
+<div className="ff-hotLeadBanner">
+<span>
+🔥 Hot lead — high chance of winning this job
+</span>
 
-    <button
-      type="button"
-      className="ff-btn ff-btnSm ff-btnPrimary"
+<button
+type="button"
+className="ff-btn ff-btnSm ff-btnPrimary"
 onClick={() => {
-  syncRightTab("messages");
-  setScrollToComposerPending(true);
+syncRightTab("messages");
+setScrollToComposerPending(true);
 }}
-    >
-      Act now
-    </button>
-  </div>
+>
+Act now
+</button>
+</div>
 ) : null}
 
 {selectedRow ? (

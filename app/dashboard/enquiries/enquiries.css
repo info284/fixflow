@@ -2009,29 +2009,7 @@ Page 18
 /* =========================
  FOLLOW UP / HOT LEAD / SALES PULSE
 ========================= */
-.ff-hotLeadCard {
-  border-color: inherit !important;
-  box-shadow: none !important;
-}
 
-.ff-hotLeadCard::before {
-  background: inherit !important;
-}
-
-.ff-hotLeadBanner {
-  margin-bottom: 14px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  border: 1px solid #dbe7ff;
-  background: #f4f8ff;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #1f355c;
-}
 
 .ff-followUpBar {
   display: flex;

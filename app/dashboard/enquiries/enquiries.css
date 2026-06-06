@@ -2010,12 +2010,12 @@ Page 18
  FOLLOW UP / HOT LEAD / SALES PULSE
 ========================= */
 .ff-hotLeadCard {
-  border-color: rgba(36, 91, 255, 0.18) !important;
-  box-shadow: 0 14px 34px rgba(36, 91, 255, 0.08);
+  border-color: inherit !important;
+  box-shadow: none !important;
 }
 
 .ff-hotLeadCard::before {
-  background: linear-gradient(180deg, #245bff, #7aa7ff) !important;
+  background: inherit !important;
 }
 
 .ff-hotLeadBanner {

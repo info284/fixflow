@@ -349,7 +349,7 @@ return () => {
 <img
   src="/fixflow-logo.png"
   alt="FixFlow"
-  className="h-8 w-8 object-contain"
+  className="h-10 w-10 object-contain"
 />
                       </div>
 

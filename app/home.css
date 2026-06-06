@@ -1,0 +1,448 @@
+/* app/home.css */
+
+.homePage {
+  min-height: 100vh;
+  background: #f6f9ff;
+  color: #0b1320;
+}
+
+.homeHero {
+  padding: 28px;
+}
+
+.homeNav {
+  max-width: 1180px;
+  margin: 0 auto 54px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.homeLogo {
+  font-size: 26px;
+  font-weight: 950;
+  letter-spacing: -0.05em;
+  color: #0b2a55;
+}
+
+.homeNavActions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-weight: 850;
+}
+
+.homeNavActions a {
+  color: #1f355c;
+  text-decoration: none;
+}
+
+.homeNavBtn {
+  padding: 12px 18px;
+  border-radius: 999px;
+  background: #0b2a55;
+  color: white !important;
+}
+
+.homeHeroGrid {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 44px;
+  align-items: center;
+}
+
+.homeBadge {
+  width: fit-content;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: #eaf1ff;
+  color: #245bff;
+  font-size: 14px;
+  font-weight: 900;
+  margin-bottom: 22px;
+}
+
+.homeHero h1 {
+  max-width: 720px;
+  margin: 0;
+  font-size: clamp(54px, 8vw, 92px);
+  line-height: 0.92;
+  letter-spacing: -0.08em;
+  color: #07111f;
+}
+
+.homeHero p {
+  max-width: 620px;
+  margin: 28px 0 0;
+  font-size: 21px;
+  line-height: 1.55;
+  color: #5c6b84;
+  font-weight: 650;
+}
+
+.homeHeroActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 34px;
+}
+
+.homePrimaryBtn,
+.homeSecondaryBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 0 24px;
+  border-radius: 18px;
+  font-size: 16px;
+  font-weight: 950;
+  text-decoration: none;
+}
+
+.homePrimaryBtn {
+  background: #245bff;
+  color: white;
+  box-shadow: 0 20px 42px rgba(36, 91, 255, 0.24);
+}
+
+.homeSecondaryBtn {
+  background: white;
+  color: #1f355c;
+  border: 1px solid #e6ecf5;
+}
+
+.homeTrust {
+  margin-top: 22px;
+  color: #5c6b84;
+  font-weight: 800;
+}
+
+.homeMockup {
+  border-radius: 36px;
+  background: #ffffff;
+  border: 1px solid #e6ecf5;
+  padding: 24px;
+  box-shadow: 0 30px 80px rgba(11, 42, 85, 0.12);
+}
+
+.mockupTop {
+  padding: 26px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #0b2a55, #245bff);
+  color: white;
+}
+
+.mockupTop span,
+.mockupCard span {
+  display: block;
+  font-size: 13px;
+  font-weight: 850;
+  opacity: 0.75;
+  margin-bottom: 7px;
+}
+
+.mockupTop strong {
+  font-size: 32px;
+  letter-spacing: -0.04em;
+}
+
+.mockupCard {
+  margin-top: 14px;
+  padding: 22px;
+  border-radius: 24px;
+  border: 1px solid #e6ecf5;
+  background: #f8fbff;
+}
+
+.mockupCard strong {
+  font-size: 20px;
+  color: #102a56;
+}
+
+.mockupCard.urgent {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.homeSection {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 70px 28px;
+}
+
+.homeSectionHeader {
+  max-width: 760px;
+}
+
+.homeSectionHeader span,
+.homeFeatureBand span {
+  color: #245bff;
+  font-weight: 950;
+}
+
+.homeSectionHeader h2,
+.homeFeatureBand h2,
+.homeCTA h2 {
+  margin: 12px 0 0;
+  font-size: clamp(36px, 5vw, 58px);
+  line-height: 0.98;
+  letter-spacing: -0.06em;
+  color: #07111f;
+}
+
+.homeSectionHeader p,
+.homeCTA p {
+  font-size: 19px;
+  line-height: 1.6;
+  color: #5c6b84;
+  font-weight: 650;
+}
+
+.homeCards {
+  margin-top: 32px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.homeCard {
+  padding: 28px;
+  border-radius: 28px;
+  background: white;
+  border: 1px solid #e6ecf5;
+}
+
+.homeCard h3 {
+  margin: 0;
+  font-size: 24px;
+  color: #102a56;
+  letter-spacing: -0.04em;
+}
+
+.homeCard p {
+  margin: 12px 0 0;
+  color: #5c6b84;
+  line-height: 1.6;
+  font-weight: 650;
+}
+
+.homeFeatureBand {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 44px;
+  border-radius: 36px;
+  background: #0b2a55;
+  color: white;
+}
+
+.homeFeatureBand h2 {
+  color: white;
+  max-width: 680px;
+}
+
+.homeFeatureList {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.homeFeatureList div {
+  padding: 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 900;
+}
+
+.homeCTA {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 90px 28px;
+  text-align: center;
+}
+
+.homeCTA .homePrimaryBtn {
+  margin-top: 16px;
+}
+
+@media (max-width: 860px) {
+  .homeHeroGrid,
+  .homeCards {
+    grid-template-columns: 1fr;
+  }
+
+  .homeFeatureList {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .homeNav {
+    margin-bottom: 36px;
+  }
+
+  .homeHero {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 520px) {
+  .homeNavActions {
+    gap: 10px;
+    font-size: 14px;
+  }
+
+  .homeFeatureList {
+    grid-template-columns: 1fr;
+  }
+
+  .homeHeroActions {
+    flex-direction: column;
+  }
+
+  .homePrimaryBtn,
+  .homeSecondaryBtn {
+    width: 100%;
+  }
+}
+.homeProductStage {
+  position: relative;
+  min-height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.homeProductGlow {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(36, 91, 255, 0.28), transparent 68%);
+  filter: blur(12px);
+}
+
+.homeProductWindow {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  border-radius: 34px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(230, 236, 245, 0.9);
+  box-shadow: 0 34px 90px rgba(11, 42, 85, 0.18);
+  backdrop-filter: blur(18px);
+}
+
+.homeWindowTop {
+  display: flex;
+  gap: 8px;
+  padding: 4px 4px 16px;
+}
+
+.homeWindowTop span {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: #d8e1ee;
+}
+
+.homeProductHeader {
+  padding: 24px;
+  border-radius: 26px;
+  background: linear-gradient(135deg, #071b38, #245bff);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.homeProductHeader small,
+.homeLeadCard span,
+.homeLeadCard small,
+.homePipeline span {
+  display: block;
+  font-size: 12px;
+  font-weight: 900;
+  opacity: 0.72;
+}
+
+.homeProductHeader strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.homePulse {
+  height: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.homeLeadCard {
+  margin-top: 14px;
+  padding: 20px;
+  border-radius: 24px;
+  background: white;
+  border: 1px solid #e6ecf5;
+}
+
+.homeLeadCard.hot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.homeLeadCard strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 19px;
+  color: #102a56;
+  letter-spacing: -0.03em;
+}
+
+.homeLeadCard button {
+  border: 0;
+  border-radius: 14px;
+  background: #245bff;
+  color: white;
+  font-weight: 950;
+  padding: 12px 16px;
+}
+
+.homeLeadGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.homePipeline {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.homePipeline div {
+  padding: 18px;
+  border-radius: 22px;
+  background: #f4f7ff;
+  border: 1px solid #e6ecf5;
+}
+
+.homePipeline strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 30px;
+  color: #0b2a55;
+  letter-spacing: -0.05em;
+}

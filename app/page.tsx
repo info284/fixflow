@@ -1,8 +1,240 @@
-export default function Home() {
+// app/page.tsx
+
+import Link from "next/link";
+import "./home.css";
+
+export default function HomePage() {
   return (
-    <main style={{ padding: 24 }}>
-      <h1>FixFlow is live ✅</h1>
-      <p>Home page minimal check.</p>
+    <main className="homePage">
+      <section className="homeHero">
+        <div className="homeNav">
+          <div className="homeLogo">FixFlow</div>
+
+          <div className="homeNavActions">
+            <Link href="/login">Log in</Link>
+            <Link className="homeNavBtn" href="/signup">
+              Start free
+            </Link>
+          </div>
+        </div>
+
+        <div className="homeHeroGrid">
+          <div>
+            <div className="homeBadge">Built for busy trades</div>
+
+            <h1>Never lose another enquiry.</h1>
+
+            <p>
+              FixFlow helps tradespeople capture enquiries, reply faster, send
+              estimates, book jobs and get paid — all from one simple dashboard.
+            </p>
+
+            <div className="homeHeroActions">
+              <Link className="homePrimaryBtn" href="/signup">
+                Start free
+              </Link>
+
+              <Link className="homeSecondaryBtn" href="#how-it-works">
+                See how it works
+              </Link>
+            </div>
+
+            <div className="homeTrust">
+              No messy spreadsheets. No forgotten messages. No lost jobs.
+            </div>
+          </div>
+
+          <div className="homeProductStage">
+            <div className="homeProductGlow" />
+
+            <div className="homeProductWindow">
+              <div className="homeWindowTop">
+                <span />
+                <span />
+                <span />
+              </div>
+
+              <div className="homeProductHeader">
+                <div>
+                  <small>Today’s priority</small>
+                  <strong>3 hot enquiries need action</strong>
+                </div>
+
+                <div className="homePulse">Live</div>
+              </div>
+
+              <div className="homeLeadCard hot">
+                <div>
+                  <span>Best next action</span>
+                  <strong>Reply now — customer is ready</strong>
+                </div>
+
+                <button type="button">Reply</button>
+              </div>
+
+              <div className="homeLeadGrid">
+                <div className="homeLeadCard">
+                  <span>New enquiry</span>
+                  <strong>Bathroom refit</strong>
+                  <small>Photos added · KT12</small>
+                </div>
+
+                <div className="homeLeadCard">
+                  <span>Estimate accepted</span>
+                  <strong>£2,450 won</strong>
+                  <small>Ready to book</small>
+                </div>
+              </div>
+
+              <div className="homePipeline">
+                <div>
+                  <span>Enquiries</span>
+                  <strong>12</strong>
+                </div>
+
+                <div>
+                  <span>Estimates</span>
+                  <strong>6</strong>
+                </div>
+
+                <div>
+                  <span>Jobs won</span>
+                  <strong>4</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="homeSection">
+        <div className="homeSectionHeader">
+          <span>Why FixFlow?</span>
+
+          <h2>
+            Customers are ready to buy. Most trades just reply too late.
+          </h2>
+
+          <p>
+            Enquiries get buried in texts, emails and missed calls. Customers
+            move on. Jobs are lost. FixFlow keeps everything organised so you can
+            respond quickly and win more work.
+          </p>
+        </div>
+
+        <div className="homeCards">
+          <div className="homeCard">
+            <h3>📱 Enquiries buried in texts</h3>
+            <p>
+              Customer messages arrive from everywhere and important jobs get
+              missed.
+            </p>
+          </div>
+
+          <div className="homeCard">
+            <h3>📧 Quotes lost in emails</h3>
+            <p>
+              Estimates disappear into inboxes and nobody knows what needs
+              following up.
+            </p>
+          </div>
+
+          <div className="homeCard">
+            <h3>📋 Jobs tracked on scraps of paper</h3>
+            <p>
+              Notes, reminders and customer details end up scattered across
+              multiple places.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section id="how-it-works" className="homeSection">
+        <div className="homeSectionHeader">
+          <span>How it works</span>
+          <h2>From enquiry to invoice.</h2>
+          <p>
+            FixFlow gives every job a simple path, so you always know what came
+            in, what needs a reply and what needs doing next.
+          </p>
+        </div>
+
+        <div className="homeCards">
+          <div className="homeCard">
+            <h3>1. Customer sends enquiry</h3>
+            <p>
+              They send job details, photos, contact information and postcode
+              through your own FixFlow link.
+            </p>
+          </div>
+
+          <div className="homeCard">
+            <h3>2. FixFlow keeps it organised</h3>
+            <p>
+              Messages, missing info, estimates, visits and follow-ups stay in
+              one place.
+            </p>
+          </div>
+
+          <div className="homeCard">
+            <h3>3. You win the job</h3>
+            <p>
+              Book the work, send the invoice, track payment and ask for a
+              review.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="homeFeatureBand">
+        <div>
+          <span>Everything in one flow</span>
+          <h2>From first message to paid invoice.</h2>
+        </div>
+
+        <div className="homeFeatureList">
+          <div>Enquiry inbox</div>
+          <div>Customer messaging</div>
+          <div>Quick estimates</div>
+          <div>Detailed estimates</div>
+          <div>Site visits</div>
+          <div>Job tracking</div>
+          <div>Invoices</div>
+          <div>Reviews</div>
+        </div>
+      </section>
+
+      <section className="homeSection">
+        <div className="homeSectionHeader">
+          <span>Built from real trade experience</span>
+
+          <h2>FixFlow was built to solve a problem trades see every day.</h2>
+
+          <p>
+            Customers struggle to get replies. Trades lose track of enquiries.
+            Good jobs slip through the cracks because everything is spread
+            across calls, texts, emails and paperwork.
+          </p>
+
+          <p>
+            FixFlow brings the full customer journey into one calm, organised
+            system — from first enquiry to paid invoice.
+          </p>
+        </div>
+      </section>
+
+      <section className="homeCTA">
+        <h2>Win more jobs. Spend less time chasing paperwork.</h2>
+
+        <p>
+          Start with your own enquiry link and a dashboard built to help you win
+          more work.
+        </p>
+
+        <Link className="homePrimaryBtn" href="/signup">
+          Start using FixFlow
+        </Link>
+      </section>
     </main>
   );
 }

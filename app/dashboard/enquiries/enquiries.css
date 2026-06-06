@@ -2010,6 +2010,19 @@ Page 18
  FOLLOW UP / HOT LEAD / SALES PULSE
 ========================= */
 
+.ff-hotLeadBanner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ff-hotLeadBanner span {
+  flex: 1;
+}
+
+.ff-hotLeadBanner .ff-btnPrimary {
+  flex-shrink: 0;
+}
 
 .ff-followUpBar {
   display: flex;

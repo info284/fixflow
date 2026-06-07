@@ -39,15 +39,11 @@ export default function HomePage() {
     </div>
 
 <div className="homeTrust">
-  Built to help busy trades reply faster, follow up properly and win more work.
+  Designed from real trade experience and built for busy trades.
 </div>
   </div>
 
 <div className="homeScreenshotWrap">
-  <div className="homeScreenshotLabel">
-    Real FixFlow dashboard
-  </div>
-
   <div className="homeScreenshot">
     <Image
       src="/screenshots/enquiries-hero.png"
@@ -225,7 +221,69 @@ export default function HomePage() {
           </p>
         </div>
       </section>
+<section className="homePricing">
+  <div className="homeSectionHeader">
+    <span>Pricing</span>
 
+    <h2>Simple pricing.</h2>
+
+    <p>
+      Join FixFlow during early access and help shape the platform.
+    </p>
+  </div>
+
+  <div className="homePriceCard">
+    <div className="homePriceBadge">Early access</div>
+
+    <h3>Free</h3>
+
+    <p>
+      Use FixFlow free while we continue building new features and improving
+      the platform.
+    </p>
+
+    <ul>
+      <li>✓ Enquiries</li>
+      <li>✓ Customer messaging</li>
+      <li>✓ Estimates</li>
+      <li>✓ Jobs</li>
+      <li>✓ Invoices</li>
+      <li>✓ Reviews</li>
+    </ul>
+
+    <Link className="homePrimaryBtn" href="/signup">
+      Start free
+    </Link>
+  </div>
+</section>
+<section className="homeFAQ">
+  <div className="homeSectionHeader">
+    <span>FAQ</span>
+    <h2>Questions before you start?</h2>
+  </div>
+
+  <div className="homeFAQList">
+    <div>
+      <h3>Is FixFlow free?</h3>
+      <p>Yes. FixFlow is free during early access.</p>
+    </div>
+
+    <div>
+      <h3>Do customers need an app?</h3>
+      <p>No. Customers simply use your enquiry link.</p>
+    </div>
+
+    <div>
+      <h3>Does FixFlow work on mobile?</h3>
+      <p>Yes. FixFlow works on phones, tablets and desktop.</p>
+    </div>
+
+    <div>
+      <h3>Can I send invoices?</h3>
+      <p>Yes. You can create and send invoices directly from FixFlow.</p>
+    </div>
+  </div>
+</section>
       <section className="homeCTA">
         <h2>Win more jobs. Spend less time chasing paperwork.</h2>
 

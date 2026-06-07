@@ -473,15 +473,7 @@
     border-radius: 20px;
   }
 }
-.homeScreenshotLabel {
-  margin-top: 14px;
-  margin-bottom: 12px;
-  font-size: 13px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #5c6b84;
-}
+
 .homeScreenshotWrap {
   min-width: 0;
 }
@@ -556,4 +548,90 @@
   .homeProductFeatureReverse {
     grid-template-columns: 1.2fr 0.8fr;
   }
+}
+.homePricing {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 80px 28px;
+}
+
+.homePriceCard {
+  margin-top: 34px;
+  max-width: 520px;
+  padding: 34px;
+  border-radius: 32px;
+  background: white;
+  border: 1px solid #e6ecf5;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.1);
+}
+
+.homePriceBadge {
+  width: fit-content;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #eaf1ff;
+  color: #245bff;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.homePriceCard h3 {
+  margin: 18px 0 0;
+  font-size: 56px;
+  letter-spacing: -0.07em;
+  color: #07111f;
+}
+
+.homePriceCard p {
+  margin: 12px 0 0;
+  color: #5c6b84;
+  font-size: 17px;
+  line-height: 1.6;
+  font-weight: 650;
+}
+
+.homePriceCard ul {
+  margin: 24px 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  color: #1f355c;
+  font-weight: 850;
+}
+
+.homePriceCard .homePrimaryBtn {
+  width: 100%;
+}
+.homeFAQ {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 80px 28px;
+}
+
+.homeFAQList {
+  margin-top: 34px;
+  display: grid;
+  gap: 18px;
+}
+
+.homeFAQList div {
+  padding: 28px;
+  border-radius: 24px;
+  background: white;
+  border: 1px solid #e6ecf5;
+}
+
+.homeFAQList h3 {
+  margin: 0;
+  font-size: 22px;
+  color: #102a56;
+  letter-spacing: -0.03em;
+}
+
+.homeFAQList p {
+  margin: 10px 0 0;
+  color: #5c6b84;
+  line-height: 1.6;
+  font-weight: 650;
 }

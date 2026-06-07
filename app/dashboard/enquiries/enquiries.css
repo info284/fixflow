@@ -3566,7 +3566,7 @@ height: auto !important;
   z-index: 9999;
 
   display: flex;
-  align-items: center;
+align-items: flex-start;
   justify-content: center;
 
   padding: 24px;

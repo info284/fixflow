@@ -2992,21 +2992,6 @@ return (
             0 16px 34px rgba(36, 91, 255, 0.08);
         }
 
-        .ff-leftItem.isActive::before {
-          content: "";
-          position: absolute;
-          left: 10px;
-          top: 18px;
-          bottom: 18px;
-          width: 3px;
-          border-radius: 999px;
-          background: linear-gradient(
-            180deg,
-            rgba(31, 53, 92, 0.95) 0%,
-            rgba(143, 169, 214, 0.72) 52%,
-            rgba(143, 169, 214, 0.18) 100%
-          );
-        }
 
         .ff-leftItemTop {
           display: flex;

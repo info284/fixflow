@@ -1159,22 +1159,8 @@ color: #9a3412;
 }
 
 .ff-leftItem.isActive::before {
-  content: "";
-  position: absolute;
-  left: 8px;
-  top: 16px;
-  bottom: 16px;
-  width: 3px;
-  border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    rgba(31, 53, 92, 0.95) 0%,
-    rgba(143, 169, 214, 0.72) 52%,
-    rgba(143, 169, 214, 0.18) 100%
-  );
-  box-shadow: 0 0 8px rgba(143, 169, 214, 0.16);
-  pointer-events: none;
-  z-index: 2;
+  display: none;
+  content: none;
 }
 
 .ff-leftItem.isActive.ff-leftGlowASAP {
@@ -5556,4 +5542,28 @@ grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #1f355c;
+}
+.ff-leftItem {
+  position: relative;
+  overflow: hidden;
+}
+
+.ff-leftItem.isActive::before,
+.ff-leftItem[data-active="1"]::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  left: 8px;
+  top: 16px;
+  bottom: 16px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(31, 53, 92, 0.95) 0%,
+    rgba(143, 169, 214, 0.72) 52%,
+    rgba(143, 169, 214, 0.18) 100%
+  ) !important;
+  z-index: 2;
+  pointer-events: none;
 }

@@ -1,3 +1,4 @@
+
 "use client";
 
 import "@/app/dashboard/shared-flow.css";
@@ -25,7 +26,6 @@ type RequestRow = {
   created_at?: string | null;
   status: string | null;
 stage: string | null;
-
 
 };
 
@@ -88,7 +88,6 @@ const FF = {
 /* ================================
    HELPERS
 ================================ */
-
 
 function isValidEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
@@ -667,8 +666,6 @@ async function deleteInvoice(id: string) {
   });
 }
 
-
-
 async function runDeleteInvoice(id: string) {
   if (!userId) return;
 
@@ -756,8 +753,6 @@ async function runDeleteInvoice(id: string) {
   }
 }
 
-
-
   async function sendInvoice(inv: InvoiceRow) {
     setToast(null);
 
@@ -827,27 +822,36 @@ const mobileDetail = selectedInvoice ? "1" : "0";
 
 return (
   <React.Fragment>
-    <div className="ff-page" data-mobile-detail={mobileDetail}>
+    <div
+      className="ff-page ff-invoicesPage"
+      data-mobile-detail={mobileDetail}
+    >
       <div className="ff-wrap">
-      <div className="ff-top">
-        <div className="ff-hero">
-          <div className="ff-heroGlow" />
+        <div className="ff-top">
+<div className="ff-hero">
+  <div className="ff-heroGlow" />
 
-          <div className="ff-heroRow">
-            <div className="ff-heroLeft">
-              <div className="ff-heroTitle">Invoices</div>
-              <div className="ff-heroRule" />
-              <div className="ff-sub">Create, send and track invoices.</div>
-            </div>
+  <div className="ff-heroRow">
+    <div className="ff-heroLeft">
+      <div className="ff-heroTitle">Invoices</div>
+      <div className="ff-heroRule" />
+      <div className="ff-heroSub">
+        Create, send and track invoices.
+      </div>
+    </div>
 
-            <div className="ff-actions">
-              <button className="ff-btn ff-btnGhost" type="button" onClick={loadAll}>
-                Refresh
-              </button>
+              <div className="ff-actions">
+                <button
+                  className="ff-btn ff-btnGhost"
+                  type="button"
+                  onClick={loadAll}
+                >
+                  Refresh
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-        </div>
+      </div>
 
         <div className="ff-controls">
           <div className="ff-filterRow">
@@ -1132,7 +1136,7 @@ const total = s + vatAmount;
                 return (
                   <button
                     key={inv.id}
-                    className={`ff-leftItem ${glowCls}`}
+                   className={`ff-leftItem ${glowCls} ${active ? "isActive" : ""}`}
                     data-active={active ? "1" : "0"}
                     type="button"
                     onClick={() => openInvoice(inv.id)}
@@ -1239,7 +1243,6 @@ const total = s + vatAmount;
             ) : (
               <>
 
-
 <div className="ff-rightTop">
   <div className="ff-rightTopLeft">
     <button
@@ -1298,8 +1301,6 @@ const total = s + vatAmount;
     >
       Send
     </button>
-
-
 
     <button
       className="ff-btn ff-btnSuccess"
@@ -1676,25 +1677,16 @@ action();
 
 <style jsx>{`
 
-.ff-hero {
+.ff-leftItem {
   position: relative;
   overflow: hidden;
 }
 
-.ff-hero::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 18px;
-  bottom: 18px;
-  width: 5px;
-  border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    #0b2a55 0%,
-    #245bff 55%,
-    rgba(36, 91, 255, 0.25) 100%
-  );
+
+
+.ff-leftItemInner {
+  position: relative;
+  z-index: 1;
 }
 
 .ff-invoiceEmptyMini {
@@ -1747,7 +1739,6 @@ action();
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     0 14px 30px rgba(15, 23, 42, 0.06);
 }
-
 
 .ff-invoiceEmptyTitle {
   margin-top: 14px;
@@ -1818,6 +1809,11 @@ action();
   margin-top: 4px;
   font-size: 12px;
   color: #64748b;
+}
+
+.ff-invoiceActive {
+  border-color: rgba(36, 91, 255, 0.45) !important;
+  box-shadow: 0 0 0 3px rgba(36, 91, 255, 0.14) !important;
 }
 
 .ff-invoiceEmptyHero .ff-btn {
@@ -1914,13 +1910,13 @@ gap: 10px;
     flex-wrap: wrap;
   }
 
-  .ff-grid {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: grid;
-    gap: 14px;
-    grid-template-columns: 390px minmax(0, 1fr);
-  }
+ .ff-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 340px minmax(0, 1fr);
+}
 
 .ff-leftHeadRow {
   padding: 18px 20px 10px;
@@ -2230,15 +2226,73 @@ textarea {
   min-width: 0;
   box-sizing: border-box;
 }
-  @media (max-width: 980px) {
-    .ff-page[data-mobile-detail="1"] .ff-leftPane {
-      display: none;
-    }
+.ff-invoicesPage .ff-leftItem {
+  width: 100%;
+  text-align: left;
+  margin-bottom: 10px;
+  padding: 16px 18px;
+  border-radius: 22px;
+  border: 1px solid #e6ecf5;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 10px 22px rgba(15, 23, 42, 0.06);
+}
 
-    .ff-page[data-mobile-detail="0"] .ff-rightPane {
-      display: none;
-    }
-@media (max-width: 980px) {
+.ff-invoicesPage .ff-leftItem.isActive {
+  border-color: rgba(36, 91, 255, 0.32);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow:
+    0 0 0 3px rgba(36, 91, 255, 0.10),
+    0 14px 28px rgba(15, 23, 42, 0.08);
+}
+
+
+  .ff-invoicesPage .ff-leftList {
+  display: grid;
+  gap: 12px;
+}
+
+.ff-invoicesPage .ff-leftItem {
+  min-height: 230px !important;
+  height: auto !important;
+  padding: 18px 20px 20px !important;
+  overflow: hidden !important;
+}
+
+.ff-invoicesPage .ff-leftItemInner {
+  min-height: 190px;
+  display: grid;
+  gap: 8px;
+}
+
+.ff-invoicesPage .ff-leftReplyAlert {
+  margin-top: 4px;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.ff-invoicesPage .ff-leftJobTitle,
+.ff-invoicesPage .ff-leftCustomer,
+.ff-invoicesPage .ff-leftAddress,
+.ff-invoicesPage .ff-jobQuickRow,
+.ff-invoicesPage .ff-leftStatusRow,
+.ff-invoicesPage .ff-leftReplyAlert {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+@media (max-width: 720px) {
+  .ff-page[data-mobile-detail="1"] .ff-leftPane {
+    display: none;
+  }
+
+  .ff-page[data-mobile-detail="0"] .ff-rightPane {
+    display: none;
+  }
+
   .ff-page,
   .ff-grid,
   .ff-rightPane,
@@ -2256,20 +2310,26 @@ textarea {
   .ff-detailRow {
     grid-template-columns: 1fr;
   }
-}
-    .ff-grid {
-      grid-template-columns: 1fr;
-    }
 
-    .ff-backMobile {
-      display: inline-block;
+  .ff-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ff-backMobile {
+    display: inline-block;
+  }
+
+  .ff-headerBtnRow {
+    grid-template-columns: 1fr;
+    max-width: none;
+  }
 }
 .ff-invoiceNotesTextarea {
   min-height: 240px;
   resize: vertical;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 720px) {
   .ff-invoiceNotesTextarea {
     min-height: 300px;
   }
@@ -2278,8 +2338,66 @@ textarea {
       grid-template-columns: 1fr;
       max-width: none;
     }
+  
+
+
+.ff-invoicesPage .ff-hero::before {
+  content: none !important;
+  display: none !important;
+}
+`}</style>
+<style jsx global>{`
+  .ff-invoicesPage .ff-hero::before,
+  .ff-invoicesPage .ff-hero::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  .ff-invoicesPage .ff-top {
+  border-left: none !important;
+}
+
+.ff-invoicesPage .ff-top::before,
+.ff-invoicesPage .ff-top::after {
+  display: none !important;
+}
+
+.ff-invoicesPage .ff-hero::before,
+.ff-invoicesPage .ff-hero::after {
+  display: none !important;
+}
+
+.ff-invoiceHeroNoLine::before,
+.ff-invoiceHeroNoLine::after {
+  display: none !important;
+  content: none !important;
+}
+
+.ff-invoiceHeroClean {
+  position: relative;
+  overflow: hidden;
+  border-radius: 32px;
+  border: 1px solid #e6ecf5;
+  background:
+    radial-gradient(circle at top right, rgba(36, 91, 255, 0.08), transparent 38%),
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  padding: 28px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+}
+
+.ff-invoiceHeroClean::before,
+.ff-invoiceHeroClean::after {
+  display: none !important;
+  content: none !important;
+}
+`}</style>
+<style jsx global>{`
+  .ff-invoicesPage .ff-hero::before,
+  .ff-invoicesPage .ff-hero::after {
+    content: none !important;
   }
 `}</style>
+
   </React.Fragment>
 );
 }

@@ -60,7 +60,56 @@ export default function HomePage() {
 </div>
 </div>
       </section>
+<section className="homeProductStory">
+  <div className="homeSectionHeader">
+    <span>See the product</span>
+    <h2>Everything a trade business needs to turn enquiries into jobs.</h2>
+    <p>
+      FixFlow keeps the full customer journey together — from the first
+      message to the final invoice.
+    </p>
+  </div>
 
+  <div className="homeProductFeature">
+    <div>
+      <span>Customer messages</span>
+      <h3>Reply faster without digging through texts and emails.</h3>
+      <p>
+        Keep every customer conversation attached to the job, so you know who
+        replied, what was said and what needs doing next.
+      </p>
+    </div>
+
+    <div className="homeProductShot">
+      <Image
+        src="/screenshots/messages.png"
+        alt="FixFlow customer messages"
+        width={1400}
+        height={900}
+      />
+    </div>
+  </div>
+
+  <div className="homeProductFeature homeProductFeatureReverse">
+    <div className="homeProductShot">
+      <Image
+        src="/screenshots/jobs.png"
+        alt="FixFlow jobs dashboard"
+        width={1400}
+        height={900}
+      />
+    </div>
+
+    <div>
+      <span>Jobs</span>
+      <h3>Know exactly what needs doing next.</h3>
+      <p>
+        Track booked jobs, work in progress, completed work and outstanding
+        actions without relying on memory or paper notes.
+      </p>
+    </div>
+  </div>
+</section>
       <section className="homeSection">
         <div className="homeSectionHeader">
           <span>Why FixFlow?</span>

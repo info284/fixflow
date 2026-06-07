@@ -485,3 +485,75 @@
 .homeScreenshotWrap {
   min-width: 0;
 }
+
+.homeProductStory {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 70px 28px 30px;
+}
+.homeProductFeature {
+  margin-top: 42px;
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 34px;
+  align-items: center;
+}
+
+.homeProductFeature span {
+  color: #245bff;
+  font-weight: 950;
+}
+
+.homeProductFeature h3 {
+  margin: 12px 0 0;
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1;
+  letter-spacing: -0.06em;
+  color: #07111f;
+}
+
+.homeProductFeature p {
+  margin: 18px 0 0;
+  font-size: 18px;
+  line-height: 1.6;
+  color: #5c6b84;
+  font-weight: 650;
+}
+
+.homeProductShot {
+  border-radius: 30px;
+  border: 1px solid #e6ecf5;
+  background: white;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.1);
+  overflow: hidden;
+}
+
+.homeProductShot.placeholder {
+  min-height: 360px;
+  display: grid;
+  place-items: center;
+  color: #5c6b84;
+  font-weight: 900;
+  background: #f8fbff;
+}
+
+@media (max-width: 860px) {
+  .homeProductFeature {
+    grid-template-columns: 1fr;
+  }
+}
+.homeProductShot img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.homeProductFeatureReverse {
+  margin-top: 80px;
+}
+
+@media (min-width: 861px) {
+  .homeProductFeatureReverse {
+    grid-template-columns: 1.2fr 0.8fr;
+  }
+}

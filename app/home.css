@@ -474,11 +474,14 @@
   }
 }
 .homeScreenshotLabel {
-  margin-top: 36px;
+  margin-top: 14px;
   margin-bottom: 12px;
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #5c6b84;
+}
+.homeScreenshotWrap {
+  min-width: 0;
 }

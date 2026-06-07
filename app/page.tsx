@@ -43,12 +43,13 @@ export default function HomePage() {
 </div>
   </div>
 
-<div className="homeScreenshotLabel">
-  Real FixFlow dashboard
-</div>
+<div className="homeScreenshotWrap">
+  <div className="homeScreenshotLabel">
+    Real FixFlow dashboard
+  </div>
 
-<div className="homeScreenshot">
-  <Image
+  <div className="homeScreenshot">
+    <Image
       src="/screenshots/enquiries-hero.png"
       alt="FixFlow enquiries dashboard"
       width={1400}
@@ -56,6 +57,7 @@ export default function HomePage() {
       priority
     />
   </div>
+</div>
 </div>
       </section>
 

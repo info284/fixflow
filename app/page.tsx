@@ -1,5 +1,5 @@
 // app/page.tsx
-
+import Image from "next/image";
 import Link from "next/link";
 import "./home.css";
 
@@ -18,93 +18,42 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="homeHeroGrid">
-          <div>
-            <div className="homeBadge">Built for busy trades</div>
+<div className="homeHeroGrid">
+  <div>
+    <div className="homeBadge">Built for busy trades</div>
 
-            <h1>Never lose another enquiry.</h1>
+    <h1>Never lose another enquiry.</h1>
 
-            <p>
-              FixFlow helps tradespeople capture enquiries, reply faster, send
-              estimates, book jobs and get paid — all from one simple dashboard.
-            </p>
+    <p>
+      FixFlow helps tradespeople capture enquiries, reply faster, send
+      estimates, book jobs and get paid — all from one simple dashboard.
+    </p>
 
-            <div className="homeHeroActions">
-              <Link className="homePrimaryBtn" href="/signup">
-                Start free
-              </Link>
+    <div className="homeHeroActions">
+      <Link className="homePrimaryBtn" href="/signup">
+        Start free
+      </Link>
 
-              <Link className="homeSecondaryBtn" href="#how-it-works">
-                See how it works
-              </Link>
-            </div>
+      <Link className="homeSecondaryBtn" href="#how-it-works">
+        See how it works
+      </Link>
+    </div>
 
-            <div className="homeTrust">
-              No messy spreadsheets. No forgotten messages. No lost jobs.
-            </div>
-          </div>
+    <div className="homeTrust">
+      No messy spreadsheets. No forgotten messages. No lost jobs.
+    </div>
+  </div>
 
-          <div className="homeProductStage">
-            <div className="homeProductGlow" />
-
-            <div className="homeProductWindow">
-              <div className="homeWindowTop">
-                <span />
-                <span />
-                <span />
-              </div>
-
-              <div className="homeProductHeader">
-                <div>
-                  <small>Today’s priority</small>
-                  <strong>3 hot enquiries need action</strong>
-                </div>
-
-                <div className="homePulse">Live</div>
-              </div>
-
-              <div className="homeLeadCard hot">
-                <div>
-                  <span>Best next action</span>
-                  <strong>Reply now — customer is ready</strong>
-                </div>
-
-                <button type="button">Reply</button>
-              </div>
-
-              <div className="homeLeadGrid">
-                <div className="homeLeadCard">
-                  <span>New enquiry</span>
-                  <strong>Bathroom refit</strong>
-                  <small>Photos added · KT12</small>
-                </div>
-
-                <div className="homeLeadCard">
-                  <span>Estimate accepted</span>
-                  <strong>£2,450 won</strong>
-                  <small>Ready to book</small>
-                </div>
-              </div>
-
-              <div className="homePipeline">
-                <div>
-                  <span>Enquiries</span>
-                  <strong>12</strong>
-                </div>
-
-                <div>
-                  <span>Estimates</span>
-                  <strong>6</strong>
-                </div>
-
-                <div>
-                  <span>Jobs won</span>
-                  <strong>4</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+  <div className="homeScreenshot">
+    <Image
+      src="/screenshots/enquiries-hero.png"
+      alt="FixFlow enquiries dashboard"
+      width={1400}
+      height={900}
+      priority
+    />
+  </div>
+</div>
       </section>
 
       <section className="homeSection">

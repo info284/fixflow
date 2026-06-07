@@ -35,9 +35,7 @@ export default function HomePage() {
         Start free
       </Link>
 
-      <Link className="homeSecondaryBtn" href="#how-it-works">
-        See how it works
-      </Link>
+
     </div>
 
 <div className="homeTrust">
@@ -45,8 +43,12 @@ export default function HomePage() {
 </div>
   </div>
 
-  <div className="homeScreenshot">
-    <Image
+<div className="homeScreenshotLabel">
+  Real FixFlow dashboard
+</div>
+
+<div className="homeScreenshot">
+  <Image
       src="/screenshots/enquiries-hero.png"
       alt="FixFlow enquiries dashboard"
       width={1400}

@@ -447,26 +447,38 @@
   letter-spacing: -0.05em;
 }
 .homeScreenshot {
-  margin-top: 32px;
+  margin-top: 16px;
+  margin-left: -24px;
+  margin-right: -24px;
 }
 
 .homeScreenshot img {
-  width: 100%;
-  max-width: 1200px;
+  width: calc(100% + 48px);
+  max-width: none;
+  height: auto;
   display: block;
-  border-radius: 28px;
+  border-radius: 24px;
   border: 1px solid #e6ecf5;
   box-shadow: 0 30px 80px rgba(15, 23, 42, 0.12);
 }
 @media (max-width: 900px) {
   .homeScreenshot {
-    margin-left: -16px;
-    margin-right: -16px;
+    margin-left: -24px;
+    margin-right: -24px;
   }
 
   .homeScreenshot img {
-    width: calc(100% + 32px);
+    width: calc(100% + 48px);
     max-width: none;
     border-radius: 20px;
   }
+}
+.homeScreenshotLabel {
+  margin-top: 36px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5c6b84;
 }

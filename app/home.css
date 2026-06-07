@@ -635,3 +635,44 @@
   line-height: 1.6;
   font-weight: 650;
 }
+@media (max-width: 860px) {
+  .homeHeroGrid,
+  .homeCards {
+    grid-template-columns: 1fr;
+  }
+
+  .homeFeatureList {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .homeNav {
+    margin-bottom: 36px;
+  }
+
+  .homeHero {
+    padding: 20px;
+  }
+
+  .homeHeroGrid {
+    text-align: center;
+  }
+
+  .homeBadge {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .homeHero h1 {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .homeHero p {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .homeTrust {
+    text-align: center;
+  }
+}

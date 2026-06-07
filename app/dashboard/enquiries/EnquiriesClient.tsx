@@ -5273,14 +5273,17 @@ salesPulse.valueWaiting > 0 || salesPulse.needsAction > 0
 <button
   type="button"
   className="ff-btn ff-btnPrimary ff-btnSm"
-  onClick={() => {
+  onClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
     setCallForm({
       customer_name: "",
       customer_phone: "",
       job_type: "",
       urgency: "Flexible",
       details: "",
-      source: "manual", // or "phone" depending on button
+      source: "manual",
     });
 
     setShowCallModal(true);

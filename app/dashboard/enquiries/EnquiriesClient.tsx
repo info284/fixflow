@@ -4538,7 +4538,9 @@ async function createCallEnquiry() {
       source: callForm.source,
     })
     .select()
-    .single();
+  .single();
+
+console.log("SAVE RESULT", { data, error });
 
   if (error || !data) {
     pushToast("Couldn’t save phone enquiry", "error");

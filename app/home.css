@@ -127,14 +127,14 @@
 }
 
 .homeScreenshot {
-  margin-top: 16px;
-  margin-left: -24px;
-  margin-right: -24px;
+  margin-top: 28px;
+  margin-left: 0;
+  margin-right: 0;
 }
 
 .homeScreenshot img {
-  width: calc(100% + 48px);
-  max-width: none;
+  width: 100%;
+  max-width: 100%;
   height: auto;
   display: block;
   border-radius: 24px;
@@ -429,14 +429,14 @@
     width: 100%;
   }
 
-  .homeScreenshot {
-    margin-left: -24px;
-    margin-right: -24px;
-  }
+.homeScreenshot {
+  margin-left: 0;
+  margin-right: 0;
+}
 
-  .homeScreenshot img {
-    width: calc(100% + 48px);
-    max-width: none;
+.homeScreenshot img {
+  width: 100%;
+  max-width: 100%;
     border-radius: 20px;
   }
 

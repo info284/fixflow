@@ -1676,6 +1676,27 @@ action();
 
 <style jsx>{`
 
+.ff-hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.ff-hero::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 18px;
+  bottom: 18px;
+  width: 5px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    #0b2a55 0%,
+    #245bff 55%,
+    rgba(36, 91, 255, 0.25) 100%
+  );
+}
+
 .ff-invoiceEmptyMini {
   display: grid;
   gap: 10px;

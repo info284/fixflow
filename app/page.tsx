@@ -85,7 +85,6 @@ export default function HomePage() {
       />
     </div>
   </div>
-
   <div className="homeProductFeature homeProductFeatureReverse">
     <div className="homeProductShot">
       <Image
@@ -105,6 +104,29 @@ export default function HomePage() {
       </p>
     </div>
   </div>
+
+  <div className="homeProductFeature">
+    <div>
+      <span>Invoices</span>
+
+      <h3>Create invoices and get paid faster.</h3>
+
+      <p>
+        Generate professional invoices, track payment status and keep every
+        invoice connected to the job it came from.
+      </p>
+    </div>
+
+    <div className="homeProductShot">
+      <Image
+        src="/screenshots/invoices.png"
+        alt="FixFlow invoices"
+        width={1400}
+        height={900}
+      />
+    </div>
+  </div>
+
 </section>
       <section className="homeSection">
         <div className="homeSectionHeader">

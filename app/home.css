@@ -446,11 +446,27 @@
   color: #0b2a55;
   letter-spacing: -0.05em;
 }
+.homeScreenshot {
+  margin-top: 32px;
+}
+
 .homeScreenshot img {
   width: 100%;
-  height: auto;
+  max-width: 1200px;
   display: block;
   border-radius: 28px;
   border: 1px solid #e6ecf5;
   box-shadow: 0 30px 80px rgba(15, 23, 42, 0.12);
+}
+@media (max-width: 900px) {
+  .homeScreenshot {
+    margin-left: -16px;
+    margin-right: -16px;
+  }
+
+  .homeScreenshot img {
+    width: calc(100% + 32px);
+    max-width: none;
+    border-radius: 20px;
+  }
 }

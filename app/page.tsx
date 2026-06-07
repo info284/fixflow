@@ -22,12 +22,13 @@ export default function HomePage() {
   <div>
     <div className="homeBadge">Built for busy trades</div>
 
-    <h1>Never lose another enquiry.</h1>
+<h1>Trades deserve better.</h1>
 
-    <p>
-      FixFlow helps tradespeople capture enquiries, reply faster, send
-      estimates, book jobs and get paid — all from one simple dashboard.
-    </p>
+<p>
+  Stop losing jobs because enquiries, messages, quotes and follow-ups
+  are scattered everywhere. FixFlow keeps the whole job journey in one
+  organised dashboard.
+</p>
 
     <div className="homeHeroActions">
       <Link className="homePrimaryBtn" href="/signup">
@@ -39,9 +40,9 @@ export default function HomePage() {
       </Link>
     </div>
 
-    <div className="homeTrust">
-      No messy spreadsheets. No forgotten messages. No lost jobs.
-    </div>
+<div className="homeTrust">
+  Built to help busy trades reply faster, follow up properly and win more work.
+</div>
   </div>
 
   <div className="homeScreenshot">

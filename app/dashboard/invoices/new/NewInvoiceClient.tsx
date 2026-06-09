@@ -1174,8 +1174,12 @@ const total = s + vatAmount;
   </span>
 </div>
 
-<div className="ff-leftReplyAlert">
-  To {inv.to_email || "No email"}
+<div className="ff-leftEmail">
+  {inv.to_email || "No email"}
+</div>
+
+<div className="ff-leftCustomer">
+  {req?.customer_name || "Customer"}
 </div>
                     </div>
                   </button>
@@ -2389,6 +2393,66 @@ textarea {
 .ff-invoiceHeroClean::after {
   display: none !important;
   content: none !important;
+}
+  .ff-leftItem {
+  min-height: 250px;
+}
+
+.ff-leftItemInner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ff-invoiceEmailLine {
+  width: 100%;
+  max-width: 100%;
+  margin-top: 4px;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  box-sizing: border-box;
+}
+  .ff-invoiceEmailPill {
+  margin-top: 12px;
+  width: 100%;
+
+  padding: 14px 18px;
+
+  border-radius: 999px;
+
+  background: #eef4ff;
+  border: 2px solid #d8e4ff;
+
+  color: #1f355c;
+  font-size: 14px;
+  font-weight: 900;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  box-sizing: border-box;
+}
+  .ff-leftItem {
+  min-height: 280px;
+}
+  .ff-leftStatusRow {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.ff-leftEmail {
+  margin-top: 8px;
+
+color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 `}</style>
 <style jsx global>{`

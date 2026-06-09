@@ -4194,51 +4194,56 @@ async function deleteEnquiry() {
     message: "Delete this enquiry and all related messages? This cannot be undone.",
     confirmLabel: "Delete enquiry",
     danger: true,
- onConfirm: async () => {
-if (!selectedRow) return;
-const rowId = selectedRow!.id;
+    onConfirm: async () => {
+      try {
+        if (!selectedRow) return;
 
-      const { error } = await supabase
-        .from("quote_requests")
-        .delete()
-        .eq("id", rowId);
+        const rowId = selectedRow.id;
 
-      if (error) {
-        console.error(error);
+        const { error } = await supabase
+          .from("quote_requests")
+          .delete()
+          .eq("id", rowId);
+
+        if (error) {
+          console.error("Delete enquiry error:", error);
+          pushToast("Couldn’t delete enquiry", "error");
+          return;
+        }
+
+        const remaining = rows.filter((r) => r.id !== rowId);
+
+        setRows(remaining);
+
+        setThreadMap((prev) => {
+          const next = { ...prev };
+          delete next[rowId];
+          return next;
+        });
+
+        setVisitMap((prev) => {
+          const next = { ...prev };
+          delete next[rowId];
+          return next;
+        });
+
+        setEstimateMap((prev) => {
+          const next = { ...prev };
+          delete next[rowId];
+          return next;
+        });
+
+        if (remaining.length > 0) {
+         selectEnquiry(remaining[0].id);
+        } else {
+          clearSelected();
+        }
+
+        pushToast("Enquiry deleted", "success");
+      } catch (err) {
+        console.error("Delete enquiry failed:", err);
         pushToast("Couldn’t delete enquiry", "error");
-        return;
       }
-
-      const remaining = rows.filter((r) => r.id !== rowId);
-      setRows(remaining);
-
-      setThreadMap((prev) => {
-        const next = { ...prev };
-        delete next[rowId];
-        return next;
-      });
-
-      setVisitMap((prev) => {
-        const next = { ...prev };
-        delete next[rowId];
-        return next;
-      });
-
-      setEstimateMap((prev) => {
-        const next = { ...prev };
-        delete next[rowId];
-        return next;
-      });
-
-     
-
-      if (remaining.length) {
-        selectEnquiry(remaining[0].id);
-      } else {
-        clearSelected();
-      }
-
-      pushToast("Enquiry deleted", "success");
     },
   });
 }

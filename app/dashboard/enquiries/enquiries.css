@@ -3566,10 +3566,10 @@ height: auto !important;
   z-index: 9999;
 
   display: flex;
-align-items: flex-start;
+  align-items: flex-start;
   justify-content: center;
 
-  padding: 24px;
+  padding: 80px 24px 24px;
 
   background: rgba(11, 19, 32, 0.42);
   backdrop-filter: blur(6px);

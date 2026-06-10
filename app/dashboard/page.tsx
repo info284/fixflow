@@ -651,48 +651,118 @@ const lastLogin = "—";
   stats.enquiriesOpen === 0 &&
   stats.wonJobs === 0 &&
   stats.invoices === 0 && (
+
 <section className="ffdash-card ffdash-cardPad ffdash-setupCard">
-  <div className="ffdash-sectionTop">
+
+  {/* HEADER */}
+  <div className="ffdash-setupHeader">
     <div>
       <div className="ffdash-eyebrow">GET STARTED</div>
-
-      <div className="ffdash-setupTitle">
-        Your FixFlow workspace is ready
+      <div className="ffdash-setupTitle">3 steps to your first job</div>
+      <div className="ffdash-muted">Takes about 2 minutes.</div>
+    </div>
+    <div className="ffdash-setupProgress">
+      <div className="ffdash-setupProgressBar">
+        <div
+          className="ffdash-setupProgressFill"
+          style={{
+            width: `${
+              [
+                true, // link is always step 1, never ticked
+                !!profile?.business_name,
+                stats.enquiriesOpen > 0,
+              ].filter(Boolean).length === 1
+                ? 33
+                : [
+                    !!profile?.business_name,
+                    stats.enquiriesOpen > 0,
+                  ].filter(Boolean).length === 2
+                ? 100
+                : [
+                    !!profile?.business_name,
+                    stats.enquiriesOpen > 0,
+                  ].filter(Boolean).length === 1
+                ? 66
+                : 0
+            }%`,
+          }}
+        />
       </div>
-
-      <div className="ffdash-muted">
-        Complete a few steps to start receiving enquiries.
+      <div className="ffdash-setupProgressLabel">
+        {[!!profile?.business_name, stats.enquiriesOpen > 0].filter(Boolean).length} of 2 done
       </div>
     </div>
-
-    <span className="ffdash-chip">New account</span>
   </div>
 
-  <div className="ffdash-setupGrid">
-    <Link href="/dashboard/profile" className="ffdash-setupItem">
-<strong>Complete your profile</strong>
-<br />
-<span>Add business info, logo and contact details</span>
-    </Link>
-
-    <Link href="/dashboard/profile" className="ffdash-setupItem">
-      <strong>Add services</strong>
-      <br />
-      <span>Tell customers what work you offer</span>
-    </Link>
-
-    <button type="button" onClick={copyLink} className="ffdash-setupItem">
-      <strong>Copy your quote link</strong>
-      <span>Share it on Facebook, Google and WhatsApp</span>
-    </button>
-
-    <button type="button" onClick={openTraderPage} className="ffdash-setupItem">
-      <strong>Preview quote form</strong>
-      <span>See what customers will experience</span>
+  {/* STEP 1 — COPY LINK (always first, always prominent) */}
+  <div className="ffdash-setupHero">
+    <div className="ffdash-setupHeroLeft">
+      <div className="ffdash-setupStepNum">1</div>
+      <div>
+        <div className="ffdash-setupStepTitle">Copy your enquiry link</div>
+        <div className="ffdash-setupStepSub">
+          This is how customers find you. Share it on WhatsApp, Facebook, Google — anywhere.
+        </div>
+        <div className="ffdash-setupLinkPreview">{traderLink}</div>
+      </div>
+    </div>
+    <button
+      type="button"
+      className="ffdash-setupHeroBtn"
+      onClick={copyLink}
+    >
+      Copy link
     </button>
   </div>
+
+  {/* STEPS 2 + 3 */}
+  <div className="ffdash-setupSteps">
+
+    {/* STEP 2 — PROFILE */}
+    <a href="/dashboard/profile" className="ffdash-setupStep">
+      <div className={`ffdash-setupTick ${profile?.business_name ? "ffdash-setupTickDone" : ""}`}>
+        {profile?.business_name ? "✓" : "2"}
+      </div>
+      <div className="ffdash-setupStepBody">
+        <div className="ffdash-setupStepTitle">
+          {profile?.business_name ? "Profile set up ✓" : "Set up your profile"}
+        </div>
+        <div className="ffdash-setupStepSub">
+          {profile?.business_name
+            ? "Business name and details saved."
+            : "Add your business name, trade type and contact details."}
+        </div>
+      </div>
+      {!profile?.business_name && (
+        <div className="ffdash-setupStepArrow">→</div>
+      )}
+    </a>
+
+    {/* STEP 3 — FIRST ENQUIRY */}
+    <a href="/dashboard/enquiries" className="ffdash-setupStep">
+      <div className={`ffdash-setupTick ${stats.enquiriesOpen > 0 ? "ffdash-setupTickDone" : ""}`}>
+        {stats.enquiriesOpen > 0 ? "✓" : "3"}
+      </div>
+      <div className="ffdash-setupStepBody">
+        <div className="ffdash-setupStepTitle">
+          {stats.enquiriesOpen > 0 ? "First enquiry in ✓" : "Get your first enquiry"}
+        </div>
+        <div className="ffdash-setupStepSub">
+          {stats.enquiriesOpen > 0
+            ? "You're live. Keep the momentum going."
+            : "Share your link or add a manual enquiry to get started."}
+        </div>
+      </div>
+      {stats.enquiriesOpen === 0 && (
+        <div className="ffdash-setupStepArrow">→</div>
+      )}
+    </a>
+
+  </div>
+
 </section>
-  )}
+)}
+
         <section className="ffdash-card ffdash-cardPad ffdash-aiPanel">
           <div className="ffdash-sectionTop">
             <div>
@@ -1949,6 +2019,207 @@ const lastLogin = "—";
             padding: 20px !important;
           }
         }
+          .ffdash-setupHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.ffdash-setupTitle {
+  margin: 8px 0 4px;
+  font-size: 22px;
+  font-weight: 900;
+  color: #1f355c;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.ffdash-setupProgress {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 120px;
+}
+
+.ffdash-setupProgressBar {
+  width: 120px;
+  height: 6px;
+  border-radius: 999px;
+  background: #e6ecf5;
+  overflow: hidden;
+}
+
+.ffdash-setupProgressFill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1a4fff, #6b9fff);
+  transition: width 0.4s ease;
+}
+
+.ffdash-setupProgressLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8a9ab5;
+}
+
+/* HERO STEP â€” Copy link */
+.ffdash-setupHero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #080f1e 0%, #112040 100%);
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.ffdash-setupHeroLeft {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.ffdash-setupStepNum {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ffdash-setupHero .ffdash-setupStepTitle {
+  color: #fff;
+  font-size: 16px;
+  font-weight: 900;
+  margin-bottom: 4px;
+}
+
+.ffdash-setupHero .ffdash-setupStepSub {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ffdash-setupLinkPreview {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ffdash-setupHeroBtn {
+  padding: 12px 22px;
+  border-radius: 14px;
+  background: #1a4fff;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 800;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(26, 79, 255, 0.3);
+  transition: background 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+.ffdash-setupHeroBtn:hover {
+  background: #2d5fff;
+  transform: translateY(-1px);
+}
+
+/* STEPS 2 + 3 */
+.ffdash-setupSteps {
+  display: grid;
+  gap: 10px;
+}
+
+.ffdash-setupStep {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid #e6ecf5;
+  background: #f8fbff;
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.15s ease;
+}
+
+.ffdash-setupStep:hover {
+  border-color: #c7d4e4;
+  background: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.06);
+}
+
+.ffdash-setupTick {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #dbe4ef;
+  background: #fff;
+  color: #8a9ab5;
+  font-size: 13px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.ffdash-setupTickDone {
+  border-color: #16a34a;
+  background: #ecfdf3;
+  color: #16a34a;
+}
+
+.ffdash-setupStepBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.ffdash-setupStepTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: #1f355c;
+  margin-bottom: 3px;
+}
+
+.ffdash-setupStepSub {
+  font-size: 13px;
+  color: #6b7a90;
+  line-height: 1.45;
+}
+
+.ffdash-setupStepArrow {
+  font-size: 16px;
+  color: #8a9ab5;
+  flex-shrink: 0;
+}
       `}</style>
     </div>
   );

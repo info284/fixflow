@@ -4234,7 +4234,7 @@ async function deleteEnquiry() {
         });
 
         if (remaining.length > 0) {
-         selectEnquiry(remaining[0].id);
+         
         } else {
           clearSelected();
         }

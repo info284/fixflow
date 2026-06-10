@@ -333,12 +333,14 @@ img { display: block; max-width: 100%; }
 .homeFounderName { font-size: 15px; font-weight: 700; color: rgba(255, 255, 255, 0.7); }
 .homeFounderRole { font-size: 13px; color: rgba(255, 255, 255, 0.3); margin-top: 2px; }
 .homeFounderRight {
-  padding: 40px;
+  padding: 20px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 28px;
-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
+
 .homeStatGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .homeStat { padding: 28px; background: rgba(255, 255, 255, 0.04); border-radius: 18px; }
 .homeStatNum { font-size: 40px; font-weight: 900; letter-spacing: -0.05em; color: #fff; }
@@ -443,7 +445,7 @@ width: 100%;
   .homeWhyGrid { grid-template-columns: 1fr; }
   .homeFeatureRow { grid-template-columns: 1fr; gap: 36px; direction: ltr !important; }
   .homeDarkGrid { grid-template-columns: 1fr 1fr; }
-  .homeFounderInner { grid-template-columns: 1fr; gap: 48px; }
+  .homeFounderInner { grid-template-columns: 1fr; gap: 48px; padding: 0;}
   .homeFAQGrid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {

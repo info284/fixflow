@@ -2030,6 +2030,12 @@ const lastLogin = "—";
 .ffdash-setupHeroBtn {
   width: 100%;
 }
+.ffdash-setupHeroLeft {
+  flex-direction: column;
+}
+.ffdash-setupHeroBtn {
+  width: 100%;
+}
 
 .ffdash-setupTitle {
   margin: 8px 0 4px;
@@ -2072,7 +2078,8 @@ const lastLogin = "—";
 /* HERO STEP â€” Copy link */
 .ffdash-setupHero {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  flex-wrap: wrap;
   gap: 16px;
   padding: 20px;
   border-radius: 18px;
@@ -2096,7 +2103,7 @@ const lastLogin = "—";
   width: 32px;
   height: 32px;
   border-radius: 50%;
- background: #e8f0fb;
+ background: #fff;
   border: 1px solid #d6deea;
   color: #1f355c;
   color: #fff;

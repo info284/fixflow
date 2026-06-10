@@ -17,10 +17,10 @@ export default function HomeFounder() {
             &ldquo;Every competitor starts at the quote.<br />
             <em>I start where the job is actually lost.</em>&rdquo;
           </div>
-          <p className="homeFounderBody">
-            Most job management software is built by people who&apos;ve never stood in a trade
-            customer&apos;s kitchen. FixFlow was built by someone who has — thousands of times.
-          </p>
+<p className="homeFounderBody">
+  Most job management software is built by people who&apos;ve never watched a trade lose a job to slow admin. FixFlow was built by someone who has — thousands of times.
+</p>
+
           <p className="homeFounderBody">
             After years working directly with tradespeople every single day, the pattern was
             impossible to miss. Jobs lost before a quote was even sent. Customers ghosted.
@@ -35,7 +35,9 @@ export default function HomeFounder() {
             <div className="homeFounderAvatar">👋</div>
             <div>
               <div className="homeFounderName">Anna, Founder</div>
-              <div className="homeFounderRole">FixFlow — built solo, evenings &amp; weekends</div>
+              <div className="homeFounderRole">
+Built after years of watching trade businesses lose work through disorganisation
+</div>
             </div>
           </div>
         </div>

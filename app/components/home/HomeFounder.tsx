@@ -1,7 +1,7 @@
 // app/components/home/HomeFounder.tsx
 
 const stats = [
-  { num: "£0", label: "VC funding. Just a builder who cares." },
+  { num: "£0", label: "VC funding. Just one founder who cared enough to build it." },
   { num: "1", label: "Person. One product. All in." },
   { num: "£29", label: "Per month. Less than one lost job." },
   { num: "0", label: "Competitors who start at the enquiry." },
@@ -41,7 +41,8 @@ export default function HomeFounder() {
         </div>
 
         <div className="homeFounderRight">
-          <div className="homeStatGrid">
+         <div className="homeStatGrid homeStatGridMobile">
+
             {stats.map((s) => (
               <div key={s.num} className="homeStat">
                 <div className="homeStatNum">{s.num}</div>

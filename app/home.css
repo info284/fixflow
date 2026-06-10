@@ -454,3 +454,6 @@ img { display: block; max-width: 100%; }
   .homeCTAActions { flex-direction: column; }
   .homePrimaryBtn, .homeGhostBtn { width: 100%; }
 }
+.homeStatGridMobile {
+  grid-template-columns: 1fr 1fr !important;
+}

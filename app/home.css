@@ -337,6 +337,7 @@ img { display: block; max-width: 100%; }
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 28px;
+width: 100%;
 }
 .homeStatGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
 .homeStat { padding: 28px; background: rgba(255, 255, 255, 0.04); border-radius: 18px; }
@@ -456,4 +457,5 @@ img { display: block; max-width: 100%; }
 }
 .homeStatGridMobile {
   grid-template-columns: 1fr 1fr !important;
+  width: 100%;
 }

@@ -2103,17 +2103,22 @@ const lastLogin = "—";
   width: 32px;
   height: 32px;
   border-radius: 50%;
- background: #fff;
-  border: 1px solid #d6deea;
-  color: #1f355c;
-  color: #fff;
-  font-size: 14px;
+  background: #fff;
+  border: 2px solid #dbe4ef;
+  color: #8a9ab5;
+  font-size: 13px;
   font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
+.ffdash-setupHero .ffdash-setupStepNum {
+  background: #f7f9fc;
+  border: 2px solid #dbe4ef;
+  color: #8a9ab5;
+}
+
 
 .ffdash-setupHero .ffdash-setupStepTitle {
   color: #1f355c;
@@ -2233,6 +2238,8 @@ background: #fff;
   color: #8a9ab5;
   flex-shrink: 0;
 }
+
+
       `}</style>
     </div>
   );

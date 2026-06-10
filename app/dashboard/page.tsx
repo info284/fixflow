@@ -696,9 +696,10 @@ const lastLogin = "—";
 
   {/* STEP 1 — COPY LINK (always first, always prominent) */}
   <div className="ffdash-setupHero">
-    <div className="ffdash-setupHeroLeft">
-      <div className="ffdash-setupStepNum">1</div>
-      <div>
+<div className="ffdash-setupHeroLeft">
+  <div className="ffdash-setupStepNum">1</div>
+  <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+
         <div className="ffdash-setupStepTitle">Copy your enquiry link</div>
         <div className="ffdash-setupStepSub">
           This is how customers find you. Share it on WhatsApp, Facebook, Google — anywhere.
@@ -2098,7 +2099,10 @@ const lastLogin = "—";
   gap: 14px;
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  width: 100%;
 }
+
 
 .ffdash-setupStepNum {
   width: 32px;

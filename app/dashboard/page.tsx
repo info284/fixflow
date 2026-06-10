@@ -2074,10 +2074,12 @@ const lastLogin = "—";
   gap: 16px;
   padding: 20px;
   border-radius: 18px;
-  background: linear-gradient(135deg, #080f1e 0%, #112040 100%);
+  background: linear-gradient(135deg, rgba(223,234,250,0.6), rgba(245,249,255,0.9));
+  border: 1px solid #d6deea;
   margin-bottom: 12px;
   flex-wrap: wrap;
 }
+
 
 .ffdash-setupHeroLeft {
   display: flex;
@@ -2091,8 +2093,9 @@ const lastLogin = "—";
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+ background: #e8f0fb;
+  border: 1px solid #d6deea;
+  color: #1f355c;
   color: #fff;
   font-size: 14px;
   font-weight: 900;
@@ -2103,14 +2106,14 @@ const lastLogin = "—";
 }
 
 .ffdash-setupHero .ffdash-setupStepTitle {
-  color: #fff;
+  color: #1f355c;
   font-size: 16px;
   font-weight: 900;
   margin-bottom: 4px;
 }
 
 .ffdash-setupHero .ffdash-setupStepSub {
-  color: rgba(255, 255, 255, 0.55);
+  color: #5f6f86;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -2119,9 +2122,8 @@ const lastLogin = "—";
   margin-top: 10px;
   padding: 8px 12px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.6);
+background: #fff;
+  border: 1px solid #d6deea;
   font-size: 12px;
   font-weight: 600;
   overflow: hidden;

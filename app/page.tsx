@@ -10,7 +10,7 @@ import HomePricing from "@/app/components/home/HomePricing";
 import HomeFAQ from "@/app/components/home/HomeFAQ";
 import HomeCTA from "@/app/components/home/HomeCTA";
 import HomeFooter from "@/app/components/home/HomeFooter";
-import "../app/home.css";
+import "./home.css";
 
 export default function HomePage() {
   return (

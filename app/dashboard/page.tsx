@@ -2086,6 +2086,7 @@ const lastLogin = "—";
   background: linear-gradient(135deg, rgba(223,234,250,0.6), rgba(245,249,255,0.9));
   border: 1px solid #d6deea;
   margin-bottom: 12px;
+  overflow: hidden;
 }
 
 }
@@ -2137,14 +2138,18 @@ const lastLogin = "—";
   margin-top: 10px;
   padding: 8px 12px;
   border-radius: 10px;
-background: #fff;
+  background: #fff;
   border: 1px solid #d6deea;
+  color: #1f355c;
   font-size: 12px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  max-width: 100%;
+  box-sizing: border-box;
 }
+
 
 .ffdash-setupHeroBtn {
   padding: 12px 22px;

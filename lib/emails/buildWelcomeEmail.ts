@@ -5,33 +5,89 @@ import {
   buildFixFlowSectionLabel,
 } from "@/lib/emails/fixflowEmail";
 
-export function buildWelcomeEmail(publicUrl: string) {
+
+export function buildWelcomeEmail({
+publicUrl,
+businessName,
+}: {
+publicUrl: string;
+businessName?: string;
+}) {
   const html = buildFixFlowEmail({
     title: "Your FixFlow page is ready",
-    introHtml: `
-      <div style="font-size:16px; font-weight:700; margin-bottom:10px;">
-        Welcome to FixFlow
-      </div>
+introHtml: `
+<div style="font-size:16px; font-weight:700; margin-bottom:10px;">
+Welcome to FixFlow${businessName ? `, ${businessName}` : ""}
+</div>
 
-      <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
-        Your page is now live and ready to receive enquiries.
-      </div>
-    `,
-    bodyHtml: `
-      ${buildFixFlowInfoCard(`
-        <div style="padding:22px; text-align:center;">
-          ${buildFixFlowSectionLabel("Your link")}
-          <a href="${publicUrl}" style="font-size:16px; font-weight:800; color:#1F355C; text-decoration:none; word-break:break-all;">
-            ${publicUrl}
-          </a>
-        </div>
-      `)}
+<div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-bottom:20px;">
+Thanks for joining FixFlow.
+We built FixFlow to help trade businesses stop losing work through forgotten quotes,
+missed follow-ups, buried messages and disorganised admin.
+</div>
+`,
+bodyHtml: `
+${buildFixFlowInfoCard(`
+<div style="padding:22px;">
+${buildFixFlowSectionLabel("Your enquiry link")}
 
-      <div style="font-size:15px; line-height:1.7; color:#5C6B84; margin-top:20px;">
-        Send this link to a customer today or add it to your Instagram or WhatsApp.
-      </div>
-    `,
-    ctaHtml: buildFixFlowButton("View your page", publicUrl),
+<a href="${publicUrl}"
+style="font-size:16px;font-weight:800;color:#1F355C;text-decoration:none;word-break:break-all;">
+${publicUrl}
+</a>
+
+<div style="margin-top:14px;color:#5C6B84;line-height:1.7;">
+Share this link with customers, add it to WhatsApp,
+Facebook, Instagram and your website.
+</div>
+</div>
+`)}
+
+${buildFixFlowInfoCard(`
+<div style="padding:22px;">
+${buildFixFlowSectionLabel("What FixFlow can do")}
+
+<div style="line-height:1.9;color:#5C6B84;">
+✅ Receive customer enquiries<br/>
+✅ Store photos and job details<br/>
+✅ Keep customer messages organised<br/>
+✅ Send professional estimates<br/>
+✅ Track visits and jobs<br/>
+✅ Create invoices<br/>
+✅ Collect reviews<br/>
+✅ Look more professional
+</div>
+</div>
+`)}
+
+${buildFixFlowInfoCard(`
+<div style="padding:22px;">
+${buildFixFlowSectionLabel("Forward emails into FixFlow")}
+
+<div style="line-height:1.8;color:#5C6B84;">
+Already receiving enquiries by email?
+
+Forward customer emails to:
+
+<div style="margin:12px 0;font-weight:800;color:#1F355C;">
+reply@thefixflowapp.com
+</div>
+
+FixFlow can create enquiries from forwarded emails,
+helping keep customer details and conversations in one place.
+</div>
+</div>
+`)}
+
+<div style="font-size:15px;line-height:1.7;color:#5C6B84;margin-top:20px;">
+Next step: complete your profile, add your services,
+coverage areas and business details so customers can trust your business.
+</div>
+`,
+  ctaHtml: buildFixFlowButton(
+"Open your dashboard",
+"https://thefixflowapp.com/dashboard"
+),
     closingHtml: `
       <div style="font-size:15px; line-height:1.7; color:#5C6B84;">
         Thanks,<br />

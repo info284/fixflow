@@ -108,14 +108,17 @@ export default function SignupPage() {
         throw new Error(profileJson?.error || "Could not create profile");
       }
 
-      await fetch("/api/onboarding/send-welcome", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: email.trim(),
-          publicUrl: `https://thefixflowapp.com/p/${slug}/quote`,
-        }),
-      }).catch(() => null);
+await fetch("/api/onboarding/send-welcome", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    email: email.trim(),
+    businessName: businessName.trim(),
+    publicUrl: `https://thefixflowapp.com/p/${slug}/quote`,
+  }),
+}).catch((err) => {
+  console.error("Welcome email failed:", err);
+});
 
       setOk(true);
 

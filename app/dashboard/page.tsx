@@ -698,7 +698,7 @@ const lastLogin = "—";
   <div className="ffdash-setupHero">
 <div className="ffdash-setupHeroLeft">
   <div className="ffdash-setupStepNum">1</div>
-  <div style={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+ <div className="ffdash-setupHeroContent">
 
         <div className="ffdash-setupStepTitle">Copy your enquiry link</div>
         <div className="ffdash-setupStepSub">
@@ -2173,20 +2173,17 @@ const lastLogin = "—";
 
 
 
-.ffdash-setupHeroLeft > div {
+.ffdash-setupHeroContent {
   width: 100%;
   min-width: 0;
   overflow: hidden;
 }
 
-.ffdash-setupLinkPreview {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.ffdash-setupHeroLeft > .ffdash-setupStepNum {
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  height: 32px !important;
 }
 
 .ffdash-setupHeroBtn {

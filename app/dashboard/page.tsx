@@ -2031,9 +2031,7 @@ const lastLogin = "—";
 .ffdash-setupHeroBtn {
   width: 100%;
 }
-.ffdash-setupHeroLeft {
-  flex-direction: column;
-}
+
 .ffdash-setupHeroBtn {
   width: 100%;
 }
@@ -2095,6 +2093,7 @@ const lastLogin = "—";
 
 .ffdash-setupHeroLeft {
   display: flex;
+  flex-direction: column;
   align-items: flex-start;
   gap: 14px;
   flex: 1;
@@ -2102,6 +2101,7 @@ const lastLogin = "—";
   overflow: hidden;
   width: 100%;
 }
+
 
 
 .ffdash-setupStepNum {

@@ -5,6 +5,15 @@ export default function HomeHero() {
   return (
     <section className="homeHero">
       <div className="homeHeroInner">
+        <div className="homeHeroMark">
+  <Image
+    src="/fixflow-logo.png"
+    alt="FixFlow"
+    width={72}
+    height={72}
+    priority
+  />
+</div>
         <div className="homeHeroBadge">
           <div className="homeHeroBadgeDot" />
           Built for UK tradespeople

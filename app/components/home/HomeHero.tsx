@@ -1,5 +1,4 @@
 // app/components/home/HomeHero.tsx
-import Link from "next/link";
 import Image from "next/image";
 
 export default function HomeHero() {
@@ -21,8 +20,13 @@ export default function HomeHero() {
         </p>
 
         <div className="homeHeroActions">
-          <Link className="homePrimaryBtn" href="/signup">Start free — no card needed</Link>
-          <Link className="homeGhostBtn" href="#why">See how it works</Link>
+          <a className="homePrimaryBtn" href="/signup">
+            Start free — no card needed
+          </a>
+
+          <a className="homeGhostBtn" href="#why">
+            See how it works
+          </a>
         </div>
 
         <div className="homeHeroTrust">

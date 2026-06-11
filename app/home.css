@@ -381,7 +381,17 @@ img { display: block; max-width: 100%; }
     url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 12 12' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M2 6l3 3 5-5' stroke='%231a4fff' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
     no-repeat center;
 }
-.homePricingCta { margin-top: 32px; display: block; width: 100%; text-align: center; }
+.homePricingCta {
+  margin-top: 32px;
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
+  min-height: 60px;
+}
 
 /* ── FAQ ── */
 .homeFAQGrid {
@@ -455,6 +465,11 @@ img { display: block; max-width: 100%; }
   .homeStatGrid {
     grid-template-columns: 1fr 1fr;
     width: 100%;
+  }
+  .homePricingCta {
+
+    white-space: nowrap;
+
   }
   .homeHero { padding: 72px 20px 0; }
   .homeSection { padding: 72px 20px; }

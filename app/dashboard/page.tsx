@@ -2104,11 +2104,13 @@ const lastLogin = "—";
   width: 100%;
 }
 
-
-
 .ffdash-setupStepNum {
   width: 32px;
+  min-width: 32px;
+  max-width: 32px;
   height: 32px;
+  min-height: 32px;
+  max-height: 32px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid #dbe4ef;
@@ -2120,6 +2122,7 @@ const lastLogin = "—";
   justify-content: center;
   flex-shrink: 0;
 }
+
 .ffdash-setupHero .ffdash-setupStepNum {
   background: #f7f9fc;
   border: 2px solid #dbe4ef;
@@ -2168,10 +2171,7 @@ const lastLogin = "—";
   white-space: nowrap;
 }
 
-.ffdash-setupHero,
-.ffdash-setupHero * {
-  max-width: 100%;
-}
+
 
 .ffdash-setupHeroLeft > div {
   width: 100%;

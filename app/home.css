@@ -4,9 +4,10 @@
   --navy:        #080f1e;
   --navy2:       #0d1729;
   --navy3:       #112040;
-  --blue:        #1a4fff;
-  --blue2:       #2d5fff;
-  --blue-glow:   rgba(26, 79, 255, 0.22);
+--blue:        #2a5cf6;
+--blue2:       #1a4fff;
+--blue-glow:   rgba(42, 92, 246, 0.22);
+
   --white:       #ffffff;
   --off:         #f4f7ff;
   --text:        #0b1627;
@@ -33,10 +34,11 @@ img { display: block; max-width: 100%; }
 }
 
 .homeHeroMark img {
-  width: 72px;
-  height: 72px;
+  width: 180px;
+  height: auto;
   object-fit: contain;
 }
+
 /* ── BUTTONS ── */
 .homePrimaryBtn {
   display: inline-flex; align-items: center; justify-content: center;

@@ -9,8 +9,8 @@ export default function HomeHero() {
   <Image
     src="/fixflow-logo.png"
     alt="FixFlow"
-    width={72}
-    height={72}
+width={180}
+height={60}
     priority
   />
 </div>

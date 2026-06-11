@@ -1,5 +1,6 @@
 "use client";
 
+import "@/app/globals.css";
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";

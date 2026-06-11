@@ -704,8 +704,8 @@ const lastLogin = "—";
         <div className="ffdash-setupStepSub">
           Share this link on WhatsApp, Facebook, Google or your website.
         </div>
-        <div className="ffdash-setupLinkPreview" title={traderLink}>
-  {traderLink}
+<div className="ffdash-setupLinkPreview" title={traderLink}>
+  <span>{traderLink}</span>
 </div>
       </div>
     </div>
@@ -2159,6 +2159,35 @@ const lastLogin = "—";
   display: block;
 }
 
+.ffdash-setupLinkPreview span {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ffdash-setupHero,
+.ffdash-setupHero * {
+  max-width: 100%;
+}
+
+.ffdash-setupHeroLeft > div {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.ffdash-setupLinkPreview {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .ffdash-setupHeroBtn {
   padding: 12px 22px;

@@ -1,5 +1,4 @@
 // app/components/home/HomePricing.tsx
-import Link from "next/link";
 
 const features = [
   "Enquiry inbox",
@@ -31,9 +30,9 @@ export default function HomePricing() {
               <li key={f}>{f}</li>
             ))}
           </ul>
-          <Link className="homePrimaryBtn homePricingCta" href="/signup">
-            Start free — no card needed
-          </Link>
+<a className="homePrimaryBtn homePricingCta" href="/signup">
+  Start free — no card needed
+</a>
         </div>
       </div>
     </section>

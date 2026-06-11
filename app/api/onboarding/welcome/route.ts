@@ -27,7 +27,7 @@ export async function POST(req: Request) {
     const dashboardUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard`;
     const profileUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/profile`;
 
-    const forwardingEmail = "reply@thefixflowapp.com";
+    const forwardingEmail = "enquiries@send.thefixflowapp.com";
 
     const html = buildFixFlowEmail({
       title: "Welcome to FixFlow 👋",

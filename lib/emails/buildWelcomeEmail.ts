@@ -70,7 +70,7 @@ Already receiving enquiries by email?
 Forward customer emails to:
 
 <div style="margin:12px 0;font-weight:800;color:#1F355C;">
-reply@thefixflowapp.com
+enquiries@send.thefixflowapp.com
 </div>
 
 FixFlow can create enquiries from forwarded emails,

@@ -6027,10 +6027,12 @@ onClick={() => selectEnquiry(r.id, "details")}
           <span>1</span>
           Share your enquiry link
         </div>
+
         <div>
           <span>2</span>
           Customer sends a job request
         </div>
+
         <div>
           <span>3</span>
           FixFlow shows the next best move
@@ -6046,7 +6048,7 @@ onClick={() => selectEnquiry(r.id, "details")}
             </div>
           </div>
 
-<div className="ff-emptyExampleUrgent">ASAP</div>
+          <div className="ff-emptyExampleUrgent">ASAP</div>
         </div>
 
         <div className="ff-emptyExampleMeta">
@@ -6055,6 +6057,18 @@ onClick={() => selectEnquiry(r.id, "details")}
 
         <div className="ff-emptyExampleAction">
           ⚡ Next: Reply now
+        </div>
+      </div>
+
+      <div className="ff-emptyForwardBox">
+        <div className="ff-emptyForwardTitle">
+          Already getting enquiries by email?
+        </div>
+
+        <div className="ff-emptyForwardText">
+          Forward them to{" "}
+          <strong>enquiries@send.thefixflowapp.com</strong> and they'll
+          appear here automatically.
         </div>
       </div>
 

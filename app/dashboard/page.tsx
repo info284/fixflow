@@ -702,9 +702,11 @@ const lastLogin = "—";
 
         <div className="ffdash-setupStepTitle">Copy your enquiry link</div>
         <div className="ffdash-setupStepSub">
-          This is how customers find you. Share it on WhatsApp, Facebook, Google — anywhere.
+          Share this link on WhatsApp, Facebook, Google or your website.
         </div>
-        <div className="ffdash-setupLinkPreview">{traderLink}</div>
+        <div className="ffdash-setupLinkPreview" title={traderLink}>
+  {traderLink}
+</div>
       </div>
     </div>
     <button
@@ -2139,19 +2141,22 @@ const lastLogin = "—";
 }
 
 .ffdash-setupLinkPreview {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   margin-top: 10px;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border-radius: 10px;
   background: #fff;
   border: 1px solid #d6deea;
   color: #1f355c;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 100%;
   box-sizing: border-box;
+  display: block;
 }
 
 

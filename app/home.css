@@ -94,7 +94,8 @@ img { display: block; max-width: 100%; }
 .homeNavLogo {
   font-size: 22px; font-weight: 900; letter-spacing: -0.06em; color: #fff;
 }
-.homeNavLogo span { color: var(--blue); }
+.homeNavLogo span { color: #7fa4ff; }
+
 .homeNavActions { display: flex; align-items: center; gap: 16px; }
 .homeNavLogin {
   color: rgba(255, 255, 255, 0.65); font-size: 14px; font-weight: 600;

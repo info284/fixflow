@@ -2090,7 +2090,7 @@ const lastLogin = "—";
   overflow: hidden;
 }
 
-}
+
 
 
 .ffdash-setupHeroLeft {

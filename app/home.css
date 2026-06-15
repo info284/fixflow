@@ -456,7 +456,20 @@ img { display: block; max-width: 100%; }
   flex-wrap: wrap; gap: 16px;
 }
 .homeFooterLogo { font-size: 18px; font-weight: 900; letter-spacing: -0.05em; color: rgba(255, 255, 255, 0.4); }
-.homeFooterLinks { display: flex; gap: 24px; flex-wrap: wrap; }
+.homeFooterEmail {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.homeFooterLinks {
+  display: flex;
+  gap: 24px;
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
 .homeFooterLinks a { font-size: 13px; color: rgba(255, 255, 255, 0.3); font-weight: 500; transition: color 0.15s; }
 .homeFooterLinks a:hover { color: rgba(255, 255, 255, 0.6); }
 .homeFooterCopy { font-size: 13px; color: rgba(255, 255, 255, 0.2); }

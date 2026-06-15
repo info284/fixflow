@@ -22,9 +22,9 @@ export default function HomeCTA() {
           </a>
         </div>
 
-        <div className="homeCTANote">
-          Free during early access · No card needed · Works on any device
-        </div>
+<div className="homeCTANote">
+  60-day free trial · Less than the cost of one lost job · Cancel anytime
+</div>
       </div>
     </section>
   );

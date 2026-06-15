@@ -32,7 +32,7 @@ export default function HomeFounder() {
             is where trade businesses live or die — and nobody was filling it. So I did.
           </p>
           <div className="homeFounderSig">
-            <div className="homeFounderAvatar">👋</div>
+            
             <div>
               <div className="homeFounderName">Anna, Founder</div>
               <div className="homeFounderRole">

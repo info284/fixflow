@@ -13,13 +13,24 @@ export default function HomeFooter() {
   return (
     <footer className="homeFooter">
       <div className="homeFooterInner homeContainer">
-        <div className="homeFooterLogo">FixFlow</div>
+        <div>
+          <div className="homeFooterLogo">FixFlow</div>
+          <div className="homeFooterEmail">
+            hello@thefixflowapp.com
+          </div>
+        </div>
+
         <div className="homeFooterLinks">
           {links.map((l) => (
-            <Link key={l.label} href={l.href}>{l.label}</Link>
+            <Link key={l.label} href={l.href}>
+              {l.label}
+            </Link>
           ))}
         </div>
-        <div className="homeFooterCopy">© 2026 FixFlow</div>
+
+        <div className="homeFooterCopy">
+          © 2026 FixFlow Software Ltd
+        </div>
       </div>
     </footer>
   );

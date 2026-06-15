@@ -15,26 +15,56 @@ export default function HomePricing() {
       <div className="homeContainer">
         <div className="homeSectionHeader">
           <span className="homeEyebrow">Pricing</span>
-          <h2>Less than one<br />lost job a month.</h2>
-          <p>Free during early access. After launch, £29/month — simple, no tiers, everything included.</p>
-        </div>
+      <h2>
+        Stop losing jobs.
+        <br />
+        Keep more of the work you already have.
+      </h2>
 
-        <div className="homePricingCard">
-          <div className="homePricingBadge">Early access — free now</div>
-          <div className="homePricingPrice"><sup>£</sup>0</div>
-          <div className="homePricingPeriod">Free while FixFlow is in early access</div>
-          <p className="homePricingDesc">After launch, plans start from £29/month. Everything included, no hidden tiers.</p>
-          <hr className="homePricingDivider" />
-          <ul className="homePricingFeatures">
-            {features.map((f) => (
-              <li key={f}>{f}</li>
-            ))}
-          </ul>
-<a className="homePrimaryBtn homePricingCta" href="/signup">
-  Start free — no card needed
-</a>
-        </div>
+      <p>
+        Start with a 60-day free trial. Then just £29/month.
+        No contracts. No complicated tiers. Everything included.
+      </p>
+    </div>
+
+    <div className="homePricingCard">
+      <div className="homePricingBadge">
+        60-day free trial
       </div>
-    </section>
+
+      <div className="homePricingPrice">
+        <sup>£</sup>29
+      </div>
+
+      <div className="homePricingPeriod">
+        Per month after your free trial
+      </div>
+
+      <p className="homePricingDesc">
+        One forgotten quote can cost more than FixFlow for an entire year.
+        Keep enquiries organised, follow up faster and look professional from first message to final invoice.
+      </p>
+
+      <hr className="homePricingDivider" />
+
+      <ul className="homePricingFeatures">
+        {features.map((f) => (
+          <li key={f}>{f}</li>
+        ))}
+      </ul>
+
+      <a
+        className="homePrimaryBtn homePricingCta"
+        href="/signup"
+      >
+        Start your free trial
+      </a>
+
+      <div className="homePricingNote">
+        No contracts • Cancel anytime • All features included
+      </div>
+    </div>
+  </div>
+</section>
   );
 }

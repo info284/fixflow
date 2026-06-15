@@ -14,7 +14,9 @@ export default function HomeFooter() {
     <footer className="homeFooter">
       <div className="homeFooterInner homeContainer">
         <div>
-          <div className="homeFooterLogo">FixFlow</div>
+       <div className="homeFooterLogo">
+<img src="/fixflow-logo.png" alt="FixFlow" style={{ height: '32px', width: 'auto' }} />
+</div>
           <div className="homeFooterEmail">
             hello@thefixflowapp.com
           </div>

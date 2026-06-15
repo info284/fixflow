@@ -30,7 +30,7 @@ height={60}
 
         <div className="homeHeroActions">
           <a className="homePrimaryBtn" href="/signup">
-            Start free — no card needed
+          Start your free trial
           </a>
 
           <a className="homeGhostBtn" href="#why">

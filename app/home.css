@@ -458,10 +458,11 @@ img { display: block; max-width: 100%; }
 .homeFooterLogo { font-size: 18px; font-weight: 900; letter-spacing: -0.05em; color: rgba(255, 255, 255, 0.4); }
 .homeFooterEmail {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.6);
   font-weight: 500;
   margin-top: 8px;
 }
+
 
 .homeFooterLinks {
   display: flex;
@@ -483,6 +484,14 @@ img { display: block; max-width: 100%; }
   .homeFAQGrid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
+  
+   .homeFooterInner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .homeFooterLinks {
+    flex-wrap: wrap;
+  }
   .homeFounderRight {
     padding: 20px;
   }

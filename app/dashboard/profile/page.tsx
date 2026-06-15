@@ -223,7 +223,7 @@ const [certificateBusy, setCertificateBusy] = useState(false);
   const [businessDescription, setBusinessDescription] = useState("");
   const [notifyEmail, setNotifyEmail] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
-
+const [billingBusy, setBillingBusy] = useState(false);
   const [vatNumber, setVatNumber] = useState("");
   const [bankName, setBankName] = useState("");
   const [bankAccountName, setBankAccountName] = useState("");
@@ -701,7 +701,38 @@ async function connectStripe() {
     alert("Could not connect Stripe");
   }
 }
+async function manageSubscription() {
+  try {
+    if (!userId) {
+      alert("Missing user");
+      return;
+    }
 
+    setBillingBusy(true);
+
+    const res = await fetch("/api/stripe/billing-portal", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        userId,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Could not open billing portal");
+    }
+
+    window.location.href = data.url;
+  } catch (err) {
+    console.error(err);
+    alert("Could not open billing portal");
+    setBillingBusy(false);
+  }
+}
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
     if (!userId) return;
@@ -1661,6 +1692,14 @@ const reviewStats = useMemo(() => {
     Connect Stripe
   </button>
 )}
+<button
+  type="button"
+  className="ff-btn ff-btnSoftPrimary"
+  onClick={manageSubscription}
+  disabled={billingBusy || loading}
+>
+  {billingBusy ? "Opening…" : "Manage subscription"}
+</button>
       </div>
     </div>
   </div>

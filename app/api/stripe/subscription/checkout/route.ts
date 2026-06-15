@@ -18,32 +18,37 @@ export async function POST(req: Request) {
       );
     }
 
-    const origin =
-      process.env.NEXT_PUBLIC_SITE_URL ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "https://thefixflowapp.com";
+const origin =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  "https://thefixflowapp.com";
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer_email: email,
-      line_items: [
-        {
-          price: process.env.STRIPE_PRICE_ID!,
-          quantity: 1,
-        },
-      ],
-      subscription_data: {
-        trial_period_days: 60,
-        metadata: {
-          userId,
-        },
-      },
-      metadata: {
-        userId,
-      },
-      success_url: `${origin}/dashboard?trial=started`,
-      cancel_url: `${origin}/signup?checkout=cancelled`,
-    });
+const priceId =
+  process.env.STRIPE_PRICE_ID || "price_1TifM4JTxWEB21BmdPVXAZXU";
+
+console.log("PRICE ID =", priceId);
+
+const session = await stripe.checkout.sessions.create({
+  mode: "subscription",
+  customer_email: email,
+  line_items: [
+    {
+      price: priceId,
+      quantity: 1,
+    },
+  ],
+  subscription_data: {
+    trial_period_days: 60,
+    metadata: {
+      userId,
+    },
+  },
+  metadata: {
+    userId,
+  },
+  success_url: `${origin}/dashboard?trial=started`,
+  cancel_url: `${origin}/signup?checkout=cancelled`,
+});
 
     return NextResponse.json({ url: session.url });
   } catch (err: any) {

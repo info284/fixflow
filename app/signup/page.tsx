@@ -121,11 +121,26 @@ await fetch("/api/onboarding/send-welcome", {
   console.error("Welcome email failed:", err);
 });
 
-      setOk(true);
+setOk(true);
 
-      setTimeout(() => {
-        router.push("/dashboard");
-      }, 700);
+const checkoutRes = await fetch("/api/stripe/subscription/checkout", {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    email: email.trim(),
+    userId,
+  }),
+});
+
+const checkoutJson = await checkoutRes.json().catch(() => ({}));
+
+if (!checkoutRes.ok || !checkoutJson?.url) {
+  throw new Error(checkoutJson?.error || "Could not start free trial");
+}
+
+window.location.href = checkoutJson.url;
     } catch (err: any) {
       setErrorMsg(err?.message || "Something went wrong. Please try again.");
       setOk(false);
@@ -192,7 +207,8 @@ await fetch("/api/onboarding/send-welcome", {
             </h1>
 
             <p className="mt-1 text-[14px] text-slate-600">
-              Set up your FixFlow workspace and branded quote link.
+             Set up your FixFlow workspace. 60 days free, then £29/month.
+
             </p>
 
             {errorMsg && (
@@ -203,7 +219,7 @@ await fetch("/api/onboarding/send-welcome", {
 
             {ok && (
               <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[13.5px] font-semibold text-emerald-800">
-                Account created — taking you to your dashboard…
+               Account created — taking you to your free trial…
               </div>
             )}
 
@@ -280,7 +296,7 @@ await fetch("/api/onboarding/send-welcome", {
                   "disabled:cursor-not-allowed disabled:opacity-50 disabled:transform-none",
                 ].join(" ")}
               >
-                {loading ? "Creating account…" : "Create account"}
+                {loading ? "Creating account…" : "Start 60-day free trial"}
               </button>
 
               <div className="mt-3 text-center text-[13.5px] text-slate-500">

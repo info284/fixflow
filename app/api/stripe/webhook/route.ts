@@ -14,6 +14,10 @@ function supabaseAdmin() {
   );
 }
 
+function fromUnix(value?: number | null) {
+  return value ? new Date(value * 1000).toISOString() : null;
+}
+
 function money(value: number | null | undefined) {
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
@@ -35,14 +39,20 @@ export async function POST(req: Request) {
   const signature = req.headers.get("stripe-signature");
 
   if (!signature) {
-    return NextResponse.json({ error: "Missing Stripe signature" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing Stripe signature" },
+      { status: 400 }
+    );
   }
 
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
     console.error("Missing STRIPE_WEBHOOK_SECRET");
-    return NextResponse.json({ error: "Missing STRIPE_WEBHOOK_SECRET" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Missing STRIPE_WEBHOOK_SECRET" },
+      { status: 500 }
+    );
   }
 
   let event: Stripe.Event;
@@ -51,92 +61,135 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err: any) {
     console.error("Stripe webhook signature failed:", err.message);
-    return NextResponse.json({ error: `Webhook error: ${err.message}` }, { status: 400 });
+    return NextResponse.json(
+      { error: `Webhook error: ${err.message}` },
+      { status: 400 }
+    );
   }
 
-  if (event.type === "checkout.session.completed") {
-    const session = event.data.object as Stripe.Checkout.Session;
-    if (session.payment_status !== "paid") {
-  return NextResponse.json({ received: true });
-}
-    const invoiceId = session.metadata?.invoiceId;
+  const supabase = supabaseAdmin();
 
-    if (!invoiceId) return NextResponse.json({ received: true });
+  try {
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
 
-    const supabase = supabaseAdmin();
-    const resend = new Resend(process.env.RESEND_API_KEY);
+      const userId = session.metadata?.userId;
+      const subscriptionId =
+        typeof session.subscription === "string" ? session.subscription : null;
+      const customerId =
+        typeof session.customer === "string" ? session.customer : null;
 
-    const { data: invoice, error: invoiceError } = await supabase
-      .from("invoices")
-      .select("*")
-      .eq("id", invoiceId)
-      .maybeSingle();
+      if (userId && subscriptionId) {
+        const subscription = await stripe.subscriptions.retrieve(
+          subscriptionId
+        );
 
-    if (invoiceError || !invoice) {
-      console.error("Invoice lookup failed:", invoiceError?.message || invoiceId);
-      return NextResponse.json({ received: true });
-    }
+        await supabase
+          .from("profiles")
+          .update({
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscriptionId,
+            subscription_status: subscription.status,
+            trial_ends_at: fromUnix(subscription.trial_end),
+            subscription_current_period_end: fromUnix(
+             (subscription as any).current_period_end
+            ),
+          })
+          .eq("id", userId);
 
-    const { error: paidError } = await supabase
-      .from("invoices")
-      .update({
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        stripe_checkout_session_id: session.id,
-        stripe_payment_intent_id:
-          typeof session.payment_intent === "string"
-            ? session.payment_intent
-            : session.payment_intent?.id || null,
-      })
-      .eq("id", invoice.id);
+        return NextResponse.json({ received: true });
+      }
+
+      if (session.payment_status !== "paid") {
+        return NextResponse.json({ received: true });
+      }
+
+      const invoiceId = session.metadata?.invoiceId;
+
+      if (!invoiceId) return NextResponse.json({ received: true });
+
+      const resend = new Resend(process.env.RESEND_API_KEY);
+
+      const { data: invoice, error: invoiceError } = await supabase
+        .from("invoices")
+        .select("*")
+        .eq("id", invoiceId)
+        .maybeSingle();
+
+      if (invoiceError || !invoice) {
+        console.error(
+          "Invoice lookup failed:",
+          invoiceError?.message || invoiceId
+        );
+        return NextResponse.json({ received: true });
+      }
+
+      const { error: paidError } = await supabase
+        .from("invoices")
+        .update({
+          status: "paid",
+          paid_at: new Date().toISOString(),
+          stripe_checkout_session_id: session.id,
+          stripe_payment_intent_id:
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : session.payment_intent?.id || null,
+        })
+        .eq("id", invoice.id);
 
       if (paidError) {
-  console.error("Invoice update failed:", paidError.message);
-} else if (invoice.request_id) {
-  const { error: requestPaidError } = await supabase
-    .from("quote_requests")
-    .update({
-      status: "paid",
-      stage: "paid",
-    })
-    .eq("id", invoice.request_id);
+        console.error("Invoice update failed:", paidError.message);
+      } else if (invoice.request_id) {
+        const { error: requestPaidError } = await supabase
+          .from("quote_requests")
+          .update({
+            status: "paid",
+            stage: "paid",
+          })
+          .eq("id", invoice.request_id);
 
-  if (requestPaidError) {
-    console.error("Quote request paid update failed:", requestPaidError.message);
-  }
-}
+        if (requestPaidError) {
+          console.error(
+            "Quote request paid update failed:",
+            requestPaidError.message
+          );
+        }
+      }
 
+      const { data: requestRow } = await supabase
+        .from("quote_requests")
+        .select("customer_name, customer_email, job_type, job_number")
+        .eq("id", invoice.request_id)
+        .maybeSingle();
 
+      const { data: trader } = await supabase
+        .from("profiles")
+        .select("display_name, business_name, logo_url")
+        .eq("id", invoice.user_id)
+        .maybeSingle();
 
-    const { data: requestRow } = await supabase
-      .from("quote_requests")
-      .select("customer_name, customer_email, job_type, job_number")
-      .eq("id", invoice.request_id)
-      .maybeSingle();
+      const toEmail =
+        invoice.to_email ||
+        requestRow?.customer_email ||
+        session.customer_details?.email ||
+        session.customer_email;
 
-    const { data: trader } = await supabase
-      .from("profiles")
-      .select("display_name, business_name, logo_url")
-      .eq("id", invoice.user_id)
-      .maybeSingle();
+      if (toEmail && !invoice.receipt_sent_at) {
+        try {
+          const traderName =
+            trader?.business_name ||
+            trader?.display_name ||
+            "Your tradesperson";
 
-    const toEmail =
-      invoice.to_email ||
-      requestRow?.customer_email ||
-      session.customer_details?.email ||
-      session.customer_email;
+          const traderInitial = traderName.slice(0, 1).toUpperCase();
 
-    if (toEmail && !invoice.receipt_sent_at) {
-      try {
-        const traderName =
-          trader?.business_name || trader?.display_name || "Your tradesperson";
-        const traderInitial = traderName.slice(0, 1).toUpperCase();
-
-        const sent = await resend.emails.send({
-          from: "FixFlow Receipts <receipts@send.thefixflowapp.com>",
-          to: toEmail,
-          subject: `Payment received for ${invoice.invoice_number || "your invoice"}`,
-          html: `
+          const sent = await resend.emails.send({
+            from: "FixFlow Receipts <receipts@send.thefixflowapp.com>",
+            to: toEmail,
+            subject: `Payment received for ${
+              invoice.invoice_number || "your invoice"
+            }`,
+            html: `
 <div style="margin:0;padding:0;background:#eef4f8;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Arial,sans-serif;">
   <div style="max-width:620px;margin:0 auto;padding:28px 16px;">
     <div style="background:#ffffff;border:1px solid #E6ECF5;border-radius:28px;overflow:hidden;box-shadow:0 20px 60px rgba(15,23,42,0.08);">
@@ -144,8 +197,12 @@ export async function POST(req: Request) {
       <div style="padding:34px 28px;text-align:center;background:#1F355C;">
         ${
           trader?.logo_url
-            ? `<img src="${escapeHtml(trader.logo_url)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:22px;background:#ffffff;border:1px solid rgba(255,255,255,0.18);margin-bottom:18px;" />`
-            : `<div style="width:72px;height:72px;border-radius:22px;background:#ffffff;color:#1F355C;border:1px solid rgba(255,255,255,0.18);display:inline-grid;place-items:center;font-size:28px;font-weight:900;margin-bottom:18px;">${escapeHtml(traderInitial)}</div>`
+            ? `<img src="${escapeHtml(
+                trader.logo_url
+              )}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:22px;background:#ffffff;border:1px solid rgba(255,255,255,0.18);margin-bottom:18px;" />`
+            : `<div style="width:72px;height:72px;border-radius:22px;background:#ffffff;color:#1F355C;border:1px solid rgba(255,255,255,0.18);display:inline-grid;place-items:center;font-size:28px;font-weight:900;margin-bottom:18px;">${escapeHtml(
+                traderInitial
+              )}</div>`
         }
 
         <div style="font-size:12px;font-weight:900;letter-spacing:0.14em;text-transform:uppercase;color:rgba(255,255,255,0.72);margin-bottom:10px;">
@@ -191,10 +248,14 @@ export async function POST(req: Request) {
 
           <div style="padding:18px;">
             <p style="margin:0 0 10px;font-size:15px;color:#0F172A;line-height:1.6;">
-              <strong>Job:</strong> ${escapeHtml(requestRow?.job_type || "Work completed")}
+              <strong>Job:</strong> ${escapeHtml(
+                requestRow?.job_type || "Work completed"
+              )}
             </p>
             <p style="margin:0;font-size:15px;color:#0F172A;line-height:1.6;">
-              <strong>Reference:</strong> ${escapeHtml(requestRow?.job_number || invoice.request_id || "—")}
+              <strong>Reference:</strong> ${escapeHtml(
+                requestRow?.job_number || invoice.request_id || "—"
+              )}
             </p>
           </div>
         </div>
@@ -216,30 +277,56 @@ export async function POST(req: Request) {
   </div>
 </div>
 `,
-        });
+          });
 
-        if (sent.error) {
-          console.error("Receipt Resend error:", sent.error);
-          throw new Error(sent.error.message || "Receipt email failed");
-        }
-
-        console.log("Receipt email result:", sent);
-
-        if (sent?.data?.id) {
-          const { error: receiptError } = await supabase
-            .from("invoices")
-            .update({ receipt_sent_at: new Date().toISOString() })
-            .eq("id", invoice.id);
-
-          if (receiptError) {
-            console.error("Receipt timestamp update failed:", receiptError.message);
+          if (sent.error) {
+            console.error("Receipt Resend error:", sent.error);
+            throw new Error(sent.error.message || "Receipt email failed");
           }
+
+          if (sent?.data?.id) {
+            const { error: receiptError } = await supabase
+              .from("invoices")
+              .update({ receipt_sent_at: new Date().toISOString() })
+              .eq("id", invoice.id);
+
+            if (receiptError) {
+              console.error(
+                "Receipt timestamp update failed:",
+                receiptError.message
+              );
+            }
+          }
+        } catch (err: any) {
+          console.error("Receipt email failed:", err?.message || err);
         }
-      } catch (err: any) {
-        console.error("Receipt email failed:", err?.message || err);
       }
     }
-  }
 
-  return NextResponse.json({ received: true });
+    if (
+      event.type === "customer.subscription.updated" ||
+      event.type === "customer.subscription.deleted"
+    ) {
+      const subscription = event.data.object as Stripe.Subscription;
+
+      await supabase
+        .from("profiles")
+        .update({
+          subscription_status: subscription.status,
+          trial_ends_at: fromUnix(subscription.trial_end),
+          subscription_current_period_end: fromUnix(
+            (subscription as any).current_period_end
+          ),
+        })
+        .eq("stripe_subscription_id", subscription.id);
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (err: any) {
+    console.error("Stripe webhook handler error:", err);
+    return NextResponse.json(
+      { error: err?.message || "Webhook failed" },
+      { status: 500 }
+    );
+  }
 }

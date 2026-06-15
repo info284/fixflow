@@ -96,6 +96,7 @@ if (
   process.env.NEXT_PUBLIC_SITE_URL ||
   process.env.NEXT_PUBLIC_APP_URL ||
   "https://thefixflowapp.com";
+  console.log("PRICE ID =", process.env.STRIPE_PRICE_ID);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
 

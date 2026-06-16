@@ -489,10 +489,13 @@ img { display: block; max-width: 100%; }
     flex-direction: column;
     align-items: flex-start;
   }
-.homeFooterLinks {
-  flex-wrap: wrap;
-  gap: 16px;
-}
+  .homeFooterLinks {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .homeFooterLinks a {
+    font-size: 12px;
+  }
 
   .homeFounderRight {
     padding: 20px;

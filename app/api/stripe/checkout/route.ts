@@ -18,7 +18,7 @@ function supabaseAdmin() {
 /* ---------------- route ---------------- */
 
 export async function POST(req: Request) {
-  console.log("CHECKOUT ROUTE HIT");
+
   try {
     const body = await req.json();
     const invoiceId = body?.invoiceId;

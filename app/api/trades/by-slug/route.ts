@@ -15,18 +15,16 @@ return NextResponse.json({ error: "Missing slug" }, { status: 400 });
 }
 
 const { data, error } = await supabase
-.from("profiles")
-.select("id, slug, display_name, business_name, logo_url, headline, accent")
-.eq("slug", slug)
-.single();
-
-console.log("SLUG RECEIVED:", slug);
+  .from("profiles")
+  .select("id, slug, display_name, business_name, logo_url, headline, accent")
+  .eq("slug", slug)
+  .single();
 
 if (error || !data) {
-return NextResponse.json(
-{ error: "Trader not found", debug: error?.message },
-{ status: 404 }
-);
+  return NextResponse.json(
+    { error: "Trader not found" },
+    { status: 404 }
+  );
 }
 
 return NextResponse.json({ trader: data });

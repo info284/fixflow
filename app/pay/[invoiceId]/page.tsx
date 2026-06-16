@@ -25,11 +25,7 @@ export default async function PayPage({
     .eq("id", invoiceId)
     .maybeSingle();
 
-  console.log("PAY PAGE invoice lookup:", {
-    invoiceId,
-    found: !!inv,
-    error: error?.message || null,
-  });
+
 
   if (!inv) return <div>Invoice not found.</div>;
 

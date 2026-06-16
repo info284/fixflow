@@ -1335,13 +1335,7 @@ const resetCertificateForm = () => {
 
 const addCertificate = async (e: any) => {
   e.preventDefault();
-  console.log("ADD CERTIFICATE CLICKED", {
-  userId,
-  certName,
-  certNumber,
-  certExpiry,
-  certFile,
-});
+
   if (!userId) return;
 
   setCertificateMsg(null);
@@ -1405,12 +1399,7 @@ try {
 
     const path = `certificates/${userId}/${fileName}`;
 
-    console.log("Uploading certificate:", {
-      bucket: "quote-files",
-      path,
-      type: certFile.type,
-      size: certFile.size,
-    });
+
 
     const { error: uploadError } = await supabase.storage
       .from("quote-files")

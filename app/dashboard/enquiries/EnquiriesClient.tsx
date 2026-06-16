@@ -3464,7 +3464,6 @@ async function loadThread(requestId: string, userId: string) {
 
   const messages = (data || []) as EnquiryMessageRow[];
 
-  console.log("THREAD MESSAGES:", messages);
 
   setThread(messages);
   setThreadMap((prev) => ({
@@ -4009,7 +4008,7 @@ body: JSON.stringify({
 
     const json = await res.json().catch(() => null);
 
-console.log("response json:", json);
+
 
 if (!res.ok) {
   throw new Error(json?.error || "Booking failed");
@@ -4545,7 +4544,7 @@ async function createCallEnquiry() {
     .select()
   .single();
 
-console.log("SAVE RESULT", { data, error });
+
 
   if (error || !data) {
     pushToast("Couldn’t save phone enquiry", "error");

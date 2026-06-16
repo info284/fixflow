@@ -195,18 +195,18 @@ if (enquiryStage === "won" || enquiryStage === "lost") {
     });
 
     const rawText = cleanJsonBlock(response.output_text || "");
-    console.log("AI rawText", rawText);
+   
 
     let parsed: any;
     try {
       parsed = JSON.parse(rawText);
     } catch {
-      console.error("AI returned invalid JSON rawText:", rawText);
+     console.error("AI returned invalid JSON");
       throw new Error("AI returned invalid JSON");
     }
 
  const decision = normaliseDecision(parsed);
-console.log("AI decision for enquiry", enquiryId, decision);
+
 
 const normaliseText = (value: string) =>
   value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -261,7 +261,7 @@ const { data: updatedRow, error: updateError } = await supabaseAdmin
       );
     }
 
-    console.log("Updated row after AI write", updatedRow);
+ 
 
     return NextResponse.json({
       ok: true,

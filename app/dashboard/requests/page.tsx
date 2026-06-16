@@ -140,17 +140,13 @@ for (const f of safeFiles) {
 const fullPath = `${folder}/${f.name}`;
 
 // Prefer signed URLs (works for private bucket)
-const { data: signed } = await supabase.storage
-.from("quote-files")
-.createSignedUrl(fullPath, 60 * 60); // 1 hour
+const { data: signed, error: signedErr } = await supabase.storage
+  .from("quote-files")
+  .createSignedUrl(fullPath, 60 * 60);
 
-let url = signed?.signedUrl || "";
+if (signedErr || !signed?.signedUrl) continue;
 
-// Fallback if bucket is public
-if (!url) {
-const pub = supabase.storage.from("quote-files").getPublicUrl(fullPath);
-url = pub?.data?.publicUrl || "";
-}
+const url = signed.signedUrl;
 
 if (!url) continue;
 

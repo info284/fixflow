@@ -81,7 +81,7 @@ const analysisRes = await fetch(
   }
 
   const decision = analysisJson.decision as AiDecision;
-  console.log("runEnquiryAiEngine decision", enquiryId, decision);
+  
 
   if (decision.needs_human) {
     await supabaseAdmin
@@ -167,12 +167,7 @@ const analysisRes = await fetch(
     })
     .eq("id", enquiryId);
 
-    console.log("runEnquiryAiEngine sent?", {
-  enquiryId,
-  sent,
-  shouldSend,
-  customerEmail: enquiry.customer_email,
-});
+
   return { decision, sent };
 }
 

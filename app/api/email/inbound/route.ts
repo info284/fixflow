@@ -232,15 +232,11 @@ ${params.rawText}
       ],
     });
 
-    const raw = cleanJsonBlock(
-      response.choices?.[0]?.message?.content || "{}"
-    );
-console.log("AI RAW RESPONSE:", raw);
-    const parsed = JSON.parse(raw);
-console.log(
-  "AI PARSED:",
-  JSON.stringify(parsed, null, 2)
+const raw = cleanJsonBlock(
+  response.choices?.[0]?.message?.content || "{}"
 );
+
+const parsed = JSON.parse(raw);
     return {
       customer_name:
         typeof parsed?.customer_name === "string" && parsed.customer_name.trim()
@@ -375,29 +371,16 @@ export async function POST(req: Request) {
 
     let fullReceivedEmail: any = null;
 
-    if (receivedEmailId) {
-      console.log("RECEIVED EMAIL ID:", receivedEmailId);
-      const { data, error } = await resend.emails.receiving.get(receivedEmailId);
+ 
+   if (receivedEmailId) {
+  const { data, error } = await resend.emails.receiving.get(receivedEmailId);
 
-      if (error) {
-        console.error("Failed to fetch received email:", error);
-      } else {
-        fullReceivedEmail = data;
-      }
-      console.log(
-  "FULL RECEIVED EMAIL:",
-  JSON.stringify(fullReceivedEmail, null, 2)
-);
-
-console.log(
-  "RAW TEXT PREVIEW:",
-  (
-    fullReceivedEmail?.text ||
-    stripHtml(fullReceivedEmail?.html || "") ||
-    "NO TEXT"
-  ).slice(0, 4000)
-);
-    }
+  if (error) {
+    console.error("Failed to fetch received email:", error);
+  } else {
+    fullReceivedEmail = data;
+  }
+}
 
     const rawFrom = (
       fullReceivedEmail?.headers?.from ||
@@ -589,19 +572,7 @@ const customerEmail =
       const detectedBudget =
   aiExtracted?.budget || null;
 
-    console.log("FORWARDED EXTRACTION RESULT:", {
-      forwardedByEmail,
-      customerEmail,
-      customerName,
-      finalSubject,
-      detectedJobType,
-      detectedUrgency,
-      detectedPhone,
-      detectedPostcode,
-      detectedAddress,
-      detectedBudget,
-      detailsPreview: details.slice(0, 1000),
-    });
+ 
 
     let enquiryId: string;
     let createdNewEnquiry = false;

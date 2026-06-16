@@ -26,7 +26,7 @@ const origin =
 const priceId =
   process.env.STRIPE_PRICE_ID || "price_1TifM4JTxWEB21BmdPVXAZXU";
 
-console.log("PRICE ID =", priceId);
+
 
 const session = await stripe.checkout.sessions.create({
   mode: "subscription",

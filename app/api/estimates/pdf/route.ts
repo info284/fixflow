@@ -1,4 +1,4 @@
-console.log("✅ PDF ROUTE HIT: app/api/estimates/pdf/route.ts (quotes)");
+
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

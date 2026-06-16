@@ -281,7 +281,7 @@ ${traderName}`;
         ],
       });
 
-console.log("booking emailResult", emailResult);
+
 
       if ("error" in emailResult && emailResult.error) {
         return NextResponse.json(

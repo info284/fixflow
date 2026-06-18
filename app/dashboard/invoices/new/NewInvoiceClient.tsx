@@ -1162,9 +1162,14 @@ const total = s + vatAmount;
   {req?.address || req?.postcode || "No address"}
 </div>
 
-<div className="ff-jobQuickRow">
-  <div className="ff-jobBudget">{money(inv.amount, inv.currency)}</div>
-  <div className="ff-jobPhotos">{niceDate(inv.created_at)}</div>
+<div className="ff-invoiceMetaRow">
+  <span className="ff-invoiceAmount">
+    {money(inv.amount, inv.currency)}
+  </span>
+
+  <span className="ff-invoiceDate">
+    {niceDate(inv.created_at)}
+  </span>
 </div>
 
 <div className="ff-leftStatusRow">
@@ -2453,6 +2458,27 @@ color: #64748b;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+  .ff-invoiceMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.ff-invoiceAmount {
+  color: #334155;
+  font-size: 15px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.ff-invoiceDate {
+  color: #334155;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 `}</style>
 <style jsx global>{`

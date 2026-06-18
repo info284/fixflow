@@ -5590,7 +5590,7 @@ className={`ff-leftItem
 <div className="ff-leftAddress">
   {r.address || formatPostcode(r.postcode) || "No address"}
 </div>
-{latestMessage?.direction === "in" ? (
+{replyStatus === "Customer replied" ? (
   <div className="ff-leftReplyAlert">
     ⚡ Customer replied — reply now
   </div>

@@ -230,6 +230,17 @@ function StatusTag({ ok, label }: { ok: boolean; label: string }) {
     </span>
   );
 }
+function formatPostcode(postcode?: string | null) {
+  if (!postcode) return "";
+
+  const cleaned = String(postcode)
+    .replace(/\s+/g, "")
+    .toUpperCase();
+
+  if (cleaned.length <= 3) return cleaned;
+
+  return `${cleaned.slice(0, -3)} ${cleaned.slice(-3)}`;
+}
 /* =========================
    Main Component
 ========================= */
@@ -375,7 +386,7 @@ export default function QuoteClient({
     setAddressList([]);
     setSelectedAddress("");
 
-    const pc = postcode.trim().toUpperCase().replace(/\s+/g, " ");
+    const pc = formatPostcode(postcode);
     if (!pc) return;
 
     try {
@@ -453,9 +464,9 @@ export default function QuoteClient({
       fd.append("slug", slug);
       fd.append("name", name.trim());
       fd.append("email", email.trim());
-      fd.append("phone", phone.trim());
-      fd.append("postcode", postcode.trim());
-      fd.append("address", selectedAddress.trim());
+fd.append("phone", phone.trim());
+fd.append("postcode", formatPostcode(postcode));
+fd.append("address", selectedAddress.trim());
       fd.append("job_type", jobType);
       fd.append("problem_location", problemLocation);
       fd.append("urgency", urgency);

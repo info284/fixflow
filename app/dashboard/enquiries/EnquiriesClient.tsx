@@ -513,7 +513,14 @@ function formatBudget(budget?: string | null) {
 
 function formatPostcode(postcode?: string | null) {
   if (!postcode) return "";
-  return String(postcode).trim().toUpperCase();
+
+  const cleaned = String(postcode)
+    .replace(/\s+/g, "")
+    .toUpperCase();
+
+  if (cleaned.length <= 3) return cleaned;
+
+  return `${cleaned.slice(0, -3)} ${cleaned.slice(-3)}`;
 }
 
 function telHref(phone?: string | null) {

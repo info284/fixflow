@@ -94,9 +94,20 @@ function extractPhone(text: string) {
   return match?.[0]?.replace(/\s+/g, " ").trim() || null;
 }
 
+function formatPostcode(postcode?: string | null) {
+  if (!postcode) return "";
+
+  const cleaned = String(postcode)
+    .replace(/\s+/g, "")
+    .toUpperCase();
+
+  if (cleaned.length <= 3) return cleaned;
+
+  return `${cleaned.slice(0, -3)} ${cleaned.slice(-3)}`;
+}
 function extractPostcode(text: string) {
   const match = text.match(/\b[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}\b/i);
-  return match?.[0]?.toUpperCase().replace(/\s+/, " ") || null;
+  return match?.[0] ? formatPostcode(match[0]) : null;
 }
 
 function extractAddress(text: string) {
@@ -271,10 +282,10 @@ const parsed = JSON.parse(raw);
         typeof parsed?.phone === "string" && parsed.phone.trim()
           ? parsed.phone.trim()
           : null,
-      postcode:
-        typeof parsed?.postcode === "string" && parsed.postcode.trim()
-          ? parsed.postcode.trim().toUpperCase()
-          : null,
+postcode:
+  typeof parsed?.postcode === "string" && parsed.postcode.trim()
+    ? formatPostcode(parsed.postcode)
+    : null,
       address:
         typeof parsed?.address === "string" && parsed.address.trim()
           ? parsed.address.trim()
@@ -593,7 +604,7 @@ const customerEmail =
           plumber_id: profile.id,
           customer_name: customerName,
           customer_email: customerEmail,
-         customer_phone: detectedPhone,
+customer_phone: detectedPhone,
 postcode: detectedPostcode,
 address: detectedAddress,
 budget: detectedBudget,

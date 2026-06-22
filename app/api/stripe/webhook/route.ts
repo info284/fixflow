@@ -303,23 +303,41 @@ export async function POST(req: Request) {
       }
     }
 
-    if (
-      event.type === "customer.subscription.updated" ||
-      event.type === "customer.subscription.deleted"
-    ) {
-      const subscription = event.data.object as Stripe.Subscription;
+if (
+  event.type === "customer.subscription.updated" ||
+  event.type === "customer.subscription.deleted"
+) {
+  const subscription = event.data.object as Stripe.Subscription;
 
+  await supabase
+    .from("profiles")
+    .update({
+      subscription_status: subscription.status,
+      trial_ends_at: fromUnix(subscription.trial_end),
+      subscription_current_period_end: fromUnix(
+        (subscription as any).current_period_end
+      ),
+    })
+    .eq("stripe_subscription_id", subscription.id);
+
+  // If subscription becomes active, mark referral as converting
+  if (subscription.status === "active") {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, referred_by")
+      .eq("stripe_subscription_id", subscription.id)
+      .maybeSingle();
+
+    if (profile?.referred_by) {
       await supabase
-        .from("profiles")
-        .update({
-          subscription_status: subscription.status,
-          trial_ends_at: fromUnix(subscription.trial_end),
-          subscription_current_period_end: fromUnix(
-            (subscription as any).current_period_end
-          ),
-        })
-        .eq("stripe_subscription_id", subscription.id);
+        .from("referrals")
+        .update({ became_paying_at: new Date().toISOString() })
+        .eq("referred_profile_id", profile.id)
+        .is("became_paying_at", null);
     }
+  }
+}
+
 
     return NextResponse.json({ received: true });
   } catch (err: any) {

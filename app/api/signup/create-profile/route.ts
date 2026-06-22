@@ -12,7 +12,7 @@ function supabaseAdmin() {
 
 export async function POST(req: Request) {
   try {
-    const { userId, businessName, slug, email } = await req.json();
+    const { userId, businessName, slug, email, referredBy } = await req.json();
 
     if (!userId || !businessName || !slug) {
       return NextResponse.json(
@@ -30,11 +30,30 @@ export async function POST(req: Request) {
         display_name: businessName,
         slug,
         notify_email: email || null,
+        referred_by: referredBy || null,
       },
       { onConflict: "id" }
     );
 
     if (error) throw error;
+
+    // If they signed up with a referral code, log it
+    if (referredBy) {
+      const { data: affiliate } = await supabase
+        .from("affiliates")
+        .select("id, commission_amount")
+        .eq("code", referredBy.toUpperCase())
+        .eq("active", true)
+        .maybeSingle();
+
+      if (affiliate) {
+        await supabase.from("referrals").insert({
+          affiliate_id: affiliate.id,
+          referred_profile_id: userId,
+          commission_amount: affiliate.commission_amount,
+        });
+      }
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err: any) {

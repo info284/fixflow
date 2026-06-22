@@ -1,5 +1,7 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+
 import "@/app/globals.css";
 import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -34,7 +36,9 @@ async function findAvailableSlug(base: string) {
 }
 
 export default function SignupPage() {
-  const router = useRouter();
+const router = useRouter();
+const searchParams = useSearchParams();
+const referredBy = searchParams.get("ref") || "";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -95,12 +99,14 @@ export default function SignupPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          userId,
-          businessName,
-          slug,
-          email: email.trim(),
-        }),
+body: JSON.stringify({
+  userId,
+  businessName,
+  slug,
+  email: email.trim(),
+  referredBy: referredBy.toUpperCase() || null,
+}),
+
       });
 
       const profileJson = await profileRes.json().catch(() => ({}));

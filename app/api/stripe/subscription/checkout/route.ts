@@ -31,6 +31,7 @@ const priceId =
 const session = await stripe.checkout.sessions.create({
   mode: "subscription",
   customer_email: email,
+  allow_promotion_codes: true,
   line_items: [
     {
       price: priceId,

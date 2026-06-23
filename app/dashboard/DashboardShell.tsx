@@ -12,6 +12,7 @@ type ProfileLite = {
   id: string;
   display_name: string | null;
   logo_url: string | null;
+  subscription_status: string | null;
 };
 
 type Counts = {
@@ -87,11 +88,16 @@ if (mounted) setAuthLoading(false);
 
         const { data: p } = await supabase
           .from("profiles")
-          .select("id, display_name, logo_url")
+        .select("id, display_name, logo_url, subscription_status")
           .eq("id", user.id)
           .maybeSingle();
 
-        if (mounted) setProfile((p || null) as ProfileLite | null);
+       const allowedStatuses = ["active", "trialing"];
+
+if (!allowedStatuses.includes(String(p?.subscription_status || ""))) {
+  router.replace("/subscribe");
+  return;
+}
 
 const allRequests = await safeLoad(async () => {
   const { data, error } = await supabase

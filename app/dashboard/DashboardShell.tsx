@@ -32,7 +32,7 @@ const isFullBleed =
 
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-
+const [authLoading, setAuthLoading] = useState(true);
   const [profile, setProfile] = useState<ProfileLite | null>(null);
 const [counts, setCounts] = useState<Counts>({
   enquiries: 0,
@@ -72,11 +72,18 @@ const [counts, setCounts] = useState<Counts>({
 
     const load = async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+const {
+data: { session },
+} = await supabase.auth.getSession();
 
-        if (!user) return;
+if (!session?.user) {
+router.replace("/login");
+return;
+}
+
+const user = session.user;
+
+if (mounted) setAuthLoading(false);
 
         const { data: p } = await supabase
           .from("profiles")
@@ -318,13 +325,44 @@ return () => {
 };
   }, [router]);
 
-  const traderName = useMemo(
-    () => profile?.display_name?.trim() || "Your Business",
-    [profile]
-  );
+  useEffect(() => {
+const {
+data: { subscription },
+} = supabase.auth.onAuthStateChange((_event, session) => {
+if (session?.user) {
+setAuthLoading(false);
+} else {
+router.replace("/login");
+}
+});
 
-  return (
-    <div className="min-h-screen bg-[var(--bg)] ff-dashboardText">
+return () => {
+subscription.unsubscribe();
+};
+}, [router]);
+
+const traderName = useMemo(
+() => profile?.display_name?.trim() || "Your Business",
+[profile]
+);
+
+if (authLoading) {
+return (
+<div className="min-h-screen grid place-items-center bg-[var(--bg)]">
+<div className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm text-center">
+<div className="text-lg font-semibold text-[var(--ff-navy)]">
+Opening FixFlow...
+</div>
+<div className="mt-1 text-sm text-slate-500">
+Checking your login.
+</div>
+</div>
+</div>
+);
+}
+
+return (
+<div className="min-h-screen bg-[var(--bg)] ff-dashboardText">
       <div className="mx-auto max-w-7xl px-4 sm:px-5 py-6 min-h-[calc(100vh-3rem)] flex flex-col">
         <div className="flex gap-6 flex-1 min-h-0">
           {/* DESKTOP SIDEBAR */}

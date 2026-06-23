@@ -59,7 +59,28 @@ ${buildFixFlowSectionLabel("What FixFlow can do")}
 </div>
 </div>
 `)}
+${buildFixFlowInfoCard(`
+<div style="padding:22px;">
+${buildFixFlowSectionLabel("Add FixFlow to your phone")}
 
+<div style="line-height:1.8;color:#5C6B84;">
+FixFlow works like an app on iPhone and Android.
+
+Add it to your home screen for quick access to enquiries,
+jobs, invoices and customer messages wherever you are.
+
+<div style="margin-top:14px;">
+<strong style="color:#1F355C;">iPhone</strong><br/>
+Open FixFlow in Safari → tap Share → Add to Home Screen
+</div>
+
+<div style="margin-top:14px;">
+<strong style="color:#1F355C;">Android</strong><br/>
+Open FixFlow in Chrome → tap the menu → Install App or Add to Home Screen
+</div>
+</div>
+</div>
+`)}
 ${buildFixFlowInfoCard(`
 <div style="padding:22px;">
 ${buildFixFlowSectionLabel("Forward emails into FixFlow")}
@@ -96,7 +117,7 @@ coverage areas and business details so customers can trust your business.
     `,
   });
 
-  const text = `Welcome to FixFlow
+const text = `Welcome to FixFlow
 
 Your page is now live and ready to receive enquiries.
 
@@ -105,8 +126,16 @@ ${publicUrl}
 
 Send this link to a customer today or add it to your Instagram or WhatsApp.
 
+Add FixFlow to your phone:
+
+iPhone:
+Open FixFlow in Safari → Share → Add to Home Screen
+
+Android:
+Open FixFlow in Chrome → Menu → Install App
+
 Thanks,
 FixFlow`;
 
-  return { html, text };
+return { html, text };
 }

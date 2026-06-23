@@ -85,7 +85,7 @@ const [stats, setStats] = useState<Stats>({
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [revenueThisMonth, setRevenueThisMonth] = useState("£0");
   const [certificateReminders, setCertificateReminders] = useState<CertificateReminder[]>([]);
-
+const [showPwaBanner, setShowPwaBanner] = useState(false);
 const hasNeedsAction = stats.needsAction > 0;
 
 const hasFollowUp = stats.followUp > 0;
@@ -142,6 +142,12 @@ const heroToneClass = loading
 
   useEffect(() => {
     let mounted = true;
+
+    const dismissed = localStorage.getItem("ff-pwa-banner-dismissed");
+
+if (!dismissed) {
+  setShowPwaBanner(true);
+}
 
     const isMissing = (msg?: string) => {
       const m = (msg || "").toLowerCase();
@@ -581,6 +587,10 @@ const traderLink = useMemo(() => {
       "Your Business"
     );
   }, [profile]);
+const dismissPwaBanner = () => {
+  localStorage.setItem("ff-pwa-banner-dismissed", "true");
+  setShowPwaBanner(false);
+};
 
   const copyLink = async () => {
     try {
@@ -647,6 +657,51 @@ const lastLogin = "—";
             </div>
           </div>
         </header>
+        {showPwaBanner && (
+  <section className="ffdash-card ffdash-cardPad" style={{ marginBottom: "16px" }}>
+    <div className="ffdash-sectionTop">
+      <div>
+        <div className="ffdash-eyebrow">FIXFLOW APP</div>
+        <div className="ffdash-cardTitle">
+          Add FixFlow to your phone
+        </div>
+      </div>
+
+      <button
+        onClick={dismissPwaBanner}
+        className="ffdash-btn"
+      >
+        Got it
+      </button>
+    </div>
+
+    <div className="ffdash-muted">
+      FixFlow works like an app on iPhone and Android. Add it to your home screen
+      for instant access to enquiries, jobs, invoices and customer messages.
+    </div>
+
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+        gap: "12px",
+        marginTop: "14px",
+      }}
+    >
+      <div className="ffdash-linkBox">
+        <strong>iPhone</strong>
+        <br />
+        Safari → Share → Add to Home Screen
+      </div>
+
+      <div className="ffdash-linkBox">
+        <strong>Android</strong>
+        <br />
+        Chrome → Menu → Install App
+      </div>
+    </div>
+  </section>
+)}
 {!loading &&
   stats.enquiriesOpen === 0 &&
   stats.wonJobs === 0 &&

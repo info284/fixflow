@@ -11,6 +11,7 @@ import { getJobCounts } from "@/lib/jobCounts";
 type ProfileLite = {
   id: string;
   display_name: string | null;
+  business_name: string | null;
   logo_url: string | null;
   subscription_status: string | null;
 };
@@ -88,13 +89,24 @@ if (mounted) setAuthLoading(false);
 
         const { data: p } = await supabase
           .from("profiles")
-        .select("id, display_name, logo_url, subscription_status")
+        .select("id, display_name, business_name, logo_url, subscription_status")
           .eq("id", user.id)
           .maybeSingle();
 
-       const allowedStatuses = ["active", "trialing"];
+const allowedStatuses = ["active", "trialing"];
 
-if (!allowedStatuses.includes(String(p?.subscription_status || ""))) {
+const founderEmails = [
+  "YOUR_EMAIL_HERE"
+];
+
+const isFounder = founderEmails.includes(
+  session.user.email?.toLowerCase() || ""
+);
+
+if (
+  !isFounder &&
+  !allowedStatuses.includes(String(p?.subscription_status || ""))
+) {
   router.replace("/subscribe");
   return;
 }
@@ -281,6 +293,9 @@ const invoices = await safeLoad(async () => {
 }, 0);
 
 if (!mounted) return;
+
+setProfile((p as ProfileLite) || null);
+
 setCounts({
   enquiries,
   jobs,
@@ -348,8 +363,11 @@ subscription.unsubscribe();
 }, [router]);
 
 const traderName = useMemo(
-() => profile?.display_name?.trim() || "Your Business",
-[profile]
+  () =>
+    profile?.business_name?.trim() ||
+    profile?.display_name?.trim() ||
+    "Your Business",
+  [profile]
 );
 
 if (authLoading) {

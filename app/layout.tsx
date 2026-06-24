@@ -3,7 +3,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-title: "FixFlow — Job management for UK tradespeople",
+title: "FixFlow",
 description:
 "FixFlow keeps every enquiry, job and invoice organised — from first contact to paid invoice. Built for busy UK trades. Start free.",
 applicationName: "FixFlow",

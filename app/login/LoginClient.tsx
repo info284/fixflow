@@ -35,17 +35,26 @@ export default function LoginClient() {
     return "idle";
   }, [ok, loading]);
 
-  async function signInWithPassword(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+async function signInWithPassword(email: string, password: string) {
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    if (error) throw error;
+  if (error) throw error;
 
-    await new Promise((r) => setTimeout(r, 800));
-    window.location.href = "/dashboard";
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.user) {
+    throw new Error("Login worked, but FixFlow could not save your session. Please try again.");
   }
+
+  await new Promise((r) => setTimeout(r, 300));
+
+  window.location.assign("/dashboard");
+}
 
   async function sendMagicLink(email: string) {
     const { error } = await supabase.auth.signInWithOtp({

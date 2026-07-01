@@ -1,5 +1,6 @@
 // app/components/home/HomeFeatures.tsx
 import Image from "next/image";
+import BrowserFrame from "@/app/components/BrowserFrame";
 
 const features = [
   {
@@ -7,6 +8,7 @@ const features = [
     title: "Never lose another job in your inbox.",
     body: "Every enquiry lands in one organised dashboard with the customer name, postcode, job details, messages and next action — so nothing gets buried.",
     image: "/screenshots/enquiries-hero.png",
+    url: "app.thefixflowapp.com/enquiries",
     alt: "FixFlow enquiries dashboard",
     reverse: false,
   },
@@ -15,6 +17,7 @@ const features = [
     title: "Forgotten what you said? FixFlow remembers.",
     body: "Every conversation stays attached to the right job — no more digging through texts, emails and WhatsApp to piece together what happened.",
     image: "/screenshots/messages.png",
+    url: "app.thefixflowapp.com/messages",
     alt: "FixFlow messages",
     reverse: true,
   },
@@ -23,6 +26,7 @@ const features = [
     title: "Stop jobs falling through the cracks.",
     body: "Track booked work, progress, notes and next actions without relying on memory, paper diaries or scattered messages.",
     image: "/screenshots/jobs.png",
+    url: "app.thefixflowapp.com/jobs",
     alt: "FixFlow jobs",
     reverse: false,
   },
@@ -31,6 +35,7 @@ const features = [
     title: "From job complete to paid invoice.",
     body: "Create invoices, send them instantly and track every payment in one place — connected directly to the job it came from.",
     image: "/screenshots/invoices.png",
+    url: "app.thefixflowapp.com/invoices",
     alt: "FixFlow invoices",
     reverse: true,
   },
@@ -56,9 +61,16 @@ export default function HomeFeatures() {
               <h3>{f.title}</h3>
               <p>{f.body}</p>
             </div>
-            <div className="homeFeatureShot">
-              <Image src={f.image} alt={f.alt} width={1400} height={900} />
-            </div>
+<div className="homeFeatureShot">
+ <BrowserFrame url={f.url}>
+    <Image
+      src={f.image}
+      alt={f.alt}
+      width={1400}
+      height={900}
+    />
+  </BrowserFrame>
+</div>
           </div>
         ))}
       </div>

@@ -1,19 +1,24 @@
-export default function BrowserFrame({ children }: { children: React.ReactNode }) {
+export default function BrowserFrame({
+  children,
+  url,
+}: {
+  children: React.ReactNode;
+  url: string;
+}) {
   return (
-    <div className="browserFrameOuter">
-      <div className="browserFrame">
-        <div className="browserTop">
-          <div className="browserDots">
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="browserUrl">thefixflowapp.com/enquiries</div>
+    <div className="browserFrame">
+      <div className="browserTop">
+        <div className="browserDots">
+          <span />
+          <span />
+          <span />
         </div>
 
-        <div className="browserContent">
-          {children}
-        </div>
+        <div className="browserAddress">{url}</div>
+      </div>
+
+      <div className="browserContent">
+        {children}
       </div>
     </div>
   );

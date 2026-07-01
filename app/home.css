@@ -516,58 +516,65 @@ img { display: block; max-width: 100%; }
   .homeCTAActions { flex-direction: column; }
   .homePrimaryBtn, .homeGhostBtn { width: 100%; }
 }
-.browserFrameOuter {
-  background: linear-gradient(135deg, #0b1320, #10284f);
-  border-radius: 36px;
-  padding: 64px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
-}
-
 .browserFrame {
-  background: #f8fafc;
+  background: #fff;
   border-radius: 22px;
   overflow: hidden;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
-  transform: rotate(-1deg);
+  border: 1px solid #e5e7eb;
+  box-shadow:
+    0 20px 60px rgba(15, 23, 42, 0.18),
+    0 8px 20px rgba(15, 23, 42, 0.08);
 }
 
 .browserTop {
-  height: 70px;
-  background: #f3f4f6;
+  height: 56px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5e7eb;
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 0 24px;
-  border-bottom: 1px solid #e5e7eb;
+  padding: 0 18px;
+  gap: 16px;
 }
 
 .browserDots {
   display: flex;
-  gap: 10px;
+  gap: 8px;
 }
 
 .browserDots span {
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
 }
 
-.browserDots span:nth-child(1) { background: #ff5f57; }
-.browserDots span:nth-child(2) { background: #ffbd2e; }
-.browserDots span:nth-child(3) { background: #28c840; }
+.browserDots span:nth-child(1) {
+  background: #ff5f57;
+}
 
-.browserUrl {
+.browserDots span:nth-child(2) {
+  background: #febc2e;
+}
+
+.browserDots span:nth-child(3) {
+  background: #28c840;
+}
+
+.browserAddress {
   flex: 1;
+  max-width: 420px;
+  height: 34px;
   background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  padding: 10px 16px;
-  color: #6b7280;
-  font-size: 18px;
+  border: 1px solid #dbe4ef;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  color: #64748b;
+  font-size: 14px;
 }
 
 .browserContent img {
   display: block;
   width: 100%;
+  height: auto;
 }
-

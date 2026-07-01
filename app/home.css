@@ -543,42 +543,25 @@ img { display: block; max-width: 100%; }
 }
 
 .browserFrame::before {
-
-  content: "";
-
-  position: absolute;
-
-  inset: 26px;
-
-  border-radius: 28px;
-
-  background: rgba(127, 164, 255, 0.08);
-
-  filter: blur(34px);
-
-  pointer-events: none;
-
-}
-
-.browserWindow {
-
-  position: relative;
-
-  z-index: 1;
-
-  background: #fff;
+padding: 0;
 
   border-radius: 22px;
 
-  overflow: hidden;
+  background: transparent;
+}
 
-  box-shadow:
+.browserWindow {
+background: #fff;
+border-radius: 22px;
+overflow: hidden;
 
-    0 30px 80px rgba(0,0,0,0.28),
+border: 1px solid #e6ecf5;
 
-    0 10px 25px rgba(0,0,0,0.14);
+box-shadow:
+0 30px 70px rgba(8, 15, 30, 0.14),
+0 8px 24px rgba(8, 15, 30, 0.08);
 
-  transform: none;
+transform: none;
 }
 
 .browserTop {

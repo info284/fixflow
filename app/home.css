@@ -516,14 +516,69 @@ img { display: block; max-width: 100%; }
   .homeCTAActions { flex-direction: column; }
   .homePrimaryBtn, .homeGhostBtn { width: 100%; }
 }
+
+
 .browserFrame {
-  background: #fff;
-  border-radius: 22px;
-  overflow: hidden;
-  border: 1px solid #e5e7eb;
+
+  position: relative;
+
+  padding: 42px;
+
+  border-radius: 36px;
+
+  background:
+
+    radial-gradient(circle at top, rgba(127, 164, 255, 0.09), transparent 62%),
+
+    linear-gradient(145deg, #080f1e 0%, #10213f 100%);
+
   box-shadow:
-    0 20px 60px rgba(15, 23, 42, 0.18),
-    0 8px 20px rgba(15, 23, 42, 0.08);
+
+    0 40px 100px rgba(8, 15, 30, 0.35),
+
+    inset 0 1px rgba(255,255,255,0.08);
+
+  border: 1px solid rgba(255,255,255,0.08);
+
+}
+
+.browserFrame::before {
+
+  content: "";
+
+  position: absolute;
+
+  inset: 26px;
+
+  border-radius: 28px;
+
+  background: rgba(127, 164, 255, 0.08);
+
+  filter: blur(34px);
+
+  pointer-events: none;
+
+}
+
+.browserWindow {
+
+  position: relative;
+
+  z-index: 1;
+
+  background: #fff;
+
+  border-radius: 22px;
+
+  overflow: hidden;
+
+  box-shadow:
+
+    0 30px 80px rgba(0,0,0,0.28),
+
+    0 10px 25px rgba(0,0,0,0.14);
+
+  transform: perspective(1800px) rotateX(2deg) rotateZ(-1deg);
 }
 
 .browserTop {

@@ -10,6 +10,17 @@ import HomePricing from "@/app/components/home/HomePricing";
 import HomeFAQ from "@/app/components/home/HomeFAQ";
 import HomeCTA from "@/app/components/home/HomeCTA";
 import HomeFooter from "@/app/components/home/HomeFooter";
+import BrowserFrame from "@/app/components/BrowserFrame";
+import Image from "next/image";
+
+<BrowserFrame>
+  <Image
+    src="/screenshots/enquiries.png"
+    alt="FixFlow enquiries screen"
+    width={1200}
+    height={800}
+  />
+</BrowserFrame>
 import "./home.css";
 
 export default function HomePage() {

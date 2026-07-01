@@ -522,9 +522,9 @@ img { display: block; max-width: 100%; }
 
   position: relative;
 
-  padding: 42px;
+  padding: 22px;
 
-  border-radius: 36px;
+  border-radius: 28px;
 
   background:
 
@@ -578,7 +578,7 @@ img { display: block; max-width: 100%; }
 
     0 10px 25px rgba(0,0,0,0.14);
 
-  transform: perspective(1800px) rotateX(2deg) rotateZ(-1deg);
+  transform: none;
 }
 
 .browserTop {

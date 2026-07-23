@@ -55,24 +55,27 @@ export default function TermsPage() {
               </p>
             </section>
 
-            <section className="legalSection">
-              <h2>2. Who we are</h2>
+<section className="legalSection">
+  <h2>2. Who we are</h2>
 
-              <p>
-                FixFlow is operated by FixFlow Software Ltd, a company
-                registered in England and Wales under company number
-                [00000000], with its registered office at [registered office
-                address] (&quot;FixFlow&quot;, &quot;we&quot;, &quot;us&quot;
-                or &quot;our&quot;).
-              </p>
+  <p>
+    FixFlow is operated by FixFlow Software Ltd, a company
+    registered in England and Wales under company number
+    <strong> 17288791</strong>, with its registered office at
+    <strong> 71–75 Shelton Street, Covent Garden, London, WC2H 9JQ</strong>
+    (&quot;FixFlow&quot;, &quot;we&quot;, &quot;us&quot; or
+    &quot;our&quot;).
+  </p>
 
-              <p>
-                <strong>Email:</strong>{" "}
-                <a href="mailto:hello@thefixflowapp.com">
-                  hello@thefixflowapp.com
-                </a>
-              </p>
-            </section>
+  <p>
+    <strong>Email:</strong>{" "}
+    <a href="mailto:hello@thefixflowapp.com">
+      hello@thefixflowapp.com
+    </a>
+  </p>
+</section>
+
+
 
             <section className="legalSection">
               <h2>3. What FixFlow provides</h2>

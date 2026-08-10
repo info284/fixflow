@@ -29,11 +29,24 @@ export default function PrivacyPage() {
 
           <div className="legalBody">
 
-            <section className="legalSection">
-              <h2>Who we are</h2>
-              <p>FixFlow is a job management platform built for UK tradespeople. It is operated by Anna Dowling, trading as FixFlow ("FixFlow", "we", "us", "our").</p>
-              <p>If you have any questions about this policy or how we handle your data, contact us at: <a href="mailto:hello@thefixflowapp.com">hello@thefixflowapp.com</a></p>
-            </section>
+<section className="legalSection">
+  <h2>2. Who we are</h2>
+
+  <p>
+    FixFlow is operated by FixFlow Software Ltd, a company registered
+    in England and Wales under company number 17288791, with its
+    registered office at 71–75 Shelton Street, Covent Garden, London,
+    WC2H 9JQ (&quot;FixFlow&quot;, &quot;we&quot;, &quot;us&quot; or
+    &quot;our&quot;).
+  </p>
+
+  <p>
+    <strong>Email:</strong>{" "}
+    <a href="mailto:hello@thefixflowapp.com">
+      hello@thefixflowapp.com
+    </a>
+  </p>
+</section>
 
             <section className="legalSection">
               <h2>What this policy covers</h2>

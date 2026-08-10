@@ -616,3 +616,10 @@ transform: none;
   width: 100%;
   height: auto;
 }
+.homeFooterSocialIcon {
+  color: #8FA3BF;
+  transition: color 0.2s ease;
+}
+.homeFooterSocialIcon:hover {
+  color: #5EEAD4;
+}

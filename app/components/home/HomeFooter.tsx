@@ -12,7 +12,7 @@ const links = [
 
 const socials = [
 { label: "Instagram", href: "https://instagram.com/thefixflowapp", Icon: Instagram },
-{ label: "Facebook", href: "https://facebook.com/fixflow", Icon: Facebook },
+{ label: "Facebook", href: "https://facebook.com/Thefixflowapp", Icon: Facebook },
 ];
 
 export default function HomeFooter() {

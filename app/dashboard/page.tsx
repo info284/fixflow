@@ -1003,7 +1003,7 @@ return (
  <div>
  <div className="ffdash-eyebrow">WEEK AHEAD</div>
  <div className="ffdash-muted">
- Your booked visits for this week.
+ Your visits and booked jobs this week.
  </div>
  </div>
 
@@ -1014,12 +1014,8 @@ return (
 
  <div className="ffdash-weekGrid">
  {weekDays.map((day) => {
- const visits = weekBookings
- .filter((visit) => sameDay(new Date(visit.starts_at), day))
- .sort(
- (a, b) =>
- new Date(a.starts_at).getTime() -
- new Date(b.starts_at).getTime()
+ const dayBookings = weekBookings.filter((booking) =>
+ sameDay(new Date(booking.starts_at), day)
  );
 
  const isToday = sameDay(day, today);
@@ -1041,37 +1037,93 @@ return (
  <strong>{day.getDate()}</strong>
  </div>
 
- <div className="ffdash-weekBookings">
- {visits.length === 0 ? (
- <div className="ffdash-weekEmpty">Free</div>
- ) : (
- visits.map((visit) => (
- <Link
- key={`${visit.request_id}-${visit.starts_at}`}
- href={`/dashboard/enquiries?id=${visit.request_id}`}
- className="ffdash-weekBooking"
+ <div
+ className={`ffdash-weekCount ${
+ dayBookings.length > 0 ? "ffdash-weekCountActive" : ""
+ }`}
  >
- <div className="ffdash-weekTime">
- {new Date(visit.starts_at).toLocaleTimeString("en-GB", {
+ {dayBookings.length > 0
+ ? `${dayBookings.length} booked`
+ : "Free"}
+ </div>
+ </div>
+ );
+ })}
+ </div>
+
+ <div className="ffdash-weekList">
+ {weekDays.map((day) => {
+ const dayBookings = weekBookings
+ .filter((booking) =>
+ sameDay(new Date(booking.starts_at), day)
+ )
+ .sort(
+ (a, b) =>
+ new Date(a.starts_at).getTime() -
+ new Date(b.starts_at).getTime()
+ );
+
+ if (dayBookings.length === 0) return null;
+
+ return (
+ <div key={`list-${day.toISOString()}`}>
+ <div className="ffdash-weekDateLabel">
+ {day.toLocaleDateString("en-GB", {
+ weekday: "long",
+ day: "numeric",
+ month: "short",
+ })}
+ </div>
+
+ {dayBookings.map((booking) => (
+ <Link
+ key={`${booking.booking_type}-${booking.request_id}-${booking.starts_at}`}
+ href={`/dashboard/enquiries?id=${booking.request_id}`}
+ className="ffdash-weekRow"
+ >
+ <div className="ffdash-weekRowTime">
+ {new Date(booking.starts_at).toLocaleTimeString("en-GB", {
  hour: "2-digit",
  minute: "2-digit",
  })}
  </div>
 
- <div className="ffdash-weekCustomer">
- {visit.customer_name}
+ <div className="ffdash-weekRowMain">
+ <div className="ffdash-weekRowName">
+ {booking.customer_name}
  </div>
 
- <div className="ffdash-weekJob">
- {visit.job_type}
+ <div className="ffdash-weekRowJob">
+ {booking.job_type}
+ </div>
+ </div>
+
+ <div
+ className={`ffdash-weekType ${
+ booking.booking_type === "site_visit"
+ ? "ffdash-weekTypeVisit"
+ : "ffdash-weekTypeJob"
+ }`}
+ >
+ {booking.booking_type === "site_visit"
+ ? "Site visit"
+ : "Job"}
  </div>
  </Link>
- ))
- )}
- </div>
+ ))}
  </div>
  );
  })}
+
+ {weekBookings.filter((booking) =>
+ weekDays.some((day) =>
+ sameDay(new Date(booking.starts_at), day)
+ )
+ ).length === 0 && (
+ <div className="ffdash-weekEmptyState">
+ Nothing booked this week.
+ </div>
+ )}
  </div>
 </section>
 

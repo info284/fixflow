@@ -88,14 +88,16 @@ const [stats, setStats] = useState<Stats>({
   const [revenueThisMonth, setRevenueThisMonth] = useState("£0");
 const [certificateReminders, setCertificateReminders] = useState<CertificateReminder[]>([]);
 
-const [weekVisits, setWeekVisits] = useState<
- {
- request_id: string;
- starts_at: string;
- customer_name: string;
- job_type: string;
- }[]
+const [weekBookings, setWeekBookings] = useState<
+{
+request_id: string;
+starts_at: string;
+customer_name: string;
+job_type: string;
+booking_type: "site_visit" | "job";
+}[]
 >([]);
+
 
 const [showPwaBanner, setShowPwaBanner] = useState(false);
 const hasNeedsAction = stats.needsAction > 0;
@@ -497,18 +499,19 @@ const monthTotalText = new Intl.NumberFormat("en-GB", {
 );
 setRecentActivity(activity);
 
-setWeekVisits(
-visitRows
-.filter((visit: any) => visit.starts_at)
-.map((visit: any) => ({
-request_id: visit.request_id,
-starts_at: visit.starts_at,
+const jobBookings = allRequests
+.filter((request) => request.job_booked_at)
+.map((request) => ({
+request_id: request.id,
+starts_at: request.job_booked_at as string,
 customer_name:
-requestMap[visit.request_id]?.customerName || "Customer",
+requestMap[request.id]?.customerName || "Customer",
 job_type:
-requestMap[visit.request_id]?.jobType || "Job",
-}))
-);
+requestMap[request.id]?.jobType || "Job",
+booking_type: "job" as const,
+}));
+
+setWeekBookings([...siteVisitBookings, ...jobBookings]);
 
 setRevenueThisMonth(monthTotalText);
 

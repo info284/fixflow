@@ -5567,3 +5567,142 @@ grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   z-index: 2;
   pointer-events: none;
 }
+
+.weekAhead {
+background: #fff;
+border: 1px solid #e7eaf0;
+border-radius: 18px;
+padding: 22px;
+}
+
+.weekAheadHeader {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 18px;
+}
+
+.weekAheadEyebrow {
+margin: 0 0 4px;
+font-size: 12px;
+font-weight: 700;
+text-transform: uppercase;
+letter-spacing: 0.08em;
+color: #6b7280;
+}
+
+.weekAheadHeader h2 {
+margin: 0;
+font-size: 20px;
+color: #080f1e;
+}
+
+.weekAheadDays {
+display: grid;
+grid-template-columns: repeat(7, minmax(0, 1fr));
+gap: 10px;
+}
+
+.weekAheadDay {
+min-height: 155px;
+background: #f8f9fb;
+border: 1px solid #edf0f4;
+border-radius: 14px;
+padding: 12px;
+}
+
+.weekAheadDay.isToday {
+border: 2px solid #1f355c;
+background: #fff;
+}
+
+.weekAheadDayHeader {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 12px;
+}
+
+.weekAheadDayHeader span {
+font-size: 12px;
+font-weight: 600;
+color: #6b7280;
+}
+
+.weekAheadDayHeader strong {
+display: flex;
+align-items: center;
+justify-content: center;
+width: 28px;
+height: 28px;
+font-size: 13px;
+color: #080f1e;
+}
+
+.isToday .weekAheadDayHeader strong {
+background: #1f355c;
+color: #fff;
+border-radius: 50%;
+}
+
+.weekAheadBookings {
+display: flex;
+flex-direction: column;
+gap: 8px;
+}
+
+.weekAheadBooking {
+display: block;
+padding: 9px;
+background: #fff;
+border: 1px solid #e8ebf0;
+border-radius: 10px;
+text-decoration: none;
+transition: 0.15s ease;
+}
+
+.weekAheadBooking:hover {
+border-color: #cdd3dd;
+transform: translateY(-1px);
+}
+
+.weekAheadTime {
+margin-bottom: 3px;
+font-size: 11px;
+font-weight: 700;
+color: #1f355c;
+}
+
+.weekAheadBookingInfo strong {
+display: block;
+font-size: 12px;
+line-height: 1.3;
+color: #080f1e;
+}
+
+.weekAheadBookingInfo span {
+display: block;
+margin-top: 2px;
+font-size: 10px;
+line-height: 1.3;
+color: #737b89;
+}
+
+.weekAheadEmpty {
+margin: 0;
+font-size: 11px;
+color: #9ca3af;
+}
+
+@media (max-width: 900px) {
+.weekAheadDays {
+display: flex;
+overflow-x: auto;
+padding-bottom: 5px;
+}
+
+.weekAheadDay {
+min-width: 155px;
+flex: 0 0 155px;
+}
+}

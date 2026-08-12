@@ -84,7 +84,17 @@ const [stats, setStats] = useState<Stats>({
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [revenueThisMonth, setRevenueThisMonth] = useState("£0");
-  const [certificateReminders, setCertificateReminders] = useState<CertificateReminder[]>([]);
+const [certificateReminders, setCertificateReminders] = useState<CertificateReminder[]>([]);
+
+const [weekVisits, setWeekVisits] = useState<
+ {
+ request_id: string;
+ starts_at: string;
+ customer_name: string;
+ job_type: string;
+ }[]
+>([]);
+
 const [showPwaBanner, setShowPwaBanner] = useState(false);
 const hasNeedsAction = stats.needsAction > 0;
 
@@ -485,6 +495,19 @@ const monthTotalText = new Intl.NumberFormat("en-GB", {
 );
 setRecentActivity(activity);
 
+setWeekVisits(
+visitRows
+.filter((visit: any) => visit.starts_at)
+.map((visit: any) => ({
+request_id: visit.request_id,
+starts_at: visit.starts_at,
+customer_name:
+requestMap[visit.request_id]?.customerName || "Customer",
+job_type:
+requestMap[visit.request_id]?.jobType || "Job",
+}))
+);
+
 setRevenueThisMonth(monthTotalText);
 
 setStats({
@@ -640,7 +663,27 @@ const lastActivity =
     : "No activity yet";
 const lastLogin = "—";
 
-  return (
+const today = new Date();
+
+const monday = new Date(today);
+const currentDay = today.getDay();
+const mondayOffset = currentDay === 0 ? -6 : 1 - currentDay;
+
+monday.setDate(today.getDate() + mondayOffset);
+monday.setHours(0, 0, 0, 0);
+
+const weekDays = Array.from({ length: 7 }, (_, index) => {
+const date = new Date(monday);
+date.setDate(monday.getDate() + index);
+return date;
+});
+
+const sameDay = (a: Date, b: Date) =>
+a.getFullYear() === b.getFullYear() &&
+a.getMonth() === b.getMonth() &&
+a.getDate() === b.getDate();
+
+return (
     <div className="ffdash-page">
       <div className="ffdash-wrap">
         <header className={`ffdash-hero ${heroToneClass}`}>
@@ -937,6 +980,83 @@ const lastLogin = "—";
 </Link>
           </div>
         </section>
+
+<section className="ffdash-card ffdash-cardPad ffdash-weekPanel">
+ <div className="ffdash-sectionTop">
+ <div>
+ <div className="ffdash-eyebrow">WEEK AHEAD</div>
+ <div className="ffdash-muted">
+ Your booked visits for this week.
+ </div>
+ </div>
+
+ <Link href="/dashboard/bookings" className="ffdash-weekViewAll">
+ View bookings →
+ </Link>
+ </div>
+
+ <div className="ffdash-weekGrid">
+ {weekDays.map((day) => {
+ const visits = weekVisits
+ .filter((visit) => sameDay(new Date(visit.starts_at), day))
+ .sort(
+ (a, b) =>
+ new Date(a.starts_at).getTime() -
+ new Date(b.starts_at).getTime()
+ );
+
+ const isToday = sameDay(day, today);
+
+ return (
+ <div
+ key={day.toISOString()}
+ className={`ffdash-weekDay ${
+ isToday ? "ffdash-weekDayToday" : ""
+ }`}
+ >
+ <div className="ffdash-weekDayTop">
+ <span>
+ {day.toLocaleDateString("en-GB", {
+ weekday: "short",
+ })}
+ </span>
+
+ <strong>{day.getDate()}</strong>
+ </div>
+
+ <div className="ffdash-weekBookings">
+ {visits.length === 0 ? (
+ <div className="ffdash-weekEmpty">Free</div>
+ ) : (
+ visits.map((visit) => (
+ <Link
+ key={`${visit.request_id}-${visit.starts_at}`}
+ href={`/dashboard/enquiries?id=${visit.request_id}`}
+ className="ffdash-weekBooking"
+ >
+ <div className="ffdash-weekTime">
+ {new Date(visit.starts_at).toLocaleTimeString("en-GB", {
+ hour: "2-digit",
+ minute: "2-digit",
+ })}
+ </div>
+
+ <div className="ffdash-weekCustomer">
+ {visit.customer_name}
+ </div>
+
+ <div className="ffdash-weekJob">
+ {visit.job_type}
+ </div>
+ </Link>
+ ))
+ )}
+ </div>
+ </div>
+ );
+ })}
+ </div>
+</section>
 
 {certificateReminders.length > 0 && (
   <section className="ffdash-card ffdash-cardPad ffdash-certPanel">
@@ -2327,6 +2447,145 @@ const lastLogin = "—";
   color: #6b7a90;
   line-height: 1.45;
 }
+
+.weekAhead {
+background: #fff;
+border: 1px solid #e7eaf0;
+border-radius: 18px;
+padding: 22px;
+}
+
+.weekAheadHeader {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 18px;
+}
+
+.weekAheadEyebrow {
+margin: 0 0 4px;
+font-size: 12px;
+font-weight: 700;
+text-transform: uppercase;
+letter-spacing: 0.08em;
+color: #6b7280;
+}
+
+.weekAheadHeader h2 {
+margin: 0;
+font-size: 20px;
+color: #080f1e;
+}
+
+.weekAheadDays {
+display: grid;
+grid-template-columns: repeat(7, minmax(0, 1fr));
+gap: 10px;
+}
+
+.weekAheadDay {
+min-height: 155px;
+background: #f8f9fb;
+border: 1px solid #edf0f4;
+border-radius: 14px;
+padding: 12px;
+}
+
+.weekAheadDay.isToday {
+border: 2px solid #1f355c;
+background: #fff;
+}
+
+.weekAheadDayHeader {
+display: flex;
+justify-content: space-between;
+align-items: center;
+margin-bottom: 12px;
+}
+
+.weekAheadDayHeader span {
+font-size: 12px;
+font-weight: 600;
+color: #6b7280;
+}
+
+.weekAheadDayHeader strong {
+display: flex;
+align-items: center;
+justify-content: center;
+width: 28px;
+height: 28px;
+font-size: 13px;
+color: #080f1e;
+}
+
+.isToday .weekAheadDayHeader strong {
+background: #1f355c;
+color: #fff;
+border-radius: 50%;
+}
+
+.weekAheadBookings {
+display: flex;
+flex-direction: column;
+gap: 8px;
+}
+
+.weekAheadBooking {
+display: block;
+padding: 9px;
+background: #fff;
+border: 1px solid #e8ebf0;
+border-radius: 10px;
+text-decoration: none;
+transition: 0.15s ease;
+}
+
+.weekAheadBooking:hover {
+border-color: #cdd3dd;
+transform: translateY(-1px);
+}
+
+.weekAheadTime {
+margin-bottom: 3px;
+font-size: 11px;
+font-weight: 700;
+color: #1f355c;
+}
+
+.weekAheadBookingInfo strong {
+display: block;
+font-size: 12px;
+line-height: 1.3;
+color: #080f1e;
+}
+
+.weekAheadBookingInfo span {
+display: block;
+margin-top: 2px;
+font-size: 10px;
+line-height: 1.3;
+color: #737b89;
+}
+
+.weekAheadEmpty {
+margin: 0;
+font-size: 11px;
+color: #9ca3af;
+}
+
+@media (max-width: 900px) {
+.weekAheadDays {
+display: flex;
+overflow-x: auto;
+padding-bottom: 5px;
+}
+
+.weekAheadDay {
+min-width: 155px;
+flex: 0 0 155px;
+}
+
 
 .ffdash-setupStepArrow {
   font-size: 16px;

@@ -1058,6 +1058,157 @@ return (
  </div>
 </section>
 
+<style jsx global>{`
+ .ffdash-weekPanel {
+ margin-bottom: 16px;
+ }
+
+ .ffdash-weekViewAll {
+ font-size: 13px;
+ font-weight: 800;
+ color: #1f355c;
+ text-decoration: none;
+ white-space: nowrap;
+ }
+
+ .ffdash-weekGrid {
+ display: grid !important;
+ grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+ gap: 8px;
+ width: 100%;
+ }
+
+ .ffdash-weekDay {
+ display: block;
+ min-width: 0;
+ min-height: 130px;
+ padding: 10px;
+ border-radius: 14px;
+ background: #f8fbff;
+ border: 1px solid #e6ecf5;
+ }
+
+ .ffdash-weekDayToday {
+ background: #ffffff;
+ border: 2px solid #1f355c;
+ }
+
+ .ffdash-weekDayTop {
+ display: flex !important;
+ flex-direction: column;
+ align-items: center;
+ gap: 4px;
+ margin-bottom: 10px;
+ }
+
+ .ffdash-weekDayTop span {
+ font-size: 11px;
+ font-weight: 900;
+ color: #7a8799;
+ text-transform: uppercase;
+ }
+
+ .ffdash-weekDayTop strong {
+ width: 30px;
+ height: 30px;
+ display: grid;
+ place-items: center;
+ border-radius: 50%;
+ font-size: 13px;
+ color: #1f355c;
+ }
+
+ .ffdash-weekDayToday .ffdash-weekDayTop strong {
+ background: #1f355c;
+ color: white;
+ }
+
+ .ffdash-weekBookings {
+ display: flex;
+ flex-direction: column;
+ gap: 6px;
+ }
+
+ .ffdash-weekBooking {
+ padding: 7px;
+ border-radius: 9px;
+ background: white;
+ border: 1px solid #e6ecf5;
+ text-decoration: none;
+ color: inherit;
+ }
+
+ .ffdash-weekTime {
+ font-size: 10px;
+ font-weight: 900;
+ color: #1f355c;
+ }
+
+ .ffdash-weekCustomer {
+ margin-top: 3px;
+ font-size: 11px;
+ font-weight: 900;
+ color: #1f355c;
+ }
+
+ .ffdash-weekJob {
+ margin-top: 2px;
+ font-size: 10px;
+ color: #7a8799;
+ }
+
+ .ffdash-weekEmpty {
+ text-align: center;
+ font-size: 10px;
+ color: #a0aabd;
+ }
+
+ @media (max-width: 700px) {
+ .ffdash-weekGrid {
+ grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+ gap: 4px;
+ }
+
+ .ffdash-weekDay {
+ min-height: 78px;
+ padding: 6px 2px;
+ border-radius: 10px;
+ }
+
+ .ffdash-weekDayTop {
+ margin-bottom: 6px;
+ }
+
+ .ffdash-weekDayTop span {
+ font-size: 9px;
+ }
+
+ .ffdash-weekDayTop strong {
+ width: 24px;
+ height: 24px;
+ font-size: 11px;
+ }
+
+ .ffdash-weekEmpty {
+ font-size: 8px;
+ }
+
+ .ffdash-weekBooking {
+ padding: 4px 2px;
+ text-align: center;
+ }
+
+ .ffdash-weekTime,
+ .ffdash-weekCustomer {
+ font-size: 8px;
+ }
+
+ .ffdash-weekJob {
+ display: none;
+ }
+ }
+`}</style>
+
 {certificateReminders.length > 0 && (
   <section className="ffdash-card ffdash-cardPad ffdash-certPanel">
     <div className="ffdash-sectionTop">
@@ -2448,143 +2599,6 @@ return (
   line-height: 1.45;
 }
 
-.weekAhead {
-background: #fff;
-border: 1px solid #e7eaf0;
-border-radius: 18px;
-padding: 22px;
-}
-
-.weekAheadHeader {
-display: flex;
-align-items: center;
-justify-content: space-between;
-margin-bottom: 18px;
-}
-
-.weekAheadEyebrow {
-margin: 0 0 4px;
-font-size: 12px;
-font-weight: 700;
-text-transform: uppercase;
-letter-spacing: 0.08em;
-color: #6b7280;
-}
-
-.weekAheadHeader h2 {
-margin: 0;
-font-size: 20px;
-color: #080f1e;
-}
-
-.weekAheadDays {
-display: grid;
-grid-template-columns: repeat(7, minmax(0, 1fr));
-gap: 10px;
-}
-
-.weekAheadDay {
-min-height: 155px;
-background: #f8f9fb;
-border: 1px solid #edf0f4;
-border-radius: 14px;
-padding: 12px;
-}
-
-.weekAheadDay.isToday {
-border: 2px solid #1f355c;
-background: #fff;
-}
-
-.weekAheadDayHeader {
-display: flex;
-justify-content: space-between;
-align-items: center;
-margin-bottom: 12px;
-}
-
-.weekAheadDayHeader span {
-font-size: 12px;
-font-weight: 600;
-color: #6b7280;
-}
-
-.weekAheadDayHeader strong {
-display: flex;
-align-items: center;
-justify-content: center;
-width: 28px;
-height: 28px;
-font-size: 13px;
-color: #080f1e;
-}
-
-.isToday .weekAheadDayHeader strong {
-background: #1f355c;
-color: #fff;
-border-radius: 50%;
-}
-
-.weekAheadBookings {
-display: flex;
-flex-direction: column;
-gap: 8px;
-}
-
-.weekAheadBooking {
-display: block;
-padding: 9px;
-background: #fff;
-border: 1px solid #e8ebf0;
-border-radius: 10px;
-text-decoration: none;
-transition: 0.15s ease;
-}
-
-.weekAheadBooking:hover {
-border-color: #cdd3dd;
-transform: translateY(-1px);
-}
-
-.weekAheadTime {
-margin-bottom: 3px;
-font-size: 11px;
-font-weight: 700;
-color: #1f355c;
-}
-
-.weekAheadBookingInfo strong {
-display: block;
-font-size: 12px;
-line-height: 1.3;
-color: #080f1e;
-}
-
-.weekAheadBookingInfo span {
-display: block;
-margin-top: 2px;
-font-size: 10px;
-line-height: 1.3;
-color: #737b89;
-}
-
-.weekAheadEmpty {
-margin: 0;
-font-size: 11px;
-color: #9ca3af;
-}
-
-@media (max-width: 900px) {
-.weekAheadDays {
-display: flex;
-overflow-x: auto;
-padding-bottom: 5px;
-}
-
-.weekAheadDay {
-min-width: 155px;
-flex: 0 0 155px;
-}
 
 
 .ffdash-setupStepArrow {

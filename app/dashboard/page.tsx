@@ -499,6 +499,18 @@ const monthTotalText = new Intl.NumberFormat("en-GB", {
 );
 setRecentActivity(activity);
 
+const siteVisitBookings = visitRows
+.filter((visit: any) => visit.starts_at)
+.map((visit: any) => ({
+request_id: visit.request_id,
+starts_at: visit.starts_at,
+customer_name:
+requestMap[visit.request_id]?.customerName || "Customer",
+job_type:
+requestMap[visit.request_id]?.jobType || "Job",
+booking_type: "site_visit" as const,
+}));
+
 const jobBookings = allRequests
 .filter((request) => request.job_booked_at)
 .map((request) => ({
@@ -1002,7 +1014,7 @@ return (
 
  <div className="ffdash-weekGrid">
  {weekDays.map((day) => {
- const visits = weekVisits
+ const visits = weekBookings
  .filter((visit) => sameDay(new Date(visit.starts_at), day))
  .sort(
  (a, b) =>

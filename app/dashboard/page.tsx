@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { getEnquiryCounts } from "@/lib/enquiryCounts";
 import { getJobCounts } from "@/lib/jobCounts";
+import "./shared-flow.css";
+
 
 type ProfileLite = {
   id: string;

@@ -1085,7 +1085,13 @@ month: "short",
 selectedBookings.map((booking) => (
 <Link
 key={`${booking.booking_type}-${booking.request_id}-${booking.starts_at}`}
-href={`/dashboard/enquiries?id=${booking.request_id}`}
+href={
+booking.booking_type === "site_visit"
+? `/dashboard/enquiries?id=${booking.request_id}`
+: `/dashboard/bookings?requestId=${encodeURIComponent(
+booking.request_id
+)}`
+}
 className="ffdash-weekRow"
 >
 <div className="ffdash-weekRowTime">

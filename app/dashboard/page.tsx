@@ -83,6 +83,8 @@ const [stats, setStats] = useState<Stats>({
   wonJobs: 0,
   invoices: 0,
 });
+const [selectedDay, setSelectedDay] = useState(new Date());
+
   const [loading, setLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [revenueThisMonth, setRevenueThisMonth] = useState("£0");
@@ -998,133 +1000,132 @@ return (
           </div>
         </section>
 
+
+
 <section className="ffdash-card ffdash-cardPad ffdash-weekPanel">
- <div className="ffdash-sectionTop">
- <div>
- <div className="ffdash-eyebrow">WEEK AHEAD</div>
- <div className="ffdash-muted">
- Your visits and booked jobs this week.
- </div>
- </div>
+<div className="ffdash-sectionTop">
+<div>
+<div className="ffdash-eyebrow">WEEK AHEAD</div>
+<div className="ffdash-muted">
+Your visits and jobs this week.
+</div>
+</div>
 
- <Link href="/dashboard/bookings" className="ffdash-weekViewAll">
- View bookings →
- </Link>
- </div>
+<Link href="/dashboard/bookings" className="ffdash-weekViewAll">
+View bookings →
+</Link>
+</div>
 
- <div className="ffdash-weekGrid">
- {weekDays.map((day) => {
- const dayBookings = weekBookings.filter((booking) =>
- sameDay(new Date(booking.starts_at), day)
- );
+<div className="ffdash-weekGrid">
+{weekDays.map((day) => {
+const dayBookings = weekBookings.filter((booking) =>
+sameDay(new Date(booking.starts_at), day)
+);
 
- const isToday = sameDay(day, today);
+const isToday = sameDay(day, today);
+const isSelected = sameDay(day, selectedDay);
 
- return (
- <div
- key={day.toISOString()}
- className={`ffdash-weekDay ${
- isToday ? "ffdash-weekDayToday" : ""
- }`}
- >
- <div className="ffdash-weekDayTop">
- <span>
- {day.toLocaleDateString("en-GB", {
- weekday: "short",
- })}
- </span>
+return (
+<button
+key={day.toISOString()}
+type="button"
+onClick={() => setSelectedDay(day)}
+className={`ffdash-weekDay ${
+isToday ? "ffdash-weekDayToday" : ""
+} ${isSelected ? "ffdash-weekDaySelected" : ""}`}
+>
+<div className="ffdash-weekDayTop">
+<span>
+{day.toLocaleDateString("en-GB", {
+weekday: "short",
+})}
+</span>
 
- <strong>{day.getDate()}</strong>
- </div>
+<strong>{day.getDate()}</strong>
+</div>
 
- <div
- className={`ffdash-weekCount ${
- dayBookings.length > 0 ? "ffdash-weekCountActive" : ""
- }`}
- >
- {dayBookings.length > 0
- ? `${dayBookings.length} booked`
- : "Free"}
- </div>
- </div>
- );
- })}
- </div>
+<div
+className={`ffdash-weekCount ${
+dayBookings.length > 0 ? "ffdash-weekCountActive" : ""
+}`}
+>
+{dayBookings.length > 0
+? `${dayBookings.length} event${
+dayBookings.length === 1 ? "" : "s"
+}`
+: "Free"}
+</div>
+</button>
+);
+})}
+</div>
 
- <div className="ffdash-weekList">
- {weekDays.map((day) => {
- const dayBookings = weekBookings
- .filter((booking) =>
- sameDay(new Date(booking.starts_at), day)
- )
- .sort(
- (a, b) =>
- new Date(a.starts_at).getTime() -
- new Date(b.starts_at).getTime()
- );
+{(() => {
+const selectedBookings = weekBookings
+.filter((booking) =>
+sameDay(new Date(booking.starts_at), selectedDay)
+)
+.sort(
+(a, b) =>
+new Date(a.starts_at).getTime() -
+new Date(b.starts_at).getTime()
+);
 
- if (dayBookings.length === 0) return null;
+return (
+<div className="ffdash-weekList">
+<div className="ffdash-weekDateLabel">
+{selectedDay.toLocaleDateString("en-GB", {
+weekday: "long",
+day: "numeric",
+month: "short",
+})}
+</div>
 
- return (
- <div key={`list-${day.toISOString()}`}>
- <div className="ffdash-weekDateLabel">
- {day.toLocaleDateString("en-GB", {
- weekday: "long",
- day: "numeric",
- month: "short",
- })}
- </div>
+{selectedBookings.length > 0 ? (
+selectedBookings.map((booking) => (
+<Link
+key={`${booking.booking_type}-${booking.request_id}-${booking.starts_at}`}
+href={`/dashboard/enquiries?id=${booking.request_id}`}
+className="ffdash-weekRow"
+>
+<div className="ffdash-weekRowTime">
+{new Date(booking.starts_at).toLocaleTimeString("en-GB", {
+hour: "2-digit",
+minute: "2-digit",
+})}
+</div>
 
- {dayBookings.map((booking) => (
- <Link
- key={`${booking.booking_type}-${booking.request_id}-${booking.starts_at}`}
- href={`/dashboard/enquiries?id=${booking.request_id}`}
- className="ffdash-weekRow"
- >
- <div className="ffdash-weekRowTime">
- {new Date(booking.starts_at).toLocaleTimeString("en-GB", {
- hour: "2-digit",
- minute: "2-digit",
- })}
- </div>
+<div className="ffdash-weekRowMain">
+<div className="ffdash-weekRowName">
+{booking.customer_name}
+</div>
 
- <div className="ffdash-weekRowMain">
- <div className="ffdash-weekRowName">
- {booking.customer_name}
- </div>
+<div className="ffdash-weekRowJob">
+{booking.job_type}
+</div>
+</div>
 
- <div className="ffdash-weekRowJob">
- {booking.job_type}
- </div>
- </div>
-
- <div
- className={`ffdash-weekType ${
- booking.booking_type === "site_visit"
- ? "ffdash-weekTypeVisit"
- : "ffdash-weekTypeJob"
- }`}
- >
- {booking.booking_type === "site_visit"
- ? "Site visit"
- : "Job"}
- </div>
- </Link>
- ))}
- </div>
- );
- })}
-
- {weekBookings.filter((booking) =>
- weekDays.some((day) =>
- sameDay(new Date(booking.starts_at), day)
- )
- ).length === 0 && (
- <div className="ffdash-weekEmptyState">
- Nothing booked this week.
- </div>
- )}
- </div>
+<div
+className={`ffdash-weekType ${
+booking.booking_type === "site_visit"
+? "ffdash-weekTypeVisit"
+: "ffdash-weekTypeJob"
+}`}
+>
+{booking.booking_type === "site_visit"
+? "Site visit"
+: "Job"}
+</div>
+</Link>
+))
+) : (
+<div className="ffdash-weekEmptyState">
+Nothing booked for this day.
+</div>
+)}
+</div>
+);
+})()}
 </section>
 
 

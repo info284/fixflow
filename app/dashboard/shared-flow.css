@@ -5812,3 +5812,21 @@ grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
  font-size: 12px;
  }
 }
+
+
+.ffdash-weekDay {
+appearance: none;
+font: inherit;
+cursor: pointer;
+}
+
+.ffdash-weekDaySelected {
+border-color: #1f355c;
+box-shadow: 0 0 0 1px #1f355c;
+background: #ffffff;
+}
+
+.ffdash-weekDaySelected .ffdash-weekDayTop strong {
+background: #1f355c;
+color: #ffffff;
+}

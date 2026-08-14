@@ -148,6 +148,8 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: profileErr.message }, { status: 500 });
     }
 
+    console.log("ESTIMATE PDF PROFILE:", profile);
+
     let requestData: {
       job_number: string | null;
       customer_name: string | null;

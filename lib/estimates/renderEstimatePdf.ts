@@ -215,8 +215,8 @@ const address = cleanAddress(estimate.address);
   const PAGE_H = doc.page.height;
 
  const BRAND = safeText(profile.brand_colour) || "#FF00FF";
-  const NAVY = "0B2A55";
-  const NAVY_MID = "#1#F355C";
+const NAVY = "#0B2A55";
+const NAVY_MID = "#1F355C";
   const BLUE = "#245BFF";
   const INK = "#0B1320";
   const MUTED = "#5C6B84";

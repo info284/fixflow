@@ -2027,15 +2027,7 @@ disabled={loading}
 style={{ maxWidth: 180 }}
 />
 
-<div
-style={{
-width: 120,
-height: 44,
-borderRadius: 12,
-background: brandColour,
-border: "1px solid #e6ecf5",
-}}
-/>
+
 </div>
 
 <div className="ff-help">

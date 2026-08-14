@@ -282,6 +282,7 @@ const pdf = await renderEstimatePdfBuffer({
   },
 profile: {
   ...profile,
+  brand_colour: profile?.brand_colour || "#0B2A55",
   logo_buffer: logoBuf,
 },
 certificates: certificates || [],

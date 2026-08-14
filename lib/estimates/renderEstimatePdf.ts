@@ -317,7 +317,7 @@ const address = cleanAddress(estimate.address);
   // Header
   const HEADER_H = 148;
 
-  doc.rect(0, 0, PAGE_W, HEADER_H).fillColor(BRAND).fill();
+ doc.rect(0, 0, PAGE_W, HEADER_H).fillColor("#791a3d").fill();
 
 
 

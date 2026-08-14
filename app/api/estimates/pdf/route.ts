@@ -134,6 +134,7 @@ export async function GET(req: Request) {
      .select(`
   display_name,
   business_name,
+  brand_colour,
   logo_url,
   vat_number,
   business_phone,

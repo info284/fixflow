@@ -20,6 +20,7 @@ type RenderEstimatePdfOpts = {
   profile?: {
     business_name?: string | null;
     display_name?: string | null;
+    brand_colour?: string | null;
     logo_url?: string | null;
     logo_buffer?: Buffer | null;
     vat_number?: string | null;
@@ -213,8 +214,9 @@ const address = cleanAddress(estimate.address);
   const PAGE_W = doc.page.width;
   const PAGE_H = doc.page.height;
 
-  const NAVY = "#0B2A55";
-  const NAVY_MID = "#1F355C";
+  const BRAND = safeText(profile.brand_colour) || "0B2A55";
+  const NAVY = "0B2A55";
+  const NAVY_MID = "#1#F355C";
   const BLUE = "#245BFF";
   const INK = "#0B1320";
   const MUTED = "#5C6B84";
@@ -315,7 +317,7 @@ const address = cleanAddress(estimate.address);
   // Header
   const HEADER_H = 148;
 
-  doc.rect(0, 0, PAGE_W, HEADER_H).fillColor(NAVY).fill();
+  doc.rect(0, 0, PAGE_W, HEADER_H).fillColor(BRAND).fill();
 
 
 

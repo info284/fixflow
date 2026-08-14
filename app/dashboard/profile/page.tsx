@@ -14,6 +14,7 @@ type ProfileRow = {
   id: string;
   slug: string | null;
   display_name: string | null;
+  brand_colour: string | null;
   headline: string | null;
   notify_email: string | null;
   logo_url: string | null;
@@ -220,6 +221,7 @@ const [certificateBusy, setCertificateBusy] = useState(false);
   const [slug, setSlug] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [headline, setHeadline] = useState("");
+  const [brandColour, setBrandColour] = useState("#2563EB");
   const [businessDescription, setBusinessDescription] = useState("");
   const [notifyEmail, setNotifyEmail] = useState("");
   const [businessPhone, setBusinessPhone] = useState("");
@@ -528,7 +530,7 @@ const loadReviews = async (uid: string) => {
       const { data, error } = await supabase
         .from("profiles")
 .select(
-  "id, slug, display_name, headline, notify_email, logo_url, profile_photo_url, business_phone, business_description, years_in_business, trading_address, insurance_cover, after_job_guarantee, completion_email_enabled, default_completion_message, vat_number, bank_name, bank_account_name, bank_sort_code, bank_account_number, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled"
+  "id, slug, display_name, brand_colour, headline, notify_email, logo_url, profile_photo_url, business_phone, business_description, years_in_business, trading_address, insurance_cover, after_job_guarantee, completion_email_enabled, default_completion_message, vat_number, bank_name, bank_account_name, bank_sort_code, bank_account_number, stripe_account_id, stripe_charges_enabled, stripe_payouts_enabled"
 )
         .eq("id", user.id)
         .maybeSingle();
@@ -544,6 +546,7 @@ const loadReviews = async (uid: string) => {
 
       setSlug(p?.slug || "");
       setDisplayName(p?.display_name || "");
+      setBrandColour(p?.brand_colour || "#2563EB");
       setHeadline(p?.headline || "");
       setBusinessDescription(p?.business_description || "");
       setYearsInBusiness(
@@ -749,6 +752,7 @@ async function manageSubscription() {
       .update({
         slug: cleanSlug || null,
         display_name: displayName.trim() || null,
+        brand_colour: brandColour,
         headline: headline.trim() || null,
         business_description: businessDescription.trim() || null,
         years_in_business: yearsInBusiness
@@ -781,6 +785,7 @@ default_completion_message:
       ...(prev || ({ id: userId } as ProfileRow)),
       slug: cleanSlug || null,
       display_name: displayName.trim() || null,
+      brand_colour: brandColour,
       headline: headline.trim() || null,
       notify_email: notifyEmail.trim() || null,
       business_description: businessDescription.trim() || null,
@@ -1985,6 +1990,59 @@ const reviewStats = useMemo(() => {
                     />
                   </div>
                 </div>
+<div className="ff-divider" />
+
+<div className="ff-sectionTitle">Branding</div>
+
+<div className="ff-help">
+Choose the colour FixFlow will use on your estimates, invoices and customer-facing documents.
+</div>
+
+<div className="ff-field" style={{ marginTop: 14 }}>
+<label className="ff-label">Brand colour</label>
+
+<div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+<input
+type="color"
+value={brandColour}
+onChange={(e) => setBrandColour(e.target.value)}
+disabled={loading}
+style={{
+width: 56,
+height: 44,
+padding: 0,
+border: "1px solid #e6ecf5",
+borderRadius: 12,
+background: "#fff",
+cursor: "pointer",
+}}
+/>
+
+<input
+className="ff-input"
+value={brandColour}
+onChange={(e) => setBrandColour(e.target.value)}
+placeholder="#2563EB"
+disabled={loading}
+style={{ maxWidth: 180 }}
+/>
+
+<div
+style={{
+width: 120,
+height: 44,
+borderRadius: 12,
+background: brandColour,
+border: "1px solid #e6ecf5",
+}}
+/>
+</div>
+
+<div className="ff-help">
+This colour will be used as an accent so your documents match your business branding.
+</div>
+</div>
+
 <div className="ff-field">
   <label className="ff-label">Business description</label>
   <textarea

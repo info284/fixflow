@@ -1086,11 +1086,9 @@ selectedBookings.map((booking) => (
 <Link
 key={`${booking.booking_type}-${booking.request_id}-${booking.starts_at}`}
 href={
-booking.booking_type === "site_visit"
-? `/dashboard/enquiries?id=${booking.request_id}`
-: `/dashboard/bookings?requestId=${encodeURIComponent(
-booking.request_id
-)}`
+booking.booking_type === "job"
+? `/dashboard/bookings?requestId=${booking.request_id}`
+: `/dashboard/enquiries?requestId=${booking.request_id}`
 }
 className="ffdash-weekRow"
 >

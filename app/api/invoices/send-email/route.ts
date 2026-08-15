@@ -156,7 +156,7 @@ export async function POST(req: Request) {
 
     const { data: prof, error: profErr } = await admin
       .from("profiles")
-      .select("display_name, slug, logo_url, business_name, vat_number")
+      .select("display_name, slug, logo_url, business_name, vat_number, brand_colour")
       .eq("id", uid)
       .maybeSingle();
 

@@ -25,8 +25,8 @@ type RenderEstimatePdfOpts = {
     logo_buffer?: Buffer | null;
     vat_number?: string | null;
     business_phone?: string | null;
-business_email?: string | null;
-business_address?: string | null;
+notify_email?: string | null;
+trading_address?: string | null;
   } | null;
 };
 
@@ -214,7 +214,7 @@ const address = cleanAddress(estimate.address);
   const PAGE_W = doc.page.width;
   const PAGE_H = doc.page.height;
 
- const BRAND = safeText(profile.brand_colour) || "#B2A55";
+ const BRAND = safeText(profile.brand_colour) || "#0B2A55";
 const NAVY = "#0B2A55";
 const NAVY_MID = "#1F355C";
   const BLUE = "#245BFF";
@@ -298,10 +298,10 @@ const NAVY_MID = "#1F355C";
       }
     }
 
-    rBox(x, y, size, size, 10, SOFT_BLUE, BORDER);
+    rBox(x, y, size, size, 10, WHITE, BORDER);
 
     doc
-      .fillColor(NAVY)
+      .fillColor(BRAND)
       .font("Helvetica-Bold")
       .fontSize(18)
       .text(traderName.charAt(0).toUpperCase(), x, y + 12, {
@@ -423,13 +423,13 @@ doc
     lineBreak: false,
   });
 
-const businessAddress = cleanAddress(profile.business_address);
+const businessAddress = cleanAddress(profile.trading_address);
 
 const fromLines = [
-  safeText(profile.business_phone),
-  safeText(profile.business_email),
-  businessAddress,
-  profile.vat_number ? `VAT No. ${safeText(profile.vat_number)}` : "",
+safeText(profile.business_phone),
+safeText(profile.notify_email),
+businessAddress,
+profile.vat_number ? `VAT No. ${safeText(profile.vat_number)}` : "",
 ]
   .filter(Boolean)
   .join("\n");
@@ -477,46 +477,57 @@ const toLines = [
   doc
     .save()
     .moveTo(M + halfW, y)
-    .lineTo(M + halfW, y + 80)
+    .lineTo(M + halfW, y + 118)
     .strokeColor(BORDER)
     .lineWidth(0.75)
     .stroke()
     .restore();
 
-  y += 100;
+  y += 138;
 
   // Hero total
-  rBox(M, y, W, 80, 14, SOFT_BLUE, "#C7D9FF", 0.75);
+  rBox(M, y, W, 80, 14, BRAND, BRAND, 0);
 
   eyebrow("Estimate total", M + 20, y + 16, 160);
 
-  doc
-    .fillColor(NAVY)
-    .font("Helvetica-Bold")
-    .fontSize(34)
-    .text(money(total), M + 20, y + 30, {
-      width: 260,
-      lineBreak: false,
-    });
+doc
+.fillColor(WHITE)
+.font("Helvetica-Bold")
+.fontSize(7)
+.text("ESTIMATE TOTAL", M + 20, y + 16, {
+width: 160,
+characterSpacing: 1.1,
+lineBreak: false,
+});
+
+doc
+.fillColor(WHITE)
+.font("Helvetica-Bold")
+.fontSize(34)
+.text(money(total), M + 20, y + 30, {
+width: 260,
+lineBreak: false,
+});
 
   const heroDesc = customerMessage || description || jobType;
 
-  doc
-    .fillColor(MUTED)
-    .font("Helvetica")
-    .fontSize(9)
-    .text(heroDesc, M + 20, y + 64, {
-      width: W - 180,
-      lineBreak: false,
-    });
+doc
+.fillColor("#F3E8EE")
+.font("Helvetica")
+.fontSize(9)
+.text(heroDesc, M + 20, y + 57, {
+width: W - 40,
+height: 18,
+ellipsis: true,
+});
 
 const badge = statusLabel(estimate.status);
 
 if (badge) {
-  rBox(M + W - 156, y + 26, 138, 28, 14, NAVY, NAVY, 0);
+  rBox(M + W - 156, y + 26, 138, 28, 14, BRAND, BRAND, 0);
 
   doc
-    .fillColor(WHITE)
+    .fillColor(BRAND)
     .font("Helvetica-Bold")
     .fontSize(8)
     .text(badge, M + W - 150, y + 36, {
@@ -683,7 +694,7 @@ if (badge) {
     });
 
   doc
-    .fillColor(NAVY)
+    .fillColor(BRAND)
     .font("Helvetica-Bold")
     .fontSize(20)
     .text(money(total), totX, y - 4, {
@@ -696,7 +707,7 @@ if (badge) {
 
 // Approve guide
 if (y < PAGE_H - 110) {
-  rBox(M, y, W, 66, 14, NAVY, NAVY, 0);
+  rBox(M, y, W, 66, 14, BRAND, BRAND, 0);
 
   doc
     .fillColor(WHITE)
@@ -708,7 +719,7 @@ if (y < PAGE_H - 110) {
     });
 
   doc
-    .fillColor("#C9D8F0")
+    .fillColor("#F3E8EE")
     .font("Helvetica")
     .fontSize(8.5)
     .text(

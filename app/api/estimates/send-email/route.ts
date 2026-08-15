@@ -309,11 +309,21 @@ export async function POST(req: Request) {
       throw new Error(`Estimate items load failed: ${itemsErr.message}`);
     }
 
-    const { data: profile, error: profileErr } = await admin
-      .from("profiles")
-      .select("display_name, business_name, slug, logo_url, brand_colour")
-      .eq("id", uid)
-      .maybeSingle();
+const { data: profile, error: profileErr } = await admin
+.from("profiles")
+.select(`
+display_name,
+business_name,
+slug,
+brand_colour,
+logo_url,
+vat_number,
+business_phone,
+notify_email,
+trading_address
+`)
+.eq("id", uid)
+.maybeSingle();
 
     if (profileErr) {
       throw new Error(`Profile load failed: ${profileErr.message}`);

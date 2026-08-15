@@ -161,6 +161,8 @@ if (certificatesErr) {
         fallbackEnquiryDetails || String(inv.notes || "").trim() || "—",
     };
 
+    console.log("INVOICE PDF PROFILE:", prof);
+
 const pdf = await renderInvoicePdfBuffer({
   invoice: invoiceForPdf,
   profile: prof,

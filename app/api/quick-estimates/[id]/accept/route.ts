@@ -84,7 +84,7 @@ async function acceptQuickEstimate(id: string) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("business_name, display_name")
+    .select("business_name, display_name, logo_url")
     .eq("id", existing.plumber_id)
     .maybeSingle();
 
@@ -123,12 +123,14 @@ async function acceptQuickEstimate(id: string) {
   return {
     accepted_at: finalAcceptedAt,
     traderName,
+    logoUrl: profile?.logo_url || null,
     total,
   };
 }
 
-function successHtml(traderName: string, acceptedAt: string, total: number) {
+function successHtml(traderName: string, logoUrl: string | null, acceptedAt: string, total: number) {
   const safeTraderName = escapeHtml(traderName);
+  const safeLogoUrl = escapeHtml(logoUrl || "");
   const safeAcceptedAt = escapeHtml(niceDateTime(acceptedAt));
   const safeTotal = escapeHtml(money(total));
 
@@ -153,9 +155,23 @@ function successHtml(traderName: string, acceptedAt: string, total: number) {
 
       <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:28px;">
         <div style="display:flex; align-items:center; gap:14px;">
-          <div style="width:54px; height:54px; border-radius:16px; background:linear-gradient(180deg,#245BFF,#0B2A55); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:28px;">
-            F
-          </div>
+${
+safeLogoUrl
+? `
+<div style="width:54px; height:54px; border-radius:16px; background:#fff; border:1px solid #E6ECF5; display:flex; align-items:center; justify-content:center; overflow:hidden;">
+<img
+src="${safeLogoUrl}"
+alt="${safeTraderName}"
+style="width:100%; height:100%; object-fit:contain; display:block;"
+/>
+</div>
+`
+: `
+<div style="width:54px; height:54px; border-radius:16px; background:linear-gradient(180deg,#245BFF,#0B2A55); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:28px;">
+${safeTraderName.slice(0, 1).toUpperCase()}
+</div>
+`
+}
           <div>
             <div style="font-size:24px; font-weight:900; color:#0B2A55; line-height:1.1;">
               ${safeTraderName}
@@ -246,6 +262,7 @@ export async function GET(
     return new Response(
       successHtml(
         result.traderName,
+        result.logoUrl,
         result.accepted_at,
         result.total
       ),

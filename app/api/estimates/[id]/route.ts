@@ -73,7 +73,7 @@ const { data: profile } = enquiry?.plumber_id
 business_name: profile?.business_name || null,
 trader_email: profile?.notify_email || null,
 trader_phone: profile?.business_phone || null,
-logo_url: profile?.logo_url || "TEST-LOGO",
+logo_url: profile?.logo_url || null,
     },
   });
 }

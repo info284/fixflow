@@ -415,13 +415,13 @@ const toLines = [
   doc
     .save()
     .moveTo(M + halfW, y)
-    .lineTo(M + halfW, y + 80)
+    .lineTo(M + halfW, y + 118)
     .strokeColor(BORDER)
     .lineWidth(0.75)
     .stroke()
     .restore();
 
-  y += 100;
+  y += 138;
 
   rBox(M, y, W, 80, 14, SOFT_BLUE, "#C7D9FF", 0.75);
 

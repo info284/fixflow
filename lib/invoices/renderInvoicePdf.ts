@@ -160,7 +160,7 @@ const dueDateText = dueDate || "Payment due on receipt";
   const PAGE_W = doc.page.width;
   const PAGE_H = doc.page.height;
 
-  const BRAND = safeText(profile.brand_colour) || "#FF00FF";
+  const BRAND = safeText(profile.brand_colour) || "#0B2A55";
   const NAVY = "#0B2A55";
   const NAVY_MID = "#1F355C";
   const BLUE = "#245BFF";
@@ -361,14 +361,14 @@ const dueDateText = dueDate || "Payment due on receipt";
       lineBreak: false,
     });
 
-  const businessAddress = cleanAddress(profile.business_address);
+  const businessAddress = cleanAddress(profile.trading_address);
 
-  const fromLines = [
-    safeText(profile.business_phone),
-    safeText(profile.business_email),
-    businessAddress,
-    profile.vat_number ? `VAT No. ${safeText(profile.vat_number)}` : "",
-  ]
+const fromLines = [
+safeText(profile.business_phone),
+safeText(profile.notify_email),
+businessAddress,
+profile.vat_number ? `VAT No. ${safeText(profile.vat_number)}` : "",
+]
     .filter(Boolean)
     .join("\n");
 

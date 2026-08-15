@@ -154,11 +154,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const { data: prof, error: profErr } = await admin
-      .from("profiles")
-      .select("display_name, slug, logo_url, business_name, vat_number, brand_colour")
-      .eq("id", uid)
-      .maybeSingle();
+const { data: prof, error: profErr } = await admin
+.from("profiles")
+.select(`
+display_name,
+slug,
+logo_url,
+business_name,
+vat_number,
+business_phone,
+notify_email,
+trading_address,
+brand_colour
+`)
+.eq("id", uid)
+.maybeSingle();
 
     if (profErr) throw new Error(`Profile load failed: ${profErr.message}`);
 

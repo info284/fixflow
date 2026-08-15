@@ -242,10 +242,10 @@ const dueDateText = dueDate || "Payment due on receipt";
       } catch {}
     }
 
-    rBox(x, y, size, size, 10, SOFT_BLUE, BORDER);
+    rBox(x, y, size, size, 10, WHITE, BORDER);
 
     doc
-      .fillColor(NAVY)
+      .fillColor(BRAND)
       .font("Helvetica-Bold")
       .fontSize(18)
       .text(traderName.charAt(0).toUpperCase(), x, y + 12, {
@@ -423,21 +423,31 @@ const toLines = [
 
   y += 138;
 
-  rBox(M, y, W, 80, 14, SOFT_BLUE, "#C7D9FF", 0.75);
+  rBox(M, y, W, 80, 14, BRAND, BRAND, 0);
 
   eyebrow("Amount due", M + 20, y + 16, 160);
 
-  doc
-    .fillColor(NAVY)
-    .font("Helvetica-Bold")
-    .fontSize(34)
-    .text(money(total), M + 20, y + 30, {
-      width: 260,
-      lineBreak: false,
-    });
+doc
+.fillColor(WHITE)
+.font("Helvetica-Bold")
+.fontSize(7)
+.text("AMOUNT DUE", M + 20, y + 16, {
+width: 160,
+characterSpacing: 1.1,
+lineBreak: false,
+});
+
+doc
+.fillColor(WHITE)
+.font("Helvetica-Bold")
+.fontSize(34)
+.text(money(total), M + 20, y + 30, {
+width: 260,
+lineBreak: false,
+});
 
   doc
-    .fillColor(MUTED)
+    .fillColor("#F3E8EE")
     .font("Helvetica")
     .fontSize(9)
     .text(dueDate ? `Payment due by ${dueDate}` : dueDateText, M + 20, y + 64, {
@@ -448,10 +458,10 @@ const toLines = [
   const badge = invoiceStatusLabel(invoice.status);
 
   if (badge) {
-    rBox(M + W - 156, y + 26, 138, 28, 14, NAVY, NAVY, 0);
+    rBox(M + W - 156, y + 26, 138, 28, 14, WHITE, WHITE, 0);
 
     doc
-      .fillColor(WHITE)
+      .fillColor(BRAND)
       .font("Helvetica-Bold")
       .fontSize(8)
       .text(badge, M + W - 150, y + 36, {
@@ -627,7 +637,7 @@ const toLines = [
   y += 36;
 
   if (invoice.status !== "paid" && y < PAGE_H - 110) {
-    rBox(M, y, W, 66, 14, NAVY, NAVY, 0);
+    rBox(M, y, W, 66, 14, BRAND, BRAND, 0);
 
     doc
       .fillColor(WHITE)
@@ -639,7 +649,7 @@ const toLines = [
       });
 
     doc
-      .fillColor("#C9D8F0")
+      .fillColor(WHITE)
       .font("Helvetica")
       .fontSize(8.5)
       .text(
@@ -697,8 +707,8 @@ const toLines = [
         .fillColor(NAVY_MID)
         .font("Helvetica-Bold")
         .fontSize(7.5)
-        .text(label, pillX + 14, pillY + 8, {
-          width: pillW - 24,
+        .text(label, pillX + 22, pillY + 8, {
+          width: pillW - 30,
           lineBreak: false,
         });
 

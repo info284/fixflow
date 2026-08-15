@@ -249,10 +249,22 @@ brand_colour
         enquiryDetails || enquiryAddress || String(inv.notes || "").trim() || "—",
     };
 
+const { data: certificates, error: certificatesErr } = await admin
+.from("trader_certificates")
+.select("id, name, certificate_number, expiry_date, show_on_invoices")
+.eq("trader_id", uid)
+.eq("show_on_invoices", true)
+.order("expiry_date", { ascending: true });
+
+if (certificatesErr) {
+throw new Error(`Certificates load failed: ${certificatesErr.message}`);
+}
+
     const pdfBuffer = await renderInvoicePdfBuffer({
       invoice: invoiceForPdf,
       profile: prof,
       fallbackEnquiryDetails: enquiryDetails || enquiryAddress || "",
+      certificates: certificates || [],
     });
 
     if (!pdfBuffer || pdfBuffer.length < 500) {

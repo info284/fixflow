@@ -160,6 +160,7 @@ const dueDateText = dueDate || "Payment due on receipt";
   const PAGE_W = doc.page.width;
   const PAGE_H = doc.page.height;
 
+  const BRAND = safeText(profile.brand_colour) || "#0B2A55";
   const NAVY = "#0B2A55";
   const NAVY_MID = "#1F355C";
   const BLUE = "#245BFF";
@@ -258,7 +259,7 @@ const dueDateText = dueDate || "Payment due on receipt";
 
   const HEADER_H = 148;
 
-  doc.rect(0, 0, PAGE_W, HEADER_H).fillColor(NAVY).fill();
+  doc.rect(0, 0, PAGE_W, HEADER_H).fillColor(BRAND).fill();
 
   drawLogo(M, 28, 44);
 

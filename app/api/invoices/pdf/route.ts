@@ -92,7 +92,7 @@ export async function GET(req: Request) {
 
     const { data: prof, error: pErr } = await admin
       .from("profiles")
-      .select("display_name, business_name, logo_url, vat_number")
+      .select("display_name, business_name, logo_url, vat_number, brand_colour")
       .eq("id", uid)
       .maybeSingle();
 

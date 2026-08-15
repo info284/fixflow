@@ -488,7 +488,7 @@ const toLines = [
   // Hero total
   rBox(M, y, W, 80, 14, BRAND, BRAND, 0);
 
-  eyebrow("Estimate total", M + 20, y + 16, 160);
+
 
 doc
 .fillColor(WHITE)
@@ -504,7 +504,7 @@ doc
 .fillColor(WHITE)
 .font("Helvetica-Bold")
 .fontSize(34)
-.text(money(total), M + 20, y + 30, {
+.text(money(total), M + 20, y + 24, {
 width: 260,
 lineBreak: false,
 });
@@ -694,7 +694,7 @@ if (badge) {
     });
 
   doc
-    .fillColor(BRAND)
+    .fillColor(NAVY)
     .font("Helvetica-Bold")
     .fontSize(20)
     .text(money(total), totX, y - 4, {

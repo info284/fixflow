@@ -52,7 +52,7 @@ const { data: enquiry } = await supabase
 const { data: profile } = enquiry?.plumber_id
   ? await supabase
       .from("profiles")
-      .select("display_name, business_name, notify_email, phone, logo_url")
+      .select("display_name, business_name, notify_email, business_phone, logo_url")
       .eq("id", enquiry.plumber_id)
       .maybeSingle()
   : { data: null };
@@ -72,8 +72,8 @@ const { data: profile } = enquiry?.plumber_id
       trader_name: profile?.display_name || null,
 business_name: profile?.business_name || null,
 trader_email: profile?.notify_email || null,
-trader_phone: profile?.phone || null,
-logo_url: profile?.logo_url || null,
+trader_phone: profile?.business_phone || null,
+logo_url: profile?.logo_url || "TEST-LOGO",
     },
   });
 }

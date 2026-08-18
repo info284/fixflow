@@ -137,6 +137,9 @@ detailed workforce and back-office management.
 <h2>Compare the essentials.</h2>
 </div>
 
+<div className="competitorSwipeHint">
+Swipe to compare FixFlow and Tradify →
+</div>
 <div className="competitorTableWrap">
 <table className="competitorTable">
 <thead>

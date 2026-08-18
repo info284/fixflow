@@ -135,6 +135,9 @@ or more complex field-service operations.
 <h2>Compare the essentials.</h2>
 </div>
 
+<div className="competitorSwipeHint">
+Swipe to compare FixFlow and Jobber →
+</div>
 <div className="competitorTableWrap">
 <table className="competitorTable">
 <thead>

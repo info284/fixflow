@@ -1542,3 +1542,242 @@ font-size: 13px;
 font-weight: 700;
 color: var(--blue);
 }
+
+.competitorSwipeHint {
+  display: none;
+}
+
+@media (max-width: 800px) {
+.competitorTable {
+min-width: 0;
+width: 100%;
+table-layout: fixed;
+}
+
+.competitorTableWrap {
+overflow-x: visible;
+}
+
+.competitorTable th,
+.competitorTable td {
+padding: 18px 12px;
+}
+
+.competitorTable th:first-child,
+.competitorTable td:first-child {
+width: 44%;
+}
+
+.competitorTable th:nth-child(2),
+.competitorTable td:nth-child(2),
+.competitorTable th:nth-child(3),
+.competitorTable td:nth-child(3) {
+width: 28%;
+text-align: center;
+}
+
+.competitorTable th {
+font-size: 12px;
+}
+
+.competitorTable td {
+font-size: 14px;
+}
+
+.competitorTable td:first-child {
+font-weight: 700;
+}
+}
+
+/* ================================
+   FIXFLOW VISUAL ALIGNMENT OVERRIDES
+================================ */
+
+/* Homepage compare section */
+.homeCompare {
+  background: var(--off);
+  padding: 100px 28px;
+}
+
+.homeCompareEyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--blue);
+}
+
+.homeCompare h2 {
+  max-width: 720px;
+  font-size: clamp(34px, 4.5vw, 52px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
+
+.homeCompareIntro {
+  margin-top: 18px;
+  font-size: 18px;
+  line-height: 1.65;
+  color: var(--muted);
+}
+
+/* Main compare page hero */
+.compareHero {
+  position: relative;
+  overflow: hidden;
+  padding: 110px 28px 100px;
+  background: var(--navy);
+}
+
+.compareHero::before {
+  content: "";
+  position: absolute;
+  top: -180px;
+  left: 50%;
+  width: 900px;
+  height: 650px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(26, 79, 255, 0.2) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.compareHero .compareInner {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+}
+
+.compareHero .compareEyebrow {
+  color: #7fa4ff;
+}
+
+.compareHero h1 {
+  color: #ffffff;
+  font-size: clamp(44px, 6.5vw, 78px);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+}
+
+.compareHero p {
+  max-width: 700px;
+  margin-top: 28px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 19px;
+  line-height: 1.6;
+}
+
+/* Competitor-specific hero */
+.competitorHero {
+  position: relative;
+  overflow: hidden;
+  padding: 110px 28px 100px;
+  background: var(--navy);
+}
+
+.competitorHero::before {
+  content: "";
+  position: absolute;
+  top: -180px;
+  left: 50%;
+  width: 900px;
+  height: 650px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(26, 79, 255, 0.2) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.competitorHeroInner {
+  position: relative;
+  z-index: 1;
+}
+
+.competitorHero .compareEyebrow {
+  color: #7fa4ff;
+}
+
+.competitorHero h1 {
+  color: #ffffff;
+}
+
+.competitorHero h1 span {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.competitorHero p {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Secondary button on dark hero */
+.competitorSecondaryButton {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.competitorSecondaryButton:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: none;
+}
+
+/* Bring cards in line with homepage */
+.compareChoiceCard,
+.competitorIntroCard,
+.methodologyBlock {
+  border-radius: 24px;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 12px rgba(11, 22, 39, 0.05);
+}
+
+.compareChoiceCard h3,
+.competitorIntroCard h2,
+.methodologyBlock h2 {
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+/* More consistent section rhythm */
+.compareChoices,
+.competitorIntro,
+.methodologySection {
+  background: var(--off);
+}
+
+.compareFlow,
+.competitorTableSection,
+.competitorPrice {
+  background: #ffffff;
+}
+
+/* Mobile */
+@media (max-width: 800px) {
+  .compareHero,
+  .competitorHero {
+    padding: 82px 20px 72px;
+  }
+
+  .compareHero h1,
+  .competitorHero h1 {
+    font-size: clamp(42px, 12vw, 60px);
+    line-height: 0.98;
+  }
+
+  .compareHero p,
+  .competitorHero p {
+    font-size: 17px;
+  }
+
+  .homeCompare {
+    padding: 72px 20px;
+  }
+}

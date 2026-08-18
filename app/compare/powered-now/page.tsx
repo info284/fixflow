@@ -134,6 +134,9 @@ platform.
 <h2>Compare the essentials.</h2>
 </div>
 
+<div className="competitorSwipeHint">
+Swipe to compare FixFlow and Powered-now →
+</div>
 <div className="competitorTableWrap">
 <table className="competitorTable">
 <thead>

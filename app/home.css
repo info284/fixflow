@@ -1857,3 +1857,9 @@ font-weight: 700;
   }
 }
 
+@media (max-width: 800px) {
+  .competitorTable td:nth-child(3) {
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+}

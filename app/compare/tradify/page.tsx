@@ -13,9 +13,9 @@ description:
 
 const rows = [
 {
-feature: "Starting price",
-fixflow: "£29/month",
-tradify: "£34/user/month",
+  feature: "Starting price",
+  fixflow: "£29/month",
+  tradify: "£34/user /month",
 },
 {
 feature: "Free trial",

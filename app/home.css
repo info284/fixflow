@@ -1324,6 +1324,10 @@ color: var(--text);
 color: var(--muted);
 }
 
+.competitorPrice .comparePrimaryButton {
+  margin-top: 28px;
+}
+
 /* RESPONSIVE */
 
 @media (max-width: 800px) {
@@ -1554,6 +1558,15 @@ color: var(--blue);
 min-width: 0;
 width: 100%;
 table-layout: fixed;
+}
+
+.competitorTable td {
+  overflow-wrap: anywhere;
+}
+
+.competitorTable td:nth-child(3) {
+  font-size: 13px;
+  line-height: 1.35;
 }
 
 .competitorTableWrap {
@@ -1843,3 +1856,4 @@ font-weight: 700;
     margin-top: 12px;
   }
 }
+

@@ -7,6 +7,7 @@ import HomeWhy from "@/app/components/home/HomeWhy";
 import HomeFeatures from "@/app/components/home/HomeFeatures";
 import HomeDarkFeatures from "@/app/components/home/HomeDarkFeatures";
 import HomeStatement from "@/app/components/home/HomeStatement";
+import HomeTools from "@/app/components/home/HomeTools";
 import HomeCompare from "@/app/components/home/HomeCompare";
 import HomeFounder from "@/app/components/home/HomeFounder";
 import HomePricing from "@/app/components/home/HomePricing";
@@ -26,6 +27,7 @@ export default function HomePage() {
       <HomeFeatures />
       <HomeDarkFeatures />
       <HomeStatement />
+      <HomeTools />
       <HomeCompare />
       <HomeFounder />
       <HomePricing />

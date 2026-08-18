@@ -130,19 +130,21 @@ img { display: block; max-width: 100%; }
   max-width: 1160px; margin: 0 auto; position: relative; z-index: 1;
 }
 .homeHeroBadge {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 7px 14px; border-radius: 999px;
-  background: rgba(26, 79, 255, 0.14);
-  border: 1px solid rgba(26, 79, 255, 0.3);
+  display: block;
+  padding: 0;
+  margin-bottom: 24px;
+
+  background: transparent;
+  border: none;
+  border-radius: 0;
+
   color: #7fa4ff;
-  font-size: 13px; font-weight: 600;
-  margin-bottom: 32px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
-.homeHeroBadgeDot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: #7fa4ff;
-  animation: fixflowPulse 2s ease-in-out infinite;
-}
+
 @keyframes fixflowPulse {
   0%, 100% { opacity: 1; } 50% { opacity: 0.35; }
 }
@@ -1779,5 +1781,65 @@ font-weight: 700;
 
   .homeCompare {
     padding: 72px 20px;
+  }
+}
+
+/* ================================
+   FIXFLOW STATEMENT
+================================ */
+
+.homeStatement {
+  position: relative;
+  overflow: hidden;
+  padding: 110px 28px;
+  background: var(--navy);
+}
+
+.homeStatement::before {
+  content: "";
+  position: absolute;
+  top: -200px;
+  left: 50%;
+  width: 900px;
+  height: 700px;
+  transform: translateX(-50%);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(42, 92, 246, 0.18) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.homeStatement .homeContainer {
+  position: relative;
+  z-index: 1;
+}
+
+.homeStatementLines p {
+  font-size: clamp(48px, 8vw, 96px);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.055em;
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.homeStatementLines .homeStatementBrand {
+  margin-top: 16px;
+  color: #ffffff;
+}
+
+@media (max-width: 600px) {
+  .homeStatement {
+    padding: 80px 20px;
+  }
+
+  .homeStatementLines p {
+    font-size: clamp(46px, 14vw, 68px);
+    line-height: 0.94;
+  }
+
+  .homeStatementLines .homeStatementBrand {
+    margin-top: 12px;
   }
 }

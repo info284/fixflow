@@ -14,10 +14,9 @@ height={60}
     priority
   />
 </div>
-        <div className="homeHeroBadge">
-          <div className="homeHeroBadgeDot" />
-          Built for UK tradespeople
-        </div>
+<div className="homeHeroBadge">
+  Built for the trades
+</div>
 
         <h1 className="homeHeroHeadline">
           Stop losing jobs<br />you&apos;ve <em>already won.</em>

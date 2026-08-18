@@ -1,10 +1,12 @@
 // app/page.tsx
+
 import HomeNav from "@/app/components/home/HomeNav";
 import HomeHero from "@/app/components/home/HomeHero";
 import HomeBand from "@/app/components/home/HomeBand";
 import HomeWhy from "@/app/components/home/HomeWhy";
 import HomeFeatures from "@/app/components/home/HomeFeatures";
 import HomeDarkFeatures from "@/app/components/home/HomeDarkFeatures";
+import HomeStatement from "@/app/components/home/HomeStatement";
 import HomeCompare from "@/app/components/home/HomeCompare";
 import HomeFounder from "@/app/components/home/HomeFounder";
 import HomePricing from "@/app/components/home/HomePricing";
@@ -23,6 +25,7 @@ export default function HomePage() {
       <HomeWhy />
       <HomeFeatures />
       <HomeDarkFeatures />
+      <HomeStatement />
       <HomeCompare />
       <HomeFounder />
       <HomePricing />

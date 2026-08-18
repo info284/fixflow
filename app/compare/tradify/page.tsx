@@ -242,6 +242,13 @@ Features and pricing may vary by subscription and can change.
 Tradify is a trademark of its respective owner and is not affiliated
 with or endorsed by FixFlow.
 </p>
+
+<Link
+href="/compare/methodology"
+className="comparisonMethodologyLink"
+>
+See how we research and verify our comparisons →
+</Link>
 </div>
 </section>
 

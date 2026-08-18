@@ -1405,3 +1405,140 @@ gap: 20px;
 padding: 26px;
 }
 }
+
+/* ================================
+COMPARISON METHODOLOGY
+================================ */
+
+.methodologySection {
+padding: 100px 24px;
+background: var(--off);
+}
+
+.methodologyContent {
+max-width: 860px;
+margin: 0 auto;
+display: grid;
+gap: 22px;
+}
+
+.methodologyBlock {
+padding: 38px;
+background: #ffffff;
+border: 1px solid var(--border);
+border-radius: 24px;
+box-shadow: 0 3px 16px rgba(11, 22, 39, 0.04);
+}
+
+.methodologyBlock h2 {
+margin: 8px 0 0;
+font-size: clamp(26px, 4vw, 36px);
+font-weight: 900;
+line-height: 1.05;
+letter-spacing: -0.04em;
+color: var(--text);
+}
+
+.methodologyBlock p {
+margin-top: 18px;
+font-size: 16px;
+line-height: 1.75;
+color: var(--muted);
+}
+
+.methodologyDefinitions {
+margin-top: 28px;
+display: grid;
+gap: 18px;
+}
+
+.methodologyDefinitions > div {
+padding: 22px;
+background: var(--off);
+border-radius: 16px;
+}
+
+.methodologyDefinitions strong {
+display: block;
+font-size: 17px;
+font-weight: 800;
+color: var(--text);
+}
+
+.methodologyDefinitions p {
+margin-top: 7px;
+font-size: 15px;
+}
+
+.methodologyLinks {
+margin-top: 24px;
+display: flex;
+gap: 12px;
+flex-wrap: wrap;
+}
+
+.methodologyLinks a {
+display: inline-flex;
+align-items: center;
+min-height: 44px;
+padding: 0 17px;
+border: 1px solid var(--border);
+border-radius: 12px;
+color: var(--blue);
+background: #ffffff;
+font-size: 14px;
+font-weight: 700;
+transition:
+transform 0.18s ease,
+border-color 0.18s ease;
+}
+
+.methodologyLinks a:hover {
+transform: translateY(-1px);
+border-color: rgba(42, 92, 246, 0.35);
+}
+
+.methodologyReview {
+border-color: rgba(42, 92, 246, 0.2);
+}
+
+.methodologyLegal {
+background: var(--navy);
+border-color: transparent;
+}
+
+.methodologyLegal h2 {
+color: #ffffff;
+}
+
+.methodologyLegal p {
+color: rgba(255, 255, 255, 0.52);
+}
+
+@media (max-width: 800px) {
+.methodologySection {
+padding: 72px 20px;
+}
+
+.methodologyBlock {
+padding: 28px;
+}
+
+.methodologyLinks {
+flex-direction: column;
+}
+
+.methodologyLinks a {
+width: 100%;
+justify-content: center;
+}
+}
+
+.comparisonMethodologyLink {
+display: block;
+width: fit-content;
+margin: 12px auto 0;
+font-size: 13px;
+font-weight: 700;
+color: var(--blue);
+}

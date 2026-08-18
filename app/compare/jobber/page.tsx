@@ -236,11 +236,18 @@ Start your free trial
 <div className="compareInner">
 <p>
 Last reviewed 18 August 2026. Jobber information is based on
-publicly available information from Jobber&apos;s website. Features
-and pricing may vary by subscription and can change. Jobber is a
-trademark of its respective owner and is not affiliated with or
-endorsed by FixFlow.
+publicly available information from Jobber&apos;s UK website.
+Features and pricing may vary by subscription and can change.
+Jobber is a trademark of its respective owner and is not affiliated
+with or endorsed by FixFlow.
 </p>
+
+<Link
+href="/compare/methodology"
+className="comparisonMethodologyLink"
+>
+See how we research and verify our comparisons →
+</Link>
 </div>
 </section>
 

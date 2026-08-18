@@ -228,20 +228,27 @@ tools to run a more organised trade business.
 <Link href="/signup" className="comparePrimaryButton">
 Start your free trial
 </Link>
-</div>
-</section>
-
-<section className="compareDisclaimer">
+</div><section className="compareDisclaimer">
 <div className="compareInner">
 <p>
-Last reviewed 18 August 2026. Powered Now information is based on
-publicly available information from Powered Now&apos;s website.
+Last reviewed 18 August 2026. Powered-now information is based on
+publicly available information from Powered-now&apos;s UK website.
 Features and pricing may vary by subscription and can change.
-Powered Now is a trademark of its respective owner and is not
-affiliated with or endorsed by FixFlow.
+Powered-now is a trademark of its respective owner and is not affiliated
+with or endorsed by FixFlow.
 </p>
+
+<Link
+href="/compare/methodology"
+className="comparisonMethodologyLink"
+>
+See how we research and verify our comparisons →
+</Link>
 </div>
 </section>
+</section>
+
+
 
 <HomeFooter />
 </main>

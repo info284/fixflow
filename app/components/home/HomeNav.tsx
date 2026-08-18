@@ -12,13 +12,13 @@ export default function HomeNav() {
         </Link>
 
         <div className="homeNavActions">
-          <Link className="homeNavLogin" href="/login">
+          <a className="homeNavLogin" href="/login">
             Log in
-          </Link>
+          </a>
 
-          <Link className="homeNavCta" href="/signup">
+          <a className="homeNavCta" href="/signup">
             Start free
-          </Link>
+          </a>
         </div>
 
       </div>

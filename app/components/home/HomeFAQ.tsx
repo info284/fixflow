@@ -3,7 +3,7 @@
 const faqs = [
  {
    q: "How much does FixFlow cost?",
-   a: "Every account includes a 60-day free trial. After that, FixFlow is £29/month with everything included — enquiries, customer messaging, estimates, jobs, invoices, card payments and reviews.",
+   a: "Every account includes a 30-day free trial. After that, FixFlow is £29/month with everything included — enquiries, customer messaging, estimates, jobs, invoices, card payments and reviews.",
  },
  {
    q: "How do enquiries get into FixFlow?",

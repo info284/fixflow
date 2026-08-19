@@ -23,7 +23,7 @@ export default function HomeCTA() {
         </div>
 
 <div className="homeCTANote">
-  60-day free trial · Less than the cost of one lost job · Cancel anytime
+  30-day free trial · Less than the cost of one lost job · Cancel anytime
 </div>
       </div>
     </section>

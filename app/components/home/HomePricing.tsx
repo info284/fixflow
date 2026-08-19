@@ -22,14 +22,14 @@ export default function HomePricing() {
       </h2>
 
       <p>
-        Start with a 60-day free trial. Then just £29/month.
+        Start with a 30-day free trial. Then just £29/month.
         No contracts. No complicated tiers. Everything included.
       </p>
     </div>
 
     <div className="homePricingCard">
       <div className="homePricingBadge">
-        60-day free trial
+        30-day free trial
       </div>
 
       <div className="homePricingPrice">

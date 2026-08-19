@@ -4,6 +4,7 @@ import { Instagram, Facebook } from "lucide-react";
 
 const links = [
 { label: "How it works", href: "#why" },
+{ label: "Free Tools", href: "/tools" },
 { label: "Pricing", href: "#pricing" },
 { label: "FAQ", href: "#faq" },
 { label: "Privacy", href: "/privacy" },

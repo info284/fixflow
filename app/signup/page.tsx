@@ -181,7 +181,7 @@ function SignupForm() {
              Create account
            </h1>
            <p className="mt-1 text-[14px] text-slate-600">
-             Set up your FixFlow workspace. 60 days free, then £29/month.
+             Set up your FixFlow workspace. 30 days free, then £29/month.
            </p>
 
            {errorMsg && (
@@ -258,7 +258,7 @@ function SignupForm() {
                  "disabled:cursor-not-allowed disabled:opacity-50 disabled:transform-none",
                ].join(" ")}
              >
-               {loading ? "Creating account…" : "Start 60-day free trial"}
+               {loading ? "Creating account…" : "Start 30-day free trial"}
              </button>
 
              <div className="mt-3 text-center text-[13.5px] text-slate-500">

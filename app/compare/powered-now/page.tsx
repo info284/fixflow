@@ -6,9 +6,9 @@ import HomeFooter from "@/app/components/home/HomeFooter";
 import "../../home.css";
 
 export const metadata = {
-title: "FixFlow vs Powered Now | Trade Management Software Comparison",
+title: "FixFlow vs Powered Now | UK Trade Software Comparison",
 description:
-"Compare FixFlow and Powered Now. See features, trial length and which trade management platform could be the better fit for your business.",
+"Compare FixFlow vs Powered Now for UK trade businesses. Compare free trial, enquiries, quotes, scheduling, invoicing, payments and back-office tools to see which platform fits your business.",
 };
 
 const rows = [
@@ -134,9 +134,6 @@ platform.
 <h2>Compare the essentials.</h2>
 </div>
 
-<div className="competitorSwipeHint">
-Swipe to compare FixFlow and Powered-now →
-</div>
 <div className="competitorTableWrap">
 <table className="competitorTable">
 <thead>
@@ -169,7 +166,6 @@ vary by plan or change over time.
 <div className="competitorExtraTools">
 <div>
 <span>Need more back-office tools?</span>
-
 <h3>Powered Now goes further in some areas.</h3>
 </div>
 
@@ -231,14 +227,17 @@ tools to run a more organised trade business.
 <Link href="/signup" className="comparePrimaryButton">
 Start your free trial
 </Link>
-</div><section className="compareDisclaimer">
+</div>
+</section>
+
+<section className="compareDisclaimer">
 <div className="compareInner">
 <p>
-Last reviewed 18 August 2026. Powered-now information is based on
-publicly available information from Powered-now&apos;s UK website.
+Last reviewed 18 August 2026. Powered Now information is based on
+publicly available information from Powered Now&apos;s website.
 Features and pricing may vary by subscription and can change.
-Powered-now is a trademark of its respective owner and is not affiliated
-with or endorsed by FixFlow.
+Powered Now is a trademark of its respective owner and is not
+affiliated with or endorsed by FixFlow.
 </p>
 
 <Link
@@ -249,9 +248,6 @@ See how we research and verify our comparisons →
 </Link>
 </div>
 </section>
-</section>
-
-
 
 <HomeFooter />
 </main>

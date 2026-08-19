@@ -6,10 +6,11 @@ import HomeFooter from "@/app/components/home/HomeFooter";
 import "../../home.css";
 
 export const metadata = {
-title: "FixFlow vs Jobber | Trade Management Software Comparison",
+title: "FixFlow vs Jobber | UK Trade Software Comparison",
 description:
-"Compare FixFlow and Jobber. See features, trial length and which job management platform could be the better fit for your trade business.",
+"Compare FixFlow vs Jobber for UK trade businesses. Compare free trial, enquiries, quotes, scheduling, invoicing, payments and field-service tools to see which platform fits your business.",
 };
+
 
 const rows = [
 {
@@ -135,9 +136,7 @@ or more complex field-service operations.
 <h2>Compare the essentials.</h2>
 </div>
 
-<div className="competitorSwipeHint">
-Swipe to compare FixFlow and Jobber →
-</div>
+
 <div className="competitorTableWrap">
 <table className="competitorTable">
 <thead>

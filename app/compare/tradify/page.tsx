@@ -6,9 +6,9 @@ import HomeFooter from "@/app/components/home/HomeFooter";
 import "../../home.css";
 
 export const metadata = {
-title: "FixFlow vs Tradify | Trade Management Software Comparison",
+title: "FixFlow vs Tradify | UK Trade Software Comparison",
 description:
-"Compare FixFlow and Tradify. See pricing, features and which trade management platform could be the better fit for your business.",
+"Compare FixFlow vs Tradify for UK trade businesses. Compare pricing, free trial, enquiries, quotes, scheduling, invoicing and payments to see which platform fits your business.",
 };
 
 const rows = [
@@ -137,9 +137,7 @@ detailed workforce and back-office management.
 <h2>Compare the essentials.</h2>
 </div>
 
-<div className="competitorSwipeHint">
-Swipe to compare FixFlow and Tradify →
-</div>
+
 <div className="competitorTableWrap">
 <table className="competitorTable">
 <thead>

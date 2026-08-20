@@ -7755,11 +7755,18 @@ Cancel
 ) : (
 <div
 className="ff-acceptedActions"
-style={{ marginTop: 14 }}
+style={{
+marginTop: 14,
+display: "grid",
+gridTemplateColumns: "1fr",
+gap: 10,
+width: "100%",
+}}
 >
 <button
 type="button"
 className="ff-btn ff-btnPrimary ff-btnSm"
+style={{ width: "100%" }}
 onClick={() => {
 const totalAmount = Number(
 detailedEstimate?.total || 0
@@ -7780,6 +7787,7 @@ Request deposit
 <button
 type="button"
 className="ff-btn ff-btnGhost ff-btnSm"
+style={{ width: "100%" }}
 onClick={moveToJobs}
 >
 Schedule without deposit

@@ -17,17 +17,23 @@ type Props = {
 type EstimateStatus = "draft" | "sent" | "accepted";
 
 type ExistingEstimate = {
-  id: string;
-  labour_amount: number | null;
-  materials_amount: number | null;
-  other_amount: number | null;
-  total_amount: number | null;
-  notes: string | null;
-  status: EstimateStatus;
-  first_viewed_at: string | null;
-  last_viewed_at: string | null;
-  view_count: number | null;
-  accepted_at: string | null;
+id: string;
+labour_amount: number | null;
+materials_amount: number | null;
+other_amount: number | null;
+total_amount: number | null;
+notes: string | null;
+status: EstimateStatus;
+first_viewed_at: string | null;
+last_viewed_at: string | null;
+view_count: number | null;
+accepted_at: string | null;
+
+deposit_required: boolean;
+deposit_amount: number | null;
+deposit_status: string | null;
+deposit_requested_at: string | null;
+deposit_paid_at: string | null;
 };
 
 type SmartSuggestion = {
@@ -133,10 +139,18 @@ export default function QuickEstimateCard({
   const [viewCount, setViewCount] = useState(0);
   const [firstViewedAt, setFirstViewedAt] = useState<string | null>(null);
   const [lastViewedAt, setLastViewedAt] = useState<string | null>(null);
-  const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
+const [acceptedAt, setAcceptedAt] = useState<string | null>(null);
 
-  const [draftSaved, setDraftSaved] = useState(false);
-  const [quickPriceSent, setQuickPriceSent] = useState(false);
+const [depositRequired, setDepositRequired] = useState(false);
+const [depositAmount, setDepositAmount] = useState<number | null>(null);
+const [depositStatus, setDepositStatus] = useState<string>("not_required");
+const [depositRequestedAt, setDepositRequestedAt] = useState<string | null>(null);
+const [depositPaidAt, setDepositPaidAt] = useState<string | null>(null);
+const [showDepositForm, setShowDepositForm] = useState(false);
+const [depositInput, setDepositInput] = useState("");
+const [requestingDeposit, setRequestingDeposit] = useState(false);
+const [draftSaved, setDraftSaved] = useState(false);
+const [quickPriceSent, setQuickPriceSent] = useState(false);
 
   const isAccepted = estimateStatus === "accepted";
 
@@ -222,13 +236,20 @@ export default function QuickEstimateCard({
       setFirstViewedAt(null);
       setLastViewedAt(null);
       setAcceptedAt(null);
+      setDepositRequired(false);
+setDepositAmount(null);
+setDepositStatus("not_required");
+setDepositRequestedAt(null);
+setDepositPaidAt(null);
+setShowDepositForm(false);
+setDepositInput("");
       setAveragePrice(null);
 
       const { data, error } = await supabase
         .from("quick_estimates")
-        .select(
-          "id, labour_amount, materials_amount, other_amount, total_amount, notes, status, first_viewed_at, last_viewed_at, view_count, accepted_at"
-        )
+.select(
+"id, labour_amount, materials_amount, other_amount, total_amount, notes, status, first_viewed_at, last_viewed_at, view_count, accepted_at, deposit_required, deposit_amount, deposit_status, deposit_requested_at, deposit_paid_at"
+)
         .eq("request_id", selectedQuote.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -279,6 +300,15 @@ export default function QuickEstimateCard({
       setFirstViewedAt(existing.first_viewed_at || null);
       setLastViewedAt(existing.last_viewed_at || null);
       setAcceptedAt(existing.accepted_at || null);
+      setDepositRequired(Boolean(existing.deposit_required));
+setDepositAmount(
+existing.deposit_amount !== null
+? Number(existing.deposit_amount)
+: null
+);
+setDepositStatus(existing.deposit_status || "not_required");
+setDepositRequestedAt(existing.deposit_requested_at || null);
+setDepositPaidAt(existing.deposit_paid_at || null);
     }
 
     loadExistingEstimate();
@@ -403,6 +433,79 @@ export default function QuickEstimateCard({
       setSaving(false);
     }
   }
+async function requestDeposit() {
+if (!estimateId) {
+setMsg("Estimate ID missing.");
+return;
+}
+
+const amount = Number(depositInput || 0);
+
+if (!amount || amount <= 0) {
+setMsg("Enter a valid deposit amount.");
+return;
+}
+
+if (amount >= total) {
+setMsg("Deposit must be less than the estimate total.");
+return;
+}
+
+setRequestingDeposit(true);
+setMsg(null);
+
+try {
+const {
+data: { session },
+error: sessionError,
+} = await supabase.auth.getSession();
+
+if (sessionError || !session?.access_token) {
+throw new Error("You must be logged in.");
+}
+
+const res = await fetch("/api/deposits/send-request", {
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${session.access_token}`,
+},
+body: JSON.stringify({
+estimateId,
+estimateType: "quick",
+depositAmount: amount,
+}),
+});
+
+const data = await res.json().catch(() => ({}));
+
+if (!res.ok || !data?.ok) {
+throw new Error(
+data?.error || "Could not send deposit request."
+);
+}
+
+setDepositRequired(true);
+setDepositAmount(amount);
+setDepositStatus("requested");
+setDepositRequestedAt(
+data.requestedAt || new Date().toISOString()
+);
+
+setShowDepositForm(false);
+setDepositInput("");
+
+setMsg(
+`Deposit request sent for £${amount.toFixed(2)}`
+);
+} catch (e: any) {
+setMsg(
+e?.message || "Could not send deposit request."
+);
+} finally {
+setRequestingDeposit(false);
+}
+}
 
   function niceActivityDate(iso?: string | null) {
     if (!iso) return "—";
@@ -450,25 +553,189 @@ export default function QuickEstimateCard({
             </div>
           </div>
 
-          <div className="ff-acceptedTotal">£{total.toFixed(2)}</div>
+<div className="ff-acceptedTotal">£{total.toFixed(2)}</div>
 
-          <div className="ff-acceptedActions">
-            <button
-              type="button"
-              className="ff-btn ff-btnPrimary ff-btnSm"
-              onClick={onScheduleJob}
-            >
-              Schedule job
-            </button>
+{msg ? <div className="ff-estimateMsg">{msg}</div> : null}
 
-            <button
-              type="button"
-              className="ff-btn ff-btnGhost ff-btnSm"
-              onClick={onCreateInvoice}
-            >
-              Create invoice
-            </button>
-          </div>
+{depositStatus === "paid" ? (
+<>
+<div className="ff-depositStatus ff-depositStatusPaid">
+<strong>Deposit paid ✓</strong>
+
+<span>
+{depositAmount !== null
+? `£${Number(depositAmount).toFixed(2)} received`
+: "Deposit received"}
+</span>
+</div>
+
+<div className="ff-acceptedActions">
+<button
+type="button"
+className="ff-btn ff-btnPrimary ff-btnSm"
+onClick={onScheduleJob}
+>
+Schedule job
+</button>
+
+<button
+type="button"
+className="ff-btn ff-btnGhost ff-btnSm"
+onClick={onCreateInvoice}
+>
+Create invoice
+</button>
+</div>
+</>
+) : depositStatus === "requested" ? (
+<>
+<div className="ff-depositStatus ff-depositStatusWaiting">
+<strong>Deposit requested</strong>
+
+<span>
+{depositAmount !== null
+? `Waiting for £${Number(depositAmount).toFixed(2)}`
+: "Waiting for customer payment"}
+</span>
+
+{depositRequestedAt ? (
+<small>
+Requested {niceActivityDate(depositRequestedAt)}
+</small>
+) : null}
+</div>
+
+<div className="ff-acceptedActions">
+<button
+type="button"
+className="ff-btn ff-btnGhost ff-btnSm"
+onClick={onScheduleJob}
+>
+Schedule without deposit
+</button>
+</div>
+</>
+) : (
+<>
+{showDepositForm ? (
+<div className="ff-depositRequest">
+<label htmlFor="quick-estimate-deposit">
+Deposit amount
+</label>
+
+<div className="ff-depositInputWrap">
+<span>£</span>
+
+<input
+id="quick-estimate-deposit"
+type="number"
+min="0"
+step="0.01"
+value={depositInput}
+onChange={(e) => setDepositInput(e.target.value)}
+placeholder="0.00"
+/>
+</div>
+
+<div className="ff-depositQuickAmounts">
+<button
+type="button"
+onClick={() =>
+setDepositInput((total * 0.1).toFixed(2))
+}
+>
+10%
+</button>
+
+<button
+type="button"
+onClick={() =>
+setDepositInput((total * 0.2).toFixed(2))
+}
+>
+20%
+</button>
+
+<button
+type="button"
+onClick={() =>
+setDepositInput((total * 0.25).toFixed(2))
+}
+>
+25%
+</button>
+
+<button
+type="button"
+onClick={() =>
+setDepositInput((total * 0.5).toFixed(2))
+}
+>
+50%
+</button>
+</div>
+
+<div className="ff-depositRequestActions">
+<button
+type="button"
+className="ff-btn ff-btnPrimary ff-btnSm"
+onClick={requestDeposit}
+disabled={requestingDeposit}
+>
+{requestingDeposit
+? "Sending deposit request..."
+: "Send deposit request"}
+</button>
+
+<button
+type="button"
+className="ff-btn ff-btnGhost ff-btnSm"
+onClick={() => {
+setShowDepositForm(false);
+setDepositInput("");
+}}
+disabled={requestingDeposit}
+>
+Cancel
+</button>
+</div>
+</div>
+) : (
+<div className="ff-acceptedActions">
+<button
+type="button"
+className="ff-btn ff-btnPrimary ff-btnSm"
+onClick={() => {
+setDepositInput(
+total > 0 ? (total * 0.2).toFixed(2) : ""
+);
+setShowDepositForm(true);
+}}
+>
+Request deposit
+</button>
+
+<button
+type="button"
+className="ff-btn ff-btnGhost ff-btnSm"
+onClick={onScheduleJob}
+>
+Schedule without deposit
+</button>
+</div>
+)}
+
+<div className="ff-acceptedActions ff-acceptedActionsSecondary">
+<button
+type="button"
+className="ff-btn ff-btnGhost ff-btnSm"
+onClick={onCreateInvoice}
+>
+Create invoice
+</button>
+</div>
+</>
+)}
         </div>
       ) : (
         <>

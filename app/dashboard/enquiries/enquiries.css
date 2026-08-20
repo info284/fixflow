@@ -7149,3 +7149,142 @@ font-weight: 800;
     font-size: 22px;
   }
 }
+
+/* ================================
+ACCEPTED ESTIMATE DEPOSIT FLOW
+================================ */
+
+.ff-depositStatus {
+margin-top: 18px;
+padding: 18px 20px;
+border-radius: 14px;
+border: 1px solid rgba(11, 22, 39, 0.08);
+display: grid;
+gap: 5px;
+}
+
+.ff-depositStatus strong {
+font-size: 15px;
+font-weight: 800;
+}
+
+.ff-depositStatus span {
+font-size: 14px;
+color: #627494;
+}
+
+.ff-depositStatus small {
+margin-top: 3px;
+font-size: 12px;
+color: #8a98ad;
+}
+
+.ff-depositStatusWaiting {
+background: #f7f9fc;
+}
+
+.ff-depositStatusPaid {
+background: rgba(34, 197, 94, 0.08);
+border-color: rgba(34, 197, 94, 0.2);
+}
+
+.ff-depositStatusPaid strong {
+color: #15803d;
+}
+
+.ff-depositRequest {
+margin-top: 18px;
+padding: 20px;
+border: 1px solid rgba(42, 92, 246, 0.18);
+border-radius: 16px;
+background: rgba(42, 92, 246, 0.035);
+}
+
+.ff-depositRequest label {
+display: block;
+margin-bottom: 9px;
+font-size: 14px;
+font-weight: 800;
+color: #0b1627;
+}
+
+.ff-depositInputWrap {
+position: relative;
+}
+
+.ff-depositInputWrap > span {
+position: absolute;
+left: 15px;
+top: 50%;
+transform: translateY(-50%);
+font-size: 15px;
+font-weight: 800;
+color: #627494;
+pointer-events: none;
+}
+
+.ff-depositInputWrap input {
+width: 100%;
+height: 48px;
+padding: 0 14px 0 34px;
+border: 1px solid #dbe3ef;
+border-radius: 12px;
+background: #ffffff;
+color: #0b1627;
+font: inherit;
+font-size: 15px;
+font-weight: 700;
+outline: none;
+}
+
+.ff-depositInputWrap input:focus {
+border-color: #2a5cf6;
+box-shadow: 0 0 0 3px rgba(42, 92, 246, 0.08);
+}
+
+.ff-depositQuickAmounts {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 8px;
+margin-top: 10px;
+}
+
+.ff-depositQuickAmounts button {
+height: 38px;
+border: 1px solid #dbe3ef;
+border-radius: 10px;
+background: #ffffff;
+color: #627494;
+font-size: 13px;
+font-weight: 800;
+cursor: pointer;
+}
+
+.ff-depositQuickAmounts button:hover {
+border-color: rgba(42, 92, 246, 0.35);
+color: #2a5cf6;
+}
+
+.ff-depositRequestActions {
+display: flex;
+gap: 10px;
+margin-top: 16px;
+}
+
+.ff-acceptedActionsSecondary {
+margin-top: 10px;
+}
+
+@media (max-width: 700px) {
+.ff-depositQuickAmounts {
+grid-template-columns: repeat(2, 1fr);
+}
+
+.ff-depositRequestActions {
+flex-direction: column;
+}
+
+.ff-depositRequestActions .ff-btn {
+width: 100%;
+}
+}

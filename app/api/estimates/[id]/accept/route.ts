@@ -63,8 +63,8 @@ async function acceptEstimate(id: string) {
     const { error: requestError } = await supabase
       .from("quote_requests")
 .update({
-  stage: "won",
-  status: "replied",
+stage: "estimate_sent",
+status: "open",
 })
       .eq("id", existing.request_id);
 

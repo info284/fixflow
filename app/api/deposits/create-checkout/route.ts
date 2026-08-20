@@ -39,9 +39,9 @@ const supabase = supabaseAdmin();
 const table =
 estimateType === "quick" ? "quick_estimates" : "estimates";
 
-const { data: estimate, error: estimateError } = await supabase
-.from(table)
-.select(`
+const estimateSelect =
+estimateType === "quick"
+? `
 id,
 request_id,
 plumber_id,
@@ -49,7 +49,20 @@ total_amount,
 deposit_required,
 deposit_amount,
 deposit_status
-`)
+`
+: `
+id,
+request_id,
+plumber_id,
+total,
+deposit_required,
+deposit_amount,
+deposit_status
+`;
+
+const { data: estimate, error: estimateError } = await supabase
+.from(table)
+.select(estimateSelect)
 .eq("id", estimateId)
 .maybeSingle();
 

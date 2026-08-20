@@ -128,26 +128,32 @@ export type TraderProfile = {
 };
 
 type DetailedEstimateRow = {
-  id: string;
-  request_id: string;
-  status: string | null;
-  subtotal: number | null;
-  vat: number | null;
-  total: number | null;
-  valid_until: string | null;
-  created_at: string;
-  labour?: number | null;
-  materials?: number | null;
-  callout?: number | null;
-  parts?: number | null;
-  other?: number | null;
-  customer_message?: string | null;
-  included_notes?: string | null;
-  excluded_notes?: string | null;
-  view_count?: number | null;
-  first_viewed_at?: string | null;
-  last_viewed_at?: string | null;
-  accepted_at?: string | null;
+id: string;
+request_id: string;
+status: string | null;
+subtotal: number | null;
+vat: number | null;
+total: number | null;
+valid_until: string | null;
+created_at: string;
+labour?: number | null;
+materials?: number | null;
+callout?: number | null;
+parts?: number | null;
+other?: number | null;
+customer_message?: string | null;
+included_notes?: string | null;
+excluded_notes?: string | null;
+view_count?: number | null;
+first_viewed_at?: string | null;
+last_viewed_at?: string | null;
+accepted_at?: string | null;
+
+deposit_required?: boolean | null;
+deposit_amount?: number | null;
+deposit_status?: string | null;
+deposit_requested_at?: string | null;
+deposit_paid_at?: string | null;
 };
 
 type DetailedEstimateItemRow = {
@@ -1174,6 +1180,26 @@ const [pricingHistory, setPricingHistory] = useState<any[]>([]);
   const [detailedEstimate, setDetailedEstimate] = useState<DetailedEstimateRow | null>(null);
   const [detailedEstimateItems, setDetailedEstimateItems] = useState<DetailedEstimateItemRow[]>([]);
   const [detailedEstimateLoading, setDetailedEstimateLoading] = useState(false);
+  const [detailedDepositAmount, setDetailedDepositAmount] =
+useState<number | null>(null);
+
+const [detailedDepositStatus, setDetailedDepositStatus] =
+useState<string>("not_required");
+
+const [detailedDepositRequestedAt, setDetailedDepositRequestedAt] =
+useState<string | null>(null);
+
+const [detailedDepositPaidAt, setDetailedDepositPaidAt] =
+useState<string | null>(null);
+
+const [showDetailedDepositForm, setShowDetailedDepositForm] =
+useState(false);
+
+const [detailedDepositInput, setDetailedDepositInput] =
+useState("");
+
+const [requestingDetailedDeposit, setRequestingDetailedDeposit] =
+useState(false);
   const [estimateMap, setEstimateMap] = useState<Record<string, QuickEstimateLite | null>>({});
 const [notesSaved, setNotesSaved] = useState(false);
 const [replySending, setReplySending] = useState(false);
@@ -3621,6 +3647,28 @@ const { data, error } = await supabase
     const estimate = (est as DetailedEstimateRow) || null;
     setDetailedEstimate(estimate);
 
+    setDetailedDepositAmount(
+estimate?.deposit_amount !== null &&
+estimate?.deposit_amount !== undefined
+? Number(estimate.deposit_amount)
+: null
+);
+
+setDetailedDepositStatus(
+estimate?.deposit_status || "not_required"
+);
+
+setDetailedDepositRequestedAt(
+estimate?.deposit_requested_at || null
+);
+
+setDetailedDepositPaidAt(
+estimate?.deposit_paid_at || null
+);
+
+setShowDetailedDepositForm(false);
+setDetailedDepositInput("");
+
     if (!estimate?.id) {
       setDetailedEstimateItems([]);
       setDetailedEstimateLoading(false);
@@ -4464,6 +4512,88 @@ async function sendEstimate() {
   } finally {
     setEstimateSending(false);
   }
+}
+
+async function requestDetailedDeposit() {
+if (!detailedEstimate?.id || !selectedRow) {
+pushToast("Detailed estimate not found", "error");
+return;
+}
+
+const amount = Number(detailedDepositInput || 0);
+const totalAmount = Number(detailedEstimate.total || 0);
+
+if (!amount || amount <= 0) {
+pushToast("Enter a valid deposit amount", "error");
+return;
+}
+
+if (amount >= totalAmount) {
+pushToast(
+"Deposit must be less than the estimate total",
+"error"
+);
+return;
+}
+
+setRequestingDetailedDeposit(true);
+
+try {
+const {
+data: { session },
+error: sessionError,
+} = await supabase.auth.getSession();
+
+if (sessionError || !session?.access_token) {
+throw new Error("You must be logged in.");
+}
+
+const res = await fetch("/api/deposits/send-request", {
+method: "POST",
+headers: {
+"Content-Type": "application/json",
+Authorization: `Bearer ${session.access_token}`,
+},
+body: JSON.stringify({
+estimateId: detailedEstimate.id,
+estimateType: "detailed",
+depositAmount: amount,
+}),
+});
+
+const data = await res.json().catch(() => ({}));
+
+if (!res.ok || !data?.ok) {
+throw new Error(
+data?.error || "Could not send deposit request."
+);
+}
+
+setDetailedDepositAmount(amount);
+setDetailedDepositStatus("requested");
+setDetailedDepositRequestedAt(
+data.requestedAt || new Date().toISOString()
+);
+
+setShowDetailedDepositForm(false);
+setDetailedDepositInput("");
+
+await loadDetailedEstimate(selectedRow.id);
+
+pushToast(
+`Deposit request sent for £${amount.toFixed(2)}`,
+"success"
+);
+} catch (err: any) {
+console.error("requestDetailedDeposit failed:", err);
+
+pushToast(
+err?.message || "Could not send deposit request",
+"error"
+);
+} finally {
+setRequestingDetailedDeposit(false);
+}
 }
 
 async function saveEstimateDraft() {
@@ -7457,6 +7587,207 @@ onCreateInvoice={() =>
 </button>
                 </div>
               </div>
+              {String(detailedEstimate?.status || "").toLowerCase() === "accepted" ? (
+<div style={{ marginTop: 18 }}>
+{detailedDepositStatus === "paid" ? (
+<>
+<div className="ff-depositStatus ff-depositStatusPaid">
+<strong>Deposit paid ✓</strong>
+
+<span>
+{detailedDepositAmount !== null
+? `${money(detailedDepositAmount)} received`
+: "Deposit received"}
+</span>
+
+{detailedDepositPaidAt ? (
+<small>
+Paid {niceDate(detailedDepositPaidAt)}
+</small>
+) : null}
+</div>
+
+<div
+className="ff-acceptedActions"
+style={{ marginTop: 14 }}
+>
+<button
+type="button"
+className="ff-btn ff-btnPrimary ff-btnSm"
+onClick={moveToJobs}
+>
+Schedule job
+</button>
+</div>
+</>
+) : detailedDepositStatus === "requested" ? (
+<>
+<div className="ff-depositStatus ff-depositStatusWaiting">
+<strong>Deposit requested</strong>
+
+<span>
+{detailedDepositAmount !== null
+? `Waiting for ${money(detailedDepositAmount)}`
+: "Waiting for customer payment"}
+</span>
+
+{detailedDepositRequestedAt ? (
+<small>
+Requested {niceDate(detailedDepositRequestedAt)}
+</small>
+) : null}
+</div>
+
+<div
+className="ff-acceptedActions"
+style={{ marginTop: 14 }}
+>
+<button
+type="button"
+className="ff-btn ff-btnGhost ff-btnSm"
+onClick={moveToJobs}
+>
+Schedule without deposit
+</button>
+</div>
+</>
+) : showDetailedDepositForm ? (
+<div className="ff-depositRequest">
+<label htmlFor="detailed-estimate-deposit">
+Deposit amount
+</label>
+
+<div className="ff-depositInputWrap">
+<span>£</span>
+
+<input
+id="detailed-estimate-deposit"
+type="number"
+min="0"
+step="0.01"
+value={detailedDepositInput}
+onChange={(e) =>
+setDetailedDepositInput(e.target.value)
+}
+placeholder="0.00"
+/>
+</div>
+
+<div className="ff-depositQuickAmounts">
+<button
+type="button"
+onClick={() =>
+setDetailedDepositInput(
+(
+Number(detailedEstimate?.total || 0) * 0.1
+).toFixed(2)
+)
+}
+>
+10%
+</button>
+
+<button
+type="button"
+onClick={() =>
+setDetailedDepositInput(
+(
+Number(detailedEstimate?.total || 0) * 0.2
+).toFixed(2)
+)
+}
+>
+20%
+</button>
+
+<button
+type="button"
+onClick={() =>
+setDetailedDepositInput(
+(
+Number(detailedEstimate?.total || 0) * 0.25
+).toFixed(2)
+)
+}
+>
+25%
+</button>
+
+<button
+type="button"
+onClick={() =>
+setDetailedDepositInput(
+(
+Number(detailedEstimate?.total || 0) * 0.5
+).toFixed(2)
+)
+}
+>
+50%
+</button>
+</div>
+
+<div className="ff-depositRequestActions">
+<button
+type="button"
+className="ff-btn ff-btnPrimary ff-btnSm"
+onClick={requestDetailedDeposit}
+disabled={requestingDetailedDeposit}
+>
+{requestingDetailedDeposit
+? "Sending deposit request..."
+: "Send deposit request"}
+</button>
+
+<button
+type="button"
+className="ff-btn ff-btnGhost ff-btnSm"
+onClick={() => {
+setShowDetailedDepositForm(false);
+setDetailedDepositInput("");
+}}
+disabled={requestingDetailedDeposit}
+>
+Cancel
+</button>
+</div>
+</div>
+) : (
+<div
+className="ff-acceptedActions"
+style={{ marginTop: 14 }}
+>
+<button
+type="button"
+className="ff-btn ff-btnPrimary ff-btnSm"
+onClick={() => {
+const totalAmount = Number(
+detailedEstimate?.total || 0
+);
+
+setDetailedDepositInput(
+totalAmount > 0
+? (totalAmount * 0.2).toFixed(2)
+: ""
+);
+
+setShowDetailedDepositForm(true);
+}}
+>
+Request deposit
+</button>
+
+<button
+type="button"
+className="ff-btn ff-btnGhost ff-btnSm"
+onClick={moveToJobs}
+>
+Schedule without deposit
+</button>
+</div>
+)}
+</div>
+) : null}
             </div>
           </div>
         </div>

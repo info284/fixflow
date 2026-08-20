@@ -1836,7 +1836,21 @@ async function moveToJobs() {
       return;
     }
   }
+const { error: requestUpdateError } = await supabase
+.from("quote_requests")
+.update({
+stage: "won",
+status: "booked",
+job_booked_at: nowIso,
+})
+.eq("id", selectedRow.id)
+.eq("plumber_id", selectedRow.plumber_id);
 
+if (requestUpdateError) {
+console.error("Quote request job update failed:", requestUpdateError);
+pushToast("Couldn’t move enquiry to jobs", "error");
+return;
+}
 
   setRows((prev) =>
     prev.map((r) =>

@@ -35,6 +35,8 @@ type InvoiceRow = {
   request_id: string;
   invoice_number: string | null;
   amount: number;
+  amount_before_deposit: number | null;
+deposit_paid_amount: number | null;
   currency: string;
   status: string;
   issued_at: string | null;
@@ -181,6 +183,15 @@ export default function InvoicesPage() {
   const [requests, setRequests] = useState<RequestRow[]>([]);
  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [estimateMap, setEstimateMap] = useState<Record<string, EstimateRow | null>>({});
+  const [depositMap, setDepositMap] = useState<
+Record<
+string,
+{
+amount: number;
+source: "quick" | "detailed";
+} | null
+>
+>({});
 const [extras, setExtras] = useState("0");
 const [detailExtras, setDetailExtras] = useState("0");
 
@@ -385,7 +396,7 @@ function pushToast(text: string, type: "success" | "error" = "success") {
     const { data: invs, error: invErr } = await supabase
       .from("invoices")
       .select(
-        "id, user_id, request_id, invoice_number, amount, currency, status, issued_at, due_at, notes, created_at, updated_at, to_email, vat_rate, subtotal"
+       "id, user_id, request_id, invoice_number, amount, amount_before_deposit, deposit_paid_amount, currency, status, issued_at, due_at, notes, created_at, updated_at, to_email, vat_rate, subtotal"
       )
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
@@ -444,7 +455,50 @@ for (const quote of quotes || []) {
 }
 
 setEstimateMap(map);
-    setLoading(false);
+
+const depositLookup: Record<
+string,
+{
+amount: number;
+source: "quick" | "detailed";
+} | null
+> = {};
+
+const { data: detailedDeposits } = await supabase
+.from("estimates")
+.select("request_id, deposit_amount, deposit_status")
+.eq("plumber_id", user.id)
+.eq("deposit_status", "paid");
+
+for (const row of detailedDeposits || []) {
+if (!row.request_id) continue;
+
+depositLookup[row.request_id] = {
+amount: Number(row.deposit_amount || 0),
+source: "detailed",
+};
+}
+
+const { data: quickDeposits } = await supabase
+.from("quick_estimates")
+.select("request_id, deposit_amount, deposit_status")
+.eq("plumber_id", user.id)
+.eq("deposit_status", "paid");
+
+for (const row of quickDeposits || []) {
+if (!row.request_id) continue;
+
+if (!depositLookup[row.request_id]) {
+depositLookup[row.request_id] = {
+amount: Number(row.deposit_amount || 0),
+source: "quick",
+};
+}
+}
+
+setDepositMap(depositLookup);
+
+setLoading(false);
   }
 
   useEffect(() => {
@@ -511,7 +565,15 @@ setBusy(true);
 
 const vatRateNum = vatRegistered ? Number(vatRate) : 0;
 const vatAmount = subtotalNum * (vatRateNum / 100);
-const totalNum = subtotalNum + vatAmount;
+const totalBeforeDeposit = subtotalNum + vatAmount;
+
+const paidDeposit =
+depositMap[requestId]?.amount || 0;
+
+const totalNum = Math.max(
+totalBeforeDeposit - paidDeposit,
+0
+);
 
 const payload = {
   user_id: userId,
@@ -519,7 +581,9 @@ const payload = {
   to_email: toEmail.trim().toLowerCase(),
   subtotal: subtotalNum,
   vat_rate: vatRateNum,
-  amount: totalNum,
+ amount_before_deposit: totalBeforeDeposit,
+deposit_paid_amount: paidDeposit,
+amount: totalNum,
   currency: "GBP",
   due_at: dueAt || null,
   status: status || "draft",
@@ -530,7 +594,7 @@ const { data, error } = await supabase
   .from("invoices")
   .insert(payload)
   .select(
-    "id, user_id, request_id, invoice_number, amount, currency, status, issued_at, due_at, notes, created_at, updated_at, to_email, vat_rate, subtotal"
+   "id, user_id, request_id, invoice_number, amount, amount_before_deposit, deposit_paid_amount, currency, status, issued_at, due_at, notes, created_at, updated_at, to_email, vat_rate, subtotal"
   )
   .single();
     if (error) {
@@ -573,9 +637,17 @@ async function saveInvoice() {
     return pushToast("Subtotal must be a number.", "error");
   }
 
-  const vatRateNum = detailVatRegistered ? Number(detailVatRate) : 0;
-  const vatAmount = subtotalNum * (vatRateNum / 100);
-  const totalNum = subtotalNum + vatAmount;
+ const vatRateNum = detailVatRegistered ? Number(detailVatRate) : 0;
+const vatAmount = subtotalNum * (vatRateNum / 100);
+const totalBeforeDeposit = subtotalNum + vatAmount;
+
+const paidDeposit =
+Number(selectedInvoice.deposit_paid_amount || 0);
+
+const totalNum = Math.max(
+totalBeforeDeposit - paidDeposit,
+0
+);
 
   setBusy(true);
   setToast(null);
@@ -587,7 +659,9 @@ async function saveInvoice() {
   invoice_number: detailInvoiceNumber.trim() || null,
   subtotal: subtotalNum,
   vat_rate: vatRateNum,
-  amount: totalNum,
+ amount_before_deposit: totalBeforeDeposit,
+deposit_paid_amount: paidDeposit,
+amount: totalNum,
   due_at: detailDueAt || null,
   status: detailStatus,
   notes: detailNotes.trim() || null,
@@ -595,7 +669,7 @@ async function saveInvoice() {
     .eq("id", selectedInvoice.id)
     .eq("user_id", userId)
     .select(
-      "id, user_id, request_id, invoice_number, amount, currency, status, issued_at, due_at, notes, created_at, updated_at, to_email, vat_rate, subtotal"
+"id, user_id, request_id, invoice_number, amount, amount_before_deposit, deposit_paid_amount, currency, status, issued_at, due_at, notes, created_at, updated_at, to_email, vat_rate, subtotal"
     )
     .maybeSingle();
 
@@ -626,7 +700,7 @@ async function saveInvoice() {
       .eq("id", invoiceId)
       .eq("user_id", userId)
       .select(
-        "id, user_id, request_id, invoice_number, amount, currency, status, issued_at, due_at, notes, created_at, updated_at, to_email, vat_rate, subtotal"
+       "id, user_id, request_id, invoice_number, amount, amount_before_deposit, deposit_paid_amount, currency, status, issued_at, due_at, notes, created_at, updated_at, to_email, vat_rate, subtotal"
       )
       .maybeSingle();
 
@@ -1044,15 +1118,24 @@ return (
                   </div>
                 </div>
 
-                {(() => {
-                 const base = Number(amount || 0) || 0;
+{(() => {
+const base = Number(amount || 0) || 0;
 const extra = Number(extras || 0) || 0;
 
 const s = base + extra;
 
 const vr = vatRegistered ? Number(vatRate) : 0;
 const vatAmount = s * (vr / 100);
-const total = s + vatAmount;
+
+const totalBeforeDeposit = s + vatAmount;
+
+const paidDeposit =
+requestId ? depositMap[requestId]?.amount || 0 : 0;
+
+const balanceDue = Math.max(
+totalBeforeDeposit - paidDeposit,
+0
+);
 
                   return (
                     <div className="ff-field ff-fieldFull">
@@ -1079,7 +1162,7 @@ const total = s + vatAmount;
                               color: "#1F355C",
                             }}
                           >
-                            £{total.toFixed(2)}
+                           £{totalBeforeDeposit.toFixed(2)}
                           </div>
                         </div>
                       </div>
@@ -1490,11 +1573,20 @@ const total = s + vatAmount;
                           </div>
                         </div>
 
-                        {(() => {
-                          const s = Number(detailSubtotal || 0) || 0;
-                          const vr = detailVatRegistered ? Number(detailVatRate) : 0;
-                          const vatAmount = s * (vr / 100);
-                          const total = s + vatAmount;
+         {(() => {
+const s = Number(detailSubtotal || 0) || 0;
+const vr = detailVatRegistered ? Number(detailVatRate) : 0;
+const vatAmount = s * (vr / 100);
+
+const totalBeforeDeposit = s + vatAmount;
+
+const paidDeposit =
+Number(selectedInvoice?.deposit_paid_amount || 0);
+
+const balanceDue = Math.max(
+totalBeforeDeposit - paidDeposit,
+0
+);
 
                           return (
                             <>
@@ -1505,19 +1597,45 @@ const total = s + vatAmount;
                                 </div>
                               ) : null}
 
-                              <div className="ff-detailRow">
-                                <div className="ff-detailLabel">Total</div>
-                                <div
-                                  className="ff-detailValue"
-                                  style={{
-                                    fontSize: 18,
-                                    fontWeight: 950,
-                                    color: "#1F355C",
-                                  }}
-                                >
-                                  £{total.toFixed(2)}
-                                </div>
-                              </div>
+
+
+
+
+<div className="ff-detailRow">
+<div className="ff-detailLabel">Job total</div>
+<div className="ff-detailValue">
+£{totalBeforeDeposit.toFixed(2)}
+</div>
+</div>
+
+{paidDeposit > 0 ? (
+<div className="ff-detailRow">
+<div className="ff-detailLabel">Deposit paid</div>
+<div
+className="ff-detailValue"
+style={{ color: "#15803d", fontWeight: 900 }}
+>
+-£{paidDeposit.toFixed(2)}
+</div>
+</div>
+) : null}
+
+<div className="ff-detailRow">
+<div className="ff-detailLabel">
+{paidDeposit > 0 ? "Balance due" : "Total"}
+</div>
+
+<div
+className="ff-detailValue"
+style={{
+fontSize: 18,
+fontWeight: 950,
+color: "#1F355C",
+}}
+>
+£{balanceDue.toFixed(2)}
+</div>
+</div>
                             </>
                           );
                         })()}

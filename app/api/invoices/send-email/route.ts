@@ -121,6 +121,8 @@ export async function POST(req: Request) {
         request_id,
         invoice_number,
         amount,
+        amount_before_deposit,
+deposit_paid_amount,
         currency,
         status,
         notes,
@@ -218,7 +220,16 @@ brand_colour
     const vatRate = inv.vat_rate != null ? Number(inv.vat_rate) : 0;
     const vatAmount =
       vatRate > 0 ? Number((subtotalAmount * (vatRate / 100)).toFixed(2)) : 0;
-    const totalAmount = Number(inv.amount ?? 0);
+   const jobTotal = Number(
+inv.amount_before_deposit ??
+subtotalAmount + vatAmount
+);
+
+const depositPaid = Number(
+inv.deposit_paid_amount || 0
+);
+
+const balanceDue = Number(inv.amount ?? jobTotal);
 
     const invoiceForPdf = {
       id: inv.id,
@@ -233,7 +244,9 @@ brand_colour
 
       subtotal: subtotalAmount,
       vat_rate: vatRate,
-      amount: totalAmount,
+      amount: balanceDue,
+amount_before_deposit: jobTotal,
+deposit_paid_amount: depositPaid,
 
       trader_ref: inv.invoice_number || refDefault,
       job_number: linkedRequest?.job_number || "",
@@ -355,15 +368,41 @@ const safeCustomerName = escapeEmailHtml(firstName);
       </td>
     </tr>
 
-    <tr>
-      <td style="padding:16px 0 4px; color:#0B1320; font-size:18px; font-weight:800;">
-        Total due
-      </td>
+<tr>
+<td style="padding:10px 0; border-bottom:1px solid #E6ECF5; color:#5C6B84; font-size:14px;">
+Job total
+</td>
 
-      <td align="right" style="padding:16px 0 4px; color:#0B1320; font-size:22px; font-weight:900; white-space:nowrap;">
-        ${escapeEmailHtml(formatMoney(totalAmount, currency))}
-      </td>
-    </tr>
+<td align="right" style="padding:10px 0; border-bottom:1px solid #E6ECF5; font-weight:700; font-size:14px; color:#0B1320; white-space:nowrap;">
+${escapeEmailHtml(formatMoney(jobTotal, currency))}
+</td>
+</tr>
+
+${
+depositPaid > 0
+? `
+<tr>
+<td style="padding:10px 0; border-bottom:1px solid #E6ECF5; color:#15803D; font-size:14px;">
+Deposit paid
+</td>
+
+<td align="right" style="padding:10px 0; border-bottom:1px solid #E6ECF5; font-weight:700; font-size:14px; color:#15803D; white-space:nowrap;">
+-${escapeEmailHtml(formatMoney(depositPaid, currency))}
+</td>
+</tr>
+`
+: ""
+}
+
+<tr>
+<td style="padding:16px 0 4px; color:#0B1320; font-size:18px; font-weight:800;">
+${depositPaid > 0 ? "Balance due" : "Total due"}
+</td>
+
+<td align="right" style="padding:16px 0 4px; color:#0B1320; font-size:22px; font-weight:900; white-space:nowrap;">
+${escapeEmailHtml(formatMoney(balanceDue, currency))}
+</td>
+</tr>
   </table>
 </div>
 
@@ -431,7 +470,8 @@ Your invoice from ${traderName} is ready.
 Invoice number: ${invoiceNumber}
 Subtotal: ${formatMoney(subtotalAmount, currency)}
 VAT${vatRate > 0 ? ` (${vatRate}%)` : ""}: ${formatMoney(vatAmount, currency)}
-Total due: ${formatMoney(totalAmount, currency)}
+Job total: ${formatMoney(jobTotal, currency)}
+${depositPaid > 0 ? `Deposit paid: -${formatMoney(depositPaid, currency)}\n` : ""}${depositPaid > 0 ? "Balance due" : "Total due"}: ${formatMoney(balanceDue, currency)}
 Due date: ${dueDateText}
 
 Pay invoice:

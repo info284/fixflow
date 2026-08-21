@@ -128,10 +128,21 @@ const dueDateText = dueDate || "Payment due on receipt";
     safeText(invoice.notes) ||
     jobType;
 
-  const subtotal = Number(invoice.subtotal ?? invoice.amount ?? 0) || 0;
-  const vatRate = Number(invoice.vat_rate ?? 0) || 0;
-  const vat = Number(invoice.vat ?? subtotal * (vatRate / 100)) || 0;
-  const total = Number(invoice.total ?? invoice.amount ?? subtotal + vat) || 0;
+const subtotal = Number(invoice.subtotal ?? 0) || 0;
+const vatRate = Number(invoice.vat_rate ?? 0) || 0;
+const vat = Number(invoice.vat ?? subtotal * (vatRate / 100)) || 0;
+
+const depositPaid =
+Number(invoice.deposit_paid_amount || 0);
+
+const jobTotal =
+Number(
+invoice.amount_before_deposit ??
+subtotal + vat
+) || 0;
+
+const balanceDue =
+Number(invoice.amount ?? jobTotal) || 0;
 
   const breakdown = [
     {
@@ -441,7 +452,8 @@ doc
 .fillColor(WHITE)
 .font("Helvetica-Bold")
 .fontSize(34)
-.text(money(total), M + 20, y + 30, {
+.text(money(balanceDue), M + 20, y + 30, {
+
 width: 260,
 lineBreak: false,
 });
@@ -613,28 +625,76 @@ lineBreak: false,
     y += 24;
   }
 
-  hRule(y - 6, BORDER);
+if (depositPaid > 0) {
+hRule(y - 6, BORDER);
 
-  doc
-    .fillColor(INK)
-    .font("Helvetica-Bold")
-    .fontSize(11)
-    .text("Total", totX, y, {
-      width: labW,
-      lineBreak: false,
-    });
+doc
+.fillColor(INK)
+.font("Helvetica-Bold")
+.fontSize(10)
+.text("Job total", totX, y, {
+width: labW,
+lineBreak: false,
+});
 
-  doc
-    .fillColor(NAVY)
-    .font("Helvetica-Bold")
-    .fontSize(20)
-    .text(money(total), totX, y - 4, {
-      width: totW,
-      align: "right",
-      lineBreak: false,
-    });
+doc
+.fillColor(NAVY_MID)
+.font("Helvetica-Bold")
+.fontSize(11)
+.text(money(jobTotal), valX, y, {
+width: valW,
+align: "right",
+lineBreak: false,
+});
 
-  y += 36;
+y += 22;
+
+hRule(y - 5, BORDER, 0.5);
+
+doc
+.fillColor("#15803D")
+.font("Helvetica-Bold")
+.fontSize(9)
+.text("Deposit paid", totX, y, {
+width: labW,
+lineBreak: false,
+});
+
+doc
+.fillColor("#15803D")
+.font("Helvetica-Bold")
+.fontSize(10)
+.text(`-${money(depositPaid)}`, valX, y, {
+width: valW,
+align: "right",
+lineBreak: false,
+});
+
+y += 24;
+}
+
+hRule(y - 6, BORDER);
+
+doc
+.fillColor(INK)
+.font("Helvetica-Bold")
+.fontSize(11)
+.text(depositPaid > 0 ? "Balance due" : "Total", totX, y, {
+width: labW,
+lineBreak: false,
+});
+
+doc
+.fillColor(NAVY)
+.font("Helvetica-Bold")
+.fontSize(20)
+.text(money(balanceDue), totX, y - 4, {
+width: totW,
+align: "right",
+lineBreak: false,
+});
+
+y += 36;
 
   if (invoice.status !== "paid" && y < PAGE_H - 110) {
     rBox(M, y, W, 66, 14, BRAND, BRAND, 0);

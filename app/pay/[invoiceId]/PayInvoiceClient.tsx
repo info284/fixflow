@@ -13,6 +13,8 @@ logo_url: string | null;
 type Invoice = {
 id: string;
 amount: number;
+amount_before_deposit: number | null;
+deposit_paid_amount: number | null;
 currency: string | null;
 invoice_number: string | null;
 to_email: string | null;
@@ -35,6 +37,14 @@ invoice: Invoice;
 const [loading, setLoading] = useState(false);
 
 const amount = Number(invoice.amount || 0);
+
+const jobTotal = Number(
+invoice.amount_before_deposit ?? invoice.amount ?? 0
+);
+
+const depositPaid = Number(
+invoice.deposit_paid_amount || 0
+);
 const currency = invoice.currency || "GBP";
 const invoiceRef =
 invoice.invoice_number || invoice.id.slice(0, 8);
@@ -217,6 +227,58 @@ style={{
 padding: 22,
 }}
 >
+{depositPaid > 0 ? (
+<>
+<div
+style={{
+display: "grid",
+gap: 12,
+marginBottom: 18,
+}}
+>
+<div
+style={{
+display: "flex",
+justifyContent: "space-between",
+gap: 16,
+fontSize: 14,
+color: "#5F708A",
+}}
+>
+<span>Job total</span>
+<strong style={{ color: "#1F355C" }}>
+{formatMoney(jobTotal, currency)}
+</strong>
+</div>
+
+<div
+style={{
+display: "flex",
+justifyContent: "space-between",
+gap: 16,
+fontSize: 14,
+color: "#15803D",
+}}
+>
+<span>Deposit paid</span>
+<strong>
+-{formatMoney(depositPaid, currency)}
+</strong>
+</div>
+</div>
+
+<div
+style={{
+fontSize: 13,
+color: "#5F708A",
+marginBottom: 10,
+fontWeight: 800,
+}}
+>
+Balance due
+</div>
+</>
+) : (
 <div
 style={{
 fontSize: 13,
@@ -227,6 +289,7 @@ fontWeight: 800,
 >
 Total due
 </div>
+)}
 
 <div
 style={{

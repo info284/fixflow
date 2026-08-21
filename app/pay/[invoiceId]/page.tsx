@@ -21,7 +21,17 @@ export default async function PayPage({
 
   const { data: inv, error } = await supabase
     .from("invoices")
-    .select("id, user_id, amount, currency, invoice_number, to_email, status")
+    .select(`
+id,
+user_id,
+amount,
+amount_before_deposit,
+deposit_paid_amount,
+currency,
+invoice_number,
+to_email,
+status
+`)
     .eq("id", invoiceId)
     .maybeSingle();
 

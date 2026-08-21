@@ -130,17 +130,29 @@ estimateType === "quick"
 
 /* ---------------- estimate ---------------- */
 
-const { data: estimate, error: estimateError } =
-await admin
-.from(table)
-.select(`
+const estimateSelect =
+estimateType === "quick"
+? `
 id,
 request_id,
 plumber_id,
 total_amount,
 status,
 deposit_status
-`)
+`
+: `
+id,
+request_id,
+plumber_id,
+total,
+status,
+deposit_status
+`;
+
+const { data: estimate, error: estimateError } =
+await admin
+.from(table)
+.select(estimateSelect)
 .eq("id", estimateId)
 .eq("plumber_id", uid)
 .maybeSingle();
@@ -171,9 +183,10 @@ error: "A deposit can only be requested after the estimate is accepted",
 );
 }
 
-const totalAmount = Number(
-estimate.total_amount || 0
-);
+const totalAmount =
+estimateType === "quick"
+? Number((estimate as any).total_amount || 0)
+: Number((estimate as any).total || 0);
 
 if (depositAmount >= totalAmount) {
 return NextResponse.json(

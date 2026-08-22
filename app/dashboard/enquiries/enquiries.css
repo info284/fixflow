@@ -6034,11 +6034,30 @@ body {
   overflow: visible;
 }
 .ff-acceptedActions {
-  position: relative;
-  z-index: 20;
-  display: flex;
-  gap: 10px;
-  pointer-events: auto;
+display: flex;
+gap: 10px;
+flex-wrap: wrap;
+width: 100%;
+}
+
+.ff-acceptedActions .ff-btn {
+min-width: 0;
+max-width: 100%;
+}
+@media (max-width: 720px) {
+.ff-acceptedActions {
+display: grid;
+grid-template-columns: 1fr;
+gap: 10px;
+width: 100%;
+}
+
+.ff-acceptedActions .ff-btn {
+width: 100%;
+max-width: 100%;
+white-space: normal;
+text-align: center;
+}
 }
 
 .ff-acceptedActions button {
